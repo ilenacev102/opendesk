@@ -62,6 +62,11 @@ def new_doc(title):
     return doc
 
 
+LOGO_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "assets", "logo-neutral.png"
+)
+
+
 def add_title(doc, title, subtitle="IT ServiceDesk"):
     head = doc.add_table(rows=1, cols=2)
     head.alignment = WD_TABLE_ALIGNMENT.CENTER
@@ -79,13 +84,10 @@ def add_title(doc, title, subtitle="IT ServiceDesk"):
     s.font.color.rgb = GRAY
     frame = right.paragraphs[0]
     frame.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r = frame.add_run("ЛОГО")
-    r.bold = True
-    r.font.size = Pt(14)
-    r.font.color.rgb = GRAY
+    frame.add_run().add_picture(LOGO_PATH, width=Cm(4.2))
     note = right.add_paragraph()
     note.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    n = note.add_run("(сопствено лого)")
+    n = note.add_run("(сопствено лого по желба)")
     n.font.size = Pt(8)
     n.font.color.rgb = GRAY
     _shade(right, "F2F2F2")
