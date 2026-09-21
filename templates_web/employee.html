@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb mb-3">
+<li class="breadcrumb-item"><a href="/employees">Вработени</a></li>
+<li class="breadcrumb-item active" aria-current="page">{{ emp.EmployeeID }}</li>
+</ol></nav>
+<h2>{{ emp.FirstName }} {{ emp.LastName }} ({{ emp.EmployeeID }})</h2>
+<table class="table">
+<tr><th>Email</th><td>{{ emp.Email }}</td></tr>
+<tr><th>Оддел</th><td>{{ emp.Department }}</td></tr>
+<tr><th>Организација</th><td>{{ emp.Organization }}</td></tr>
+<tr><th>Локација</th><td>{{ emp.Location }}</td></tr>
+<tr><th>Активен</th><td>{{ emp.Active }}</td></tr>
+</table>
+<h4>Тековни уреди
+<a class="btn btn-sm btn-primary ms-2" href="/assign?emp={{ emp.EmployeeID }}">+ Дај уред</a></h4>
+{% if devices %}
+<table class="table table-striped">
+<tr><th>Asset</th><th>Тип</th><th>Модел</th><th>Сериски</th><th>Статус</th></tr>
+{% for d in devices %}
+<tr><td><a href="/device/{{ d.AssetID }}">{{ d.AssetID }}</a></td>
+<td>{{ d.Type }}</td><td>{{ d.Manufacturer }} {{ d.Model }}</td>
+<td>{{ d.SerialNumber }}</td><td>{{ d.Status }}</td>
+<td><a class="btn btn-sm btn-outline-secondary" href="/return?asset={{ d.AssetID }}">Раздолжи</a>
+<a class="btn btn-sm btn-outline-warning" href="/replace?old={{ d.AssetID }}&emp={{ emp.EmployeeID }}">Замени</a></td></tr>
+{% endfor %}
+</table>
+{% else %}
+<div class="empty-state"><svg class="ic" aria-hidden="true"><use href="#i-monitor"/></svg>Нема задолжени уреди.</div>
+{% endif %}
+<h4 class="mt-4">Целосна историја ({{ hist|length }})</h4>
+{% if hist %}
+<table class="table table-striped">
+<tr><th>Датум</th><th>Акција</th><th>Уред</th><th>Стара</th><th>Нова</th><th>Причина</th><th>Документ</th></tr>
+{% for h in hist %}
+<tr><td>{{ h.DateTime }}</td><td><b>{{ h.Action }}</b></td>
+<td><a href="/device/{{ h.AssetID }}">{{ h.AssetID }}</a></td>
+<td>{{ h.OldStatus }}</td><td>{{ h.NewStatus }}</td><td>{{ h.Reason }}</td>
+<td>{% if h.Action == "ASSIGN" %}<a class="btn btn-sm btn-outline-secondary" href="/return?asset={{ h.AssetID }}">Раздолжи</a> {% endif %}{% if h.DocumentPath %}<a class="btn btn-sm btn-outline-primary" href="/doc/{{ h.DocumentPath }}" download>Симни</a>{% endif %}</td></tr>
+{% endfor %}
+</table>
+{% else %}
+<div class="empty-state"><svg class="ic" aria-hidden="true"><use href="#i-clip"/></svg>Нема операции.</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="workspace-head operation-head">
+<div><div class="eyebrow">ОПЕРАЦИЈА · ИСКЛУЧУВАЊЕ</div><h1>Расходување</h1><p>Потврди излез од евиденција за еден или повеќе уреди.</p></div>
+<a class="btn btn-outline-secondary" href="/devices"><svg class="ic" aria-hidden="true"><use href="#i-monitor"/></svg>Уреди</a>
+</header>
+<div class="card sd-card"><div class="card-body">
+<div class="mb-3"><label><b>1. Инвентарен број</b> (или сериски ако нема)</label>
+<input class="form-control form-control-lg" id="inv" placeholder="нпр. LAP007" autofocus>
+<div id="invHint" class="form-text"></div></div>
+<div id="devCard" style="display:none;" class="alert alert-info">
+<b id="dcTitle"></b><br><span id="dcSub"></span><br>
+Носител: <b id="dcHolder"></b> | Статус: <b id="dcStatus"></b>
+</div>
+<div id="multiBox">
+<div class="mb-2"><label><b>Или повеќе уреди</b> (пишувај + Enter)</label>
+<input class="form-control" id="devPick" placeholder="Додај уште...">
+<div id="devPick-list" class="list-group position-relative"></div>
+</div>
+</div>
+</div></div>
+<form method="post" id="disForm" style="display:none;">
+<input type="hidden" id="assetHidden" name="asset_id" value="">
+<div class="mb-3"><label><b>2. Причина</b></label>
+<select class="form-control" name="reason">
+<option>Not repairable</option><option>End of life</option>
+<option>Physical damage</option><option>Obsolete</option>
+<option>Lost</option><option>Other</option>
+</select></div>
+<div class="mb-3"><label><b>3. Начин</b></label><input class="form-control" name="method"></div>
+<div class="mb-3"><label><b>4. Опис</b></label><input class="form-control" name="notes"></div>
+<button class="btn btn-danger btn-lg" type="submit">Потврди расход</button>
+<a class="btn btn-secondary" href="/">Откажи</a>
+</form>
+<script src="/static/js/picker.js"></script>
+<script nonce="{{ csp_nonce }}">
+const DEVS = {{ devices|tojson }};
+const EMPS = {{ employees|tojson }};
+function empName(id) {
+  const e = EMPS.find(x => x.EmployeeID === id);
+  return e ? e.FirstName + " " + e.LastName : id;
+}
+function lookup(v) {
+  v = (v || "").trim();
+  if (!v) return null;
+  return DEVS.find(x => x.AssetID === v) || DEVS.find(x => x.SerialNumber === v) || null;
+}
+const picker = new DevicePicker("devPick", "devPick-list", "asset_ids", DEVS, document.getElementById("disForm"));
+function resolve() {
+  const d = lookup(document.getElementById("inv").value);
+  const card = document.getElementById("devCard");
+  const form = document.getElementById("disForm");
+  if (!d) {
+    card.style.display = "none";
+    form.style.display = picker.picked.size ? "block" : "none";
+    document.getElementById("assetHidden").value = "";
+    document.getElementById("invHint").textContent =
+      document.getElementById("inv").value.trim() ? "Внимание: нема уред со тој број." : "";
+    return;
+  }
+  document.getElementById("invHint").textContent = "";
+  document.getElementById("dcTitle").textContent = d.AssetID + " – " + d.Manufacturer + " " + d.Model;
+  document.getElementById("dcSub").textContent = "SN: " + d.SerialNumber + " | " + d.Type;
+  document.getElementById("dcHolder").textContent = d.EmployeeID ? empName(d.EmployeeID) : "—";
+  document.getElementById("dcStatus").textContent = d.Status;
+  document.getElementById("assetHidden").value = d.AssetID;
+  card.style.display = "block";
+  form.style.display = "block";
+}
+let invTimer = null;
+document.getElementById("inv").addEventListener("input", () => {
+  clearTimeout(invTimer);
+  invTimer = setTimeout(resolve, 250);
+});
+const _origRender = picker.render.bind(picker);
+picker.render = function () {
+  _origRender();
+  const form = document.getElementById("disForm");
+  const single = document.getElementById("assetHidden").value;
+  if (this.picked.size && single) {
+    document.getElementById("inv").value = "";
+    document.getElementById("devCard").style.display = "none";
+    document.getElementById("assetHidden").value = "";
+  }
+  if (this.picked.size || single) form.style.display = "block";
+  else form.style.display = "none";
+};
+</script>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb mb-3">
+<li class="breadcrumb-item"><a href="/popis">Попис</a></li>
+<li class="breadcrumb-item active" aria-current="page">{{ rec.PopisID }}</li>
+</ol></nav>
+<h2>Попис {{ rec.PopisID }} – {{ rec.Scope }}: {{ rec.Name }}</h2>
+<p>Статус: <b>{{ rec.Status }}</b> | Најдени: <b>{{ rec.FoundIDs|length }}/{{ rec.ExpectedIDs|length }}</b></p>
+{% if rec.Status == "OPEN" %}
+<div class="card sd-card"><div class="card-body">
+<form method="post">
+<div class="mb-3"><label>Скенирај / внеси asset или сериски</label>
+<input class="form-control form-control-lg" name="code" autofocus data-scan></div>
+<button class="btn btn-primary" name="scan" value="1" type="submit">Евидентирај</button>
+</form>
+</div></div>
+{% endif %}
+<table class="table table-striped mt-3">
+<tr><th>Asset</th><th>Модел</th><th>Статус</th></tr>
+{% for it in items %}
+<tr><td>{{ it.AssetID }}</td><td>{{ it.Model }}</td>
+<td>{% if it.Found %}<span class="badge badge-st st-Repaired">најден</span>{% else %}<span class="badge badge-st st-Repair">чека</span>{% endif %}</td></tr>
+{% endfor %}
+</table>
+{% if rec.Status == "OPEN" %}
+<form method="post" onsubmit="return confirm('Заврши попис?')">
+<button class="btn btn-success" name="finish" value="1" type="submit">Заврши попис и генерирај записник</button>
+</form>
+{% else %}
+{% if rec.DocumentPath %}<a class="btn btn-outline-primary" href="/doc/{{ rec.DocumentPath }}" download>Симни записник</a>{% endif %}
+{% endif %}
+{% endblock %}

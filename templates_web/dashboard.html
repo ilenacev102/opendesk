@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}Контролна табла - IT ServiceDesk{% endblock %}
+{% block content %}
+<header class="workspace-head anim-in">
+<div>
+<div class="eyebrow">ИНВЕНТАР · ОПЕРАЦИИ</div>
+<h1>Контролна табла</h1>
+<p>Состојба на опремата, отворени ризици и следни операции.</p>
+</div>
+<div class="workspace-actions">
+<a class="btn btn-outline-secondary" href="/popis"><svg class="ic" aria-hidden="true"><use href="#i-clip"/></svg>Попис</a>
+<a class="btn btn-primary" href="/devices/new"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>Нов уред</a>
+</div>
+</header>
+<section class="command-strip anim-in anim-1" aria-label="Брзи операции">
+<a class="command-action" href="/assign"><svg class="ic" aria-hidden="true"><use href="#i-user-plus"/></svg><span>Задолжи</span></a>
+<a class="command-action" href="/quick-return"><svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg><span>Брзо враќање</span></a>
+<a class="command-action" href="/replace"><svg class="ic" aria-hidden="true"><use href="#i-swap"/></svg><span>Замена</span></a>
+<a class="command-action" href="/repair"><svg class="ic" aria-hidden="true"><use href="#i-wrench"/></svg><span>Сервис</span></a>
+<a class="command-action command-danger" href="/dispose"><svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg><span>Расход</span></a>
+<a class="command-action" href="/packages"><svg class="ic" aria-hidden="true"><use href="#i-box"/></svg><span>Пакети</span></a>
+</section>
+<div class="row g-3">
+<div class="col-6 col-md-2"><div class="card stat-card stat-blue anim-in anim-1"><div class="card-body">
+<span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-monitor"/></svg></span>
+<div><div class="num" data-count="{{ stats.total_devices }}">0</div><div class="stat-label">Вкупно уреди</div></div>
+</div></div></div>
+<div class="col-6 col-md-2"><div class="card stat-card stat-green anim-in anim-2"><div class="card-body">
+<span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg></span>
+<div><div class="num" data-count="{{ stats.available }}">0</div><div class="stat-label">Достапни</div></div>
+</div></div></div>
+<div class="col-6 col-md-2"><div class="card stat-card stat-slate anim-in anim-3"><div class="card-body">
+<span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-user-plus"/></svg></span>
+<div><div class="num" data-count="{{ stats.assigned }}">0</div><div class="stat-label">Задолжени</div></div>
+</div></div></div>
+<div class="col-6 col-md-2"><div class="card stat-card stat-amber anim-in anim-4"><div class="card-body">
+<span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-warn"/></svg></span>
+<div><div class="num" data-count="{{ stats.attention }}">0</div><div class="stat-label">Бараат внимание</div></div>
+</div></div></div>
+<div class="col-6 col-md-2"><div class="card stat-card stat-slate anim-in anim-4"><div class="card-body">
+<span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-users"/></svg></span>
+<div><div class="num" data-count="{{ stats.total_employees }}">0</div><div class="stat-label">Вработени</div></div>
+</div></div></div>
+<div class="col-6 col-md-2"><div class="card stat-card stat-blue anim-in anim-4"><div class="card-body">
+<span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-monitor"/></svg></span>
+<div><div class="num" data-count="{{ stats.computers }}">0</div><div class="stat-label">Компјутери</div></div>
+</div></div></div>
+</div>
+<div class="row g-3 mt-1">
+<div class="col-lg-7"><div class="card sd-card panel-card anim-in anim-2"><div class="card-body">
+<div class="panel-heading"><div><span class="eyebrow">ИНВЕНТАР</span><h5>Уреди по статус</h5></div><a href="/devices" class="panel-link">Отвори уреди <span aria-hidden="true">→</span></a></div>
+<div class="chart-box"><canvas id="chStatus"></canvas></div>
+<table class="table table-sm mb-0 mt-2">
+<thead><tr><th>Статус</th><th class="text-end">Број</th></tr></thead>
+<tbody>
+{% for status, count in stats.statuses.items() %}
+<tr><td><span class="badge badge-st st-{{ status }}">{{ status }}</span></td>
+<td class="text-end"><b>{{ count }}</b></td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div></div></div>
+<div class="col-lg-5"><div class="card sd-card panel-card anim-in anim-3"><div class="card-body">
+<div class="panel-heading"><div><span class="eyebrow">ТРЕНД</span><h5>Активности по месец</h5></div><span class="panel-meta">Последни 1.000</span></div>
+<div class="chart-box"><canvas id="chMonthly"></canvas></div>
+</div></div></div>
+</div>
+<div class="row g-3 mt-1">
+<div class="col-lg-5"><div class="card sd-card panel-card priority-panel anim-in anim-4"><div class="card-body">
+<div class="panel-heading"><div><span class="eyebrow">ПРИОРИТЕТНА РЕДИЦА</span><h5>Бараат акција <span class="count-chip">{{ stats.attention_devs|length }}</span></h5></div><a class="panel-link" href="/devices?status=Repair">Сервис</a></div>
+{% if stats.attention_devs %}
+<div class="table-responsive"><table class="table table-sm mb-0 operational-table">
+<thead><tr><th>Уред</th><th>Состојба</th><th class="text-end">Акција</th></tr></thead>
+<tbody>
+{% for d in stats.attention_devs %}
+<tr><td><a href="/device/{{ d.AssetID }}" class="asset-link">{{ d.AssetID }}</a><small>{{ d.Model }}</small></td>
+<td><span class="badge badge-st st-{{ d.Status }}">{{ d.Status }}</span></td>
+<td class="text-end"><a class="icon-action" href="/device/{{ d.AssetID }}" aria-label="Отвори {{ d.AssetID }}" title="Отвори"><span aria-hidden="true">→</span></a></td></tr>
+{% endfor %}
+</tbody>
+</table></div>
+{% else %}
+<div class="empty-state"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>Нема итни случаи.</div>
+{% endif %}
+</div></div></div>
+<div class="col-lg-3"><div class="card sd-card panel-card anim-in anim-4"><div class="card-body">
+<div class="panel-heading"><div><span class="eyebrow">ЖИВОТЕН ЦИКЛУС</span><h5>Гаранции <span class="count-chip">{{ stats.wcount }}</span></h5></div></div>
+{% if stats.warranties %}
+<div class="table-responsive"><table class="table table-sm mb-0 operational-table">
+<thead><tr><th>Уред</th><th>Рок</th></tr></thead>
+<tbody>
+{% for w in stats.warranties[:4] %}
+<tr><td><a href="/device/{{ w.AssetID }}" class="asset-link">{{ w.AssetID }}</a><small>{{ w.Model }}</small></td>
+<td><span class="badge badge-st w-{{ w.Level }}">{{ w.Text }}</span></td></tr>
+{% endfor %}
+</tbody>
+</table></div>
+{% else %}
+<div class="empty-state"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>Нема итни гаранции.</div>
+{% endif %}
+</div></div></div>
+<div class="col-lg-4"><div class="card sd-card panel-card anim-in anim-4"><div class="card-body">
+<div class="panel-heading"><div><span class="eyebrow">AUDIT TRAIL</span><h5>Последни активности</h5></div><a class="panel-link" href="/history">Сите записи</a></div>
+{% if stats.recent %}
+<div class="table-responsive"><table class="table table-sm mb-0 operational-table">
+<thead><tr><th>Кога</th><th>Настан</th><th class="text-end">Уред</th></tr></thead>
+<tbody>
+{% for h in stats.recent[:6] %}
+<tr><td class="event-time">{{ h.DateTime }}</td><td><b>{{ h.Action }}</b></td>
+<td class="text-end"><a href="/device/{{ h.AssetID }}" class="asset-link">{{ h.AssetID }}</a></td></tr>
+{% endfor %}
+</tbody>
+</table></div>
+{% else %}
+<div class="empty-state"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg>Нема активности.</div>
+{% endif %}
+</div></div></div>
+</div>
+<script src="/static/js/chart.umd.min.js"></script>
+<script nonce="{{ csp_nonce }}">
+document.querySelectorAll("[data-count]").forEach(el => {
+  const target = parseInt(el.dataset.count, 10) || 0;
+  const t0 = performance.now(), dur = 700;
+  function tick(t) {
+    const p = Math.min((t - t0) / dur, 1);
+    el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3)));
+    if (p < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+});
+function sdTheme() {
+  return document.documentElement.getAttribute("data-bs-theme") === "dark" ? "dark" : "light";
+}
+function sdChartColors() {
+  return sdTheme() === "dark"
+    ? { text: "#e6edf5", grid: "rgba(230,237,245,0.12)", accent: "#60a5fa" }
+    : { text: "#1c2733", grid: "rgba(28,39,51,0.08)", accent: "#2563eb" };
+}
+const PALETTE = ["#2563eb", "#0f9f6e", "#f59e0b", "#e23a55", "#0f8e8e", "#06b6d4", "#84cc16", "#64748b", "#fb7185"];
+function applyChartTheme() {
+  const c = sdChartColors();
+  Chart.defaults.color = c.text;
+  Chart.defaults.borderColor = c.grid;
+}
+applyChartTheme();
+const chStatus = new Chart(document.getElementById("chStatus"), {
+  type: "doughnut",
+  data: {
+    labels: {{ stats.statuses.keys()|list|tojson }},
+    datasets: [{ data: {{ stats.statuses.values()|list|tojson }}, backgroundColor: PALETTE, borderWidth: 2 }]
+  },
+  options: { responsive: true, maintainAspectRatio: false, animation: { duration: 800 },
+    plugins: { legend: { position: "bottom" } } }
+});
+const chMonthly = new Chart(document.getElementById("chMonthly"), {
+  type: "bar",
+  data: {
+    labels: {{ stats.months|tojson }},
+    datasets: [{ label: "Активности", data: {{ stats.mcounts|tojson }}, backgroundColor: sdChartColors().accent, borderRadius: 6 }]
+  },
+  options: { responsive: true, maintainAspectRatio: false, animation: { duration: 800 },
+    plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+});
+document.addEventListener("sd-theme", () => {
+  applyChartTheme();
+  chMonthly.data.datasets[0].backgroundColor = sdChartColors().accent;
+  chStatus.update();
+  chMonthly.update();
+});
+</script>
+{% endblock %}

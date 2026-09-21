@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb mb-3">
+<li class="breadcrumb-item"><a href="/packages">Пакети</a></li>
+<li class="breadcrumb-item active" aria-current="page">{{ pkg.name }}</li>
+</ol></nav>
+<h2>{{ pkg.name }}</h2>
+<p class="text-muted">{{ pkg.description }}</p>
+<form method="post">
+<div class="mb-3"><label>Вработен</label>
+<input class="form-control" id="emp" name="emp_id" required autofocus>
+<div id="empPrev" class="form-text"></div></div>
+<div class="mb-3"><label>Уреди (предложените се додадени – пишувај за повеќе)</label>
+<input class="form-control" id="devPick" placeholder="Сериски / инвентарен / марка...">
+<div id="devPick-list" class="list-group position-relative"></div>
+</div>
+<button class="btn btn-primary" type="submit">Додели пакет</button>
+<a class="btn btn-secondary" href="/packages">Откажи</a>
+</form>
+<script src="/static/js/autocomplete.js"></script>
+<script src="/static/js/picker.js"></script>
+<script nonce="{{ csp_nonce }}">
+const EMPS = {{ employees|tojson }};
+const AVAIL = {{ available|tojson }};
+const SUGGESTED = {{ suggested|tojson }};
+new AutoComplete(document.getElementById("emp"), EMPS.map(e => ({
+  value: e.EmployeeID,
+  search: e.EmployeeID + " " + e.FirstName + " " + e.LastName + " " + e.UserName,
+  show: "<b>" + e.FirstName + " " + e.LastName + "</b> (" + e.EmployeeID + ")",
+  prev: e.Department + " | " + e.Email
+})), {
+  label: it => it.show,
+  freqKey: "emp",
+  onPick: it => { document.getElementById("empPrev").textContent = it.prev; }
+});
+const pkgPicker = new DevicePicker("devPick", "devPick-list", "asset_ids", AVAIL);
+SUGGESTED.forEach(id => {
+  const d = AVAIL.find(x => x.AssetID === id);
+  if (d) pkgPicker.add(d);
+});
+</script>
+{% endblock %}

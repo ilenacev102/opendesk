@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Оддел: {{ name }}</h2>
+<p>
+<a class="btn btn-sm btn-outline-primary me-2" href="/assign">+ Задолжи</a>
+<a class="btn btn-sm btn-outline-secondary me-2" href="/reports?export=devices">Export CSV</a>
+</p>
+<h4>Луѓе ({{ members|length }})</h4>
+<table class="table table-striped">
+<tr><th>ID</th><th>Име</th><th>Email</th><th>Локација</th><th></th></tr>
+{% for e in members %}
+<tr><td><a href="/employee/{{ e.EmployeeID }}">{{ e.EmployeeID }}</a></td>
+<td>{{ e.FirstName }} {{ e.LastName }}</td><td>{{ e.Email }}</td><td>{{ e.Location }}</td>
+<td><a class="btn btn-sm btn-outline-primary" href="/assign?emp={{ e.EmployeeID }}">+ Дај уред</a></td></tr>
+{% endfor %}
+</table>
+<h4>Уреди кај одделот ({{ devices|length }})</h4>
+<table class="table table-striped">
+<tr><th>Asset</th><th>Модел</th><th>Сериски</th><th>Статус</th><th>Носител</th><th>Гаранција</th></tr>
+{% for d in devices %}
+<tr><td><a href="/device/{{ d.AssetID }}">{{ d.AssetID }}</a></td>
+<td>{{ d.Manufacturer }} {{ d.Model }}</td><td>{{ d.SerialNumber }}</td>
+<td><span class="badge badge-st st-{{ d.Status }}">{{ d.Status }}</span></td>
+<td>{{ d.HolderName }}</td>
+<td><span class="badge badge-st w-{{ d.WLevel }}">{{ d.WText }}</span></td></tr>
+{% endfor %}
+</table>
+{% endblock %}

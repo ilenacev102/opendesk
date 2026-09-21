@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Историја</h2>
+<p class="text-muted small">
+{% if total == 0 %}Нема записи.
+{% else %}Прикажани {{ (page - 1) * per + 1 }}–{{ [(page * per), total] | min }} од вкупно {{ total }} записи.{% endif %}
+</p>
+<form method="get" action="/history" class="d-flex gap-2 align-items-end mb-2 filter-bar">
+<label class="form-label mb-0">По страница
+<select class="form-select form-select-sm d-inline-block w-auto ms-1" name="per" onchange="this.form.submit()">
+{% for n in [20, 50, 100, 200] %}
+<option value="{{ n }}" {% if per == n %}selected{% endif %}>{{ n }}</option>
+{% endfor %}
+</select>
+</label>
+</form>
+<div class="table-responsive">
+<table class="table table-striped sortable">
+<thead><tr><th data-sort>ID</th><th data-sort>Датум</th><th data-sort>Акција</th><th data-sort>Уред</th><th data-sort>Стара</th><th data-sort>Нова</th><th data-sort>Вработен</th><th>Документ</th></tr></thead>
+<tbody>
+{% for h in rows %}
+<tr><td>{{ h.HistoryID }}</td><td>{{ h.DateTime }}</td><td>{{ h.Action }}</td>
+<td><a href="/device/{{ h.AssetID }}">{{ h.AssetID }}</a></td>
+<td>{{ h.OldStatus }}</td><td>{{ h.NewStatus }}</td><td>{{ h.EmployeeName }}</td>
+<td>{% if h.Action == "ASSIGN" %}<a class="btn btn-sm btn-outline-secondary" href="/return?asset={{ h.AssetID }}">Раздолжи</a> {% endif %}{% if h.DocumentPath %}<a class="btn btn-sm btn-outline-primary" href="/doc/{{ h.DocumentPath }}" download>DOCX</a> <a class="btn btn-sm btn-outline-primary" href="/pdf/{{ h.DocumentPath }}" download>PDF</a> <button class="btn btn-sm btn-success" onclick="mailDoc('/pdf/{{ h.DocumentPath }}', '{{ emails.get(h.EmployeeID, '') }}', 'Документ {{ h.Action }} {{ h.AssetID }}', 'Здраво {{ h.EmployeeName }},\nВо прилог е документот за {{ h.AssetID }}.')"><svg class="ic" aria-hidden="true"><use href="#i-mail"/></svg> Прати</button>{% endif %}</td></tr>
+{% else %}
+<tr><td colspan="8" class="text-center text-muted">Нема записи.</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% if total_pages > 1 %}
+<nav aria-label="Пагинација на историја">
+<ul class="pagination sd-pagination">
+<li class="page-item {% if page <= 1 %}disabled{% endif %}">
+<a class="page-link" href="/history?per={{ per }}&page=1">&laquo; Прва</a>
+</li>
+<li class="page-item {% if page <= 1 %}disabled{% endif %}">
+<a class="page-link" href="/history?per={{ per }}&page={{ page - 1 }}">&lsaquo; Претходна</a>
+</li>
+{% set win_start = [1, page - 2] | max %}
+{% set win_end = [total_pages, page + 2] | min %}
+{% for p in range(win_start, win_end + 1) %}
+<li class="page-item {% if p == page %}active{% endif %}">
+<a class="page-link" href="/history?per={{ per }}&page={{ p }}">{{ p }}</a>
+</li>
+{% endfor %}
+<li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+<a class="page-link" href="/history?per={{ per }}&page={{ page + 1 }}">Следна &rsaquo;</a>
+</li>
+<li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+<a class="page-link" href="/history?per={{ per }}&page={{ total_pages }}">Последна &raquo;</a>
+</li>
+</ul>
+</nav>
+{% endif %}
+{% endblock %}

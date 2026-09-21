@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="mk" data-bs-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="IT ServiceDesk — евиденција на ИТ опрема: задолжување, раздолжување, замена, сервис, расход, пакети и попис.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#1d4ed8">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="IT ServiceDesk">
+<meta property="og:title" content="IT ServiceDesk — евиденција на ИТ опрема">
+<meta property="og:description" content="Задолжување, раздолжување, замена, сервис, расход, пакети и попис на ИТ опрема.">
+{% set _t = namespace(v='Контролна табла' if request.path == '/' else 'IT ServiceDesk') %}
+{% for _prefix, _label in [
+  ('/devices/new', 'Нов уред'), ('/devices', 'Уреди'), ('/device/', 'Досие на уред'),
+  ('/employees', 'Вработени'), ('/employee/', 'Досие на вработен'),
+  ('/assign', 'Задолжување'), ('/quick-return', 'Брзо враќање'), ('/return', 'Раздолжување'),
+  ('/replace', 'Замена'), ('/repair', 'Сервис'), ('/dispose', 'Расход'),
+  ('/packages', 'Пакети опрема'), ('/package/', 'Пакет'), ('/popis', 'Попис'),
+  ('/history', 'Историја'), ('/reports', 'Извештаи'), ('/import', 'Import / Export'),
+  ('/search', 'Пребарување'), ('/departments', 'Оддели'), ('/locations', 'Локации')] %}
+{% if _t.v == 'IT ServiceDesk' and request.path.startswith(_prefix) %}{% set _t.v = _label %}{% endif %}
+{% endfor %}
+<title>{% block title %}{{ _t.v }} – IT ServiceDesk{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<link href="/static/css/bootstrap.min.css" rel="stylesheet">
+<link href="/static/css/app.css" rel="stylesheet">
+</head>
+<body>
+{% include "_icons.html" %}
+<a class="skip-link" href="#main">Прескокни до содржина</a>
+<nav class="navbar navbar-expand-lg navbar-sd sticky-top">
+<div class="container-fluid">
+<a class="navbar-brand" href="/"><svg class="ic brand-mark" aria-hidden="true"><use href="#i-monitor"/></svg>IT ServiceDesk</a>
+<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav" aria-label="Мени">
+<span class="navbar-toggler-icon"></span>
+</button>
+<div class="collapse navbar-collapse" id="nav">
+<div class="navbar-nav me-auto">
+<a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">Табла</a>
+<a class="nav-link {% if request.path.startswith('/device') %}active{% endif %}" href="/devices">Уреди</a>
+<a class="nav-link {% if request.path.startswith('/employee') %}active{% endif %}" href="/employees">Вработени</a>
+<div class="nav-item dropdown">
+<a class="nav-link dropdown-toggle {% if request.path in ['/assign', '/quick-return', '/replace', '/repair', '/dispose', '/packages', '/popis', '/labels', '/consumables', '/licenses', '/fields', '/contracts', '/reservations', '/requests'] %}active{% endif %}" href="#" data-bs-toggle="dropdown">Операции</a>
+<ul class="dropdown-menu">
+<li><a class="dropdown-item" href="/assign"><svg class="ic" aria-hidden="true"><use href="#i-user-plus"/></svg>Задолжување</a></li>
+<li><a class="dropdown-item" href="/quick-return"><svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg>Брзо враќање</a></li>
+<li><a class="dropdown-item" href="/replace"><svg class="ic" aria-hidden="true"><use href="#i-swap"/></svg>Замена</a></li>
+<li><a class="dropdown-item" href="/repair"><svg class="ic" aria-hidden="true"><use href="#i-wrench"/></svg>Сервис</a></li>
+<li><a class="dropdown-item" href="/dispose"><svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg>Расход</a></li>
+<li><hr class="dropdown-divider"></li>
+<li><a class="dropdown-item" href="/packages"><svg class="ic" aria-hidden="true"><use href="#i-box"/></svg>Пакети</a></li>
+<li><a class="dropdown-item" href="/popis"><svg class="ic" aria-hidden="true"><use href="#i-clip"/></svg>Попис</a></li>
+<li><a class="dropdown-item" href="/labels"><svg class="ic" aria-hidden="true"><use href="#i-clip"/></svg>Налепници</a></li>
+<li><a class="dropdown-item" href="/consumables"><svg class="ic" aria-hidden="true"><use href="#i-box"/></svg>Потрошен материјал</a></li>
+<li><a class="dropdown-item" href="/licenses"><svg class="ic" aria-hidden="true"><use href="#i-file"/></svg>Лиценци</a></li>
+<li><a class="dropdown-item" href="/fields"><svg class="ic" aria-hidden="true"><use href="#i-clip"/></svg>Полиња</a></li>
+<li><a class="dropdown-item" href="/contracts"><svg class="ic" aria-hidden="true"><use href="#i-file"/></svg>Договори</a></li>
+<li><a class="dropdown-item" href="/reservations"><svg class="ic" aria-hidden="true"><use href="#i-clip"/></svg>Резервации</a></li>
+<li><a class="dropdown-item" href="/requests"><svg class="ic" aria-hidden="true"><use href="#i-user-plus"/></svg>Барања</a></li>
+</ul>
+</div>
+<div class="nav-item dropdown">
+<a class="nav-link dropdown-toggle {% if request.path in ['/departments', '/locations', '/history', '/reports', '/import'] %}active{% endif %}" href="#" data-bs-toggle="dropdown">Прегледи</a>
+<ul class="dropdown-menu">
+<li><a class="dropdown-item" href="/departments">Оддели</a></li>
+<li><a class="dropdown-item" href="/locations">Локации</a></li>
+<li><a class="dropdown-item" href="/history">Историја</a></li>
+<li><a class="dropdown-item" href="/reports">Извештаи</a></li>
+<li><a class="dropdown-item" href="/import">Import / Export</a></li>
+</ul>
+</div>
+</div>
+<form class="d-flex nav-search" action="/search" method="get" role="search">
+<input class="form-control me-2" type="search" name="q" placeholder="Asset, сериски, име... (Ctrl+K)" aria-label="Барај">
+<button class="btn btn-outline-light" type="submit"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg><span class="d-none d-md-inline ms-1">Барај</span></button>
+</form>
+<span class="nav-health d-none d-xl-inline-flex"><i></i>Локален систем</span>
+{% if current_user and current_user.is_authenticated %}
+<a class="btn btn-outline-light ms-2" href="/logout" title="Одјава ({{ current_user.id }})">Одјава</a>
+{% endif %}
+<button id="themeToggle" class="btn btn-outline-light ms-2" title="Темна/светла тема" aria-label="Темна/светла тема">
+<svg class="ic icon-moon" aria-hidden="true"><use href="#i-moon"/></svg>
+<svg class="ic icon-sun d-none" aria-hidden="true"><use href="#i-sun"/></svg>
+</button>
+</div>
+</div>
+</nav>
+<main id="main" class="container app-main">
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% for category, message in messages %}
+<div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">{{ message }}
+<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Затвори"></button></div>
+{% endfor %}
+{% endwith %}
+{% block content %}{% endblock %}
+</main>
+<div class="footer-sd">IT ServiceDesk • локален сервер</div>
+<script src="/static/js/bootstrap.bundle.min.js"></script>
+<script src="/static/js/palette.js"></script>
+<script src="/static/js/smart-defaults.js"></script>
+<script src="/static/js/scan-mode.js"></script>
+<script src="/static/js/form-keys.js"></script>
+<script src="/static/js/powersort.js"></script>
+<script src="/static/js/sort.js"></script>
+<script nonce="{{ csp_nonce }}">
+document.addEventListener("keydown", (e) => {
+  const tag = (document.activeElement || {}).tagName || "";
+  if (e.key === "/" && !e.ctrlKey && !e.metaKey && !/INPUT|TEXTAREA|SELECT/.test(tag)) {
+    e.preventDefault();
+    const box = document.querySelector(".nav-search input[type=search]");
+    if (box) box.focus();
+  }
+});
+</script>
+<script nonce="{{ csp_nonce }}">
+function mailDoc(pdfUrl, email, subject, body) {
+  const a = document.createElement("a");
+  a.href = pdfUrl;
+  a.download = "";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  const url = "mailto:" + encodeURIComponent(email) +
+    "?subject=" + encodeURIComponent(subject) +
+    "&body=" + encodeURIComponent(body + "\n\n(PDF документот е симнат – закачи го како прилог.)");
+  setTimeout(() => { window.location = url; }, 400);
+}
+</script>
+<script nonce="{{ csp_nonce }}">
+(function () {
+  const root = document.documentElement;
+  const btn = document.getElementById("themeToggle");
+  function paint() {
+    const dark = root.getAttribute("data-bs-theme") === "dark";
+    btn.querySelector(".icon-moon").classList.toggle("d-none", dark);
+    btn.querySelector(".icon-sun").classList.toggle("d-none", !dark);
+  }
+  const saved = localStorage.getItem("sd-theme");
+  if (saved) {
+    root.setAttribute("data-bs-theme", saved);
+  }
+  paint();
+  btn.addEventListener("click", () => {
+    const next =
+      root.getAttribute("data-bs-theme") === "dark" ? "light" : "dark";
+    root.setAttribute("data-bs-theme", next);
+    localStorage.setItem("sd-theme", next);
+    paint();
+    document.dispatchEvent(new CustomEvent("sd-theme", { detail: next }));
+  });
+})();
+document.querySelectorAll("form[method='post']").forEach(f => {
+  f.addEventListener("submit", () => {
+    const btn = f.querySelector("button[type='submit']");
+    if (btn) {
+      btn.classList.add("spinner-btn");
+      btn.innerHTML = "<span class='spinner-border spinner-border-sm'></span> Се зачувува...";
+    }
+  });
+});
+setTimeout(() => {
+  document.querySelectorAll(".alert-success").forEach(a => {
+    a.style.transition = "opacity .5s";
+    a.style.opacity = "0";
+    setTimeout(() => a.remove(), 550);
+  });
+}, 4000);
+</script>
+</body>
+</html>

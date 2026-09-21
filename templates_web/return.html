@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Раздолжување</h2>
+<ul class="nav nav-tabs mb-3" id="returnTabs" role="tablist">
+<li class="nav-item" role="presentation">
+<button class="nav-link {% if not preset_emp or preset_asset %}active{% endif %}" id="single-tab" data-bs-toggle="tab" data-bs-target="#tab-single" type="button" role="tab">Поединечно враќање</button>
+</li>
+<li class="nav-item" role="presentation">
+<button class="nav-link {% if preset_emp and not preset_asset %}active{% endif %}" id="bulk-tab" data-bs-toggle="tab" data-bs-target="#tab-bulk" type="button" role="tab">Групен поврат (Offboarding)</button>
+</li>
+</ul>
+<div class="tab-content">
+<div class="tab-pane fade {% if not preset_emp or preset_asset %}show active{% endif %}" id="tab-single" role="tabpanel">
+<div class="card sd-card"><div class="card-body">
+<div class="mb-3"><label><b>1. Инвентарен број</b> (или сериски ако нема)</label>
+<input class="form-control form-control-lg" id="inv" placeholder="нпр. LAP002" autofocus>
+<div id="invHint" class="form-text"></div></div>
+<div id="devCard" style="display:none;" class="alert alert-info">
+<b id="dcTitle"></b><br><span id="dcSub"></span><br>
+Носител: <b id="dcHolder"></b> | Статус: <b id="dcStatus"></b>
+</div>
+</div></div>
+<form method="post" id="retForm" style="display:none;">
+<input type="hidden" name="mode" value="single">
+<input type="hidden" id="assetHidden" name="asset_id" value="{{ preset_asset }}">
+<input type="hidden" id="empHidden" name="emp_id" value="">
+<div class="mb-3"><label><b>2. Причина</b></label>
+<select class="form-control" name="reason" id="reason">
+<option value="Враќање">Редовно враќање</option>
+<option value="Заминува од фирма">Заминува од фирма</option>
+<option value="Замена со нов уред">Замена со нов уред</option>
+<option value="Расипан – на сервис">Расипан – на сервис</option>
+<option value="Расипан – не се поправа">Расипан – не се поправа (оди на расход)</option>
+<option value="Промена на позиција">Промена на позиција</option>
+<option value="Привремено враќање">Привремено враќање</option>
+<option value="Друго">Друго</option>
+</select></div>
+<div class="mb-3"><label><b>3. Состојба</b></label>
+<select class="form-control" name="condition" id="condition">
+<option>Good</option><option>Damaged</option><option>Broken</option>
+<option>Incomplete</option><option>Other</option>
+</select></div>
+<div class="mb-3"><label><b>4. Опис</b></label>
+<input class="form-control" name="notes" placeholder="краток опис..."></div>
+<button class="btn btn-primary btn-lg" type="submit">Потврди раздолжување</button>
+<a class="btn btn-secondary" href="/">Откажи</a>
+</form>
+</div>
+<div class="tab-pane fade {% if preset_emp and not preset_asset %}show active{% endif %}" id="tab-bulk" role="tabpanel">
+<form method="post" id="bulkForm">
+<input type="hidden" name="mode" value="bulk">
+<div class="card sd-card mb-3"><div class="card-body">
+<div class="mb-3"><label><b>1. Вработен (за offboarding)</b></label>
+<select class="form-select" name="emp_id" id="bulkEmp" required>
+<option value="">— Избери вработен —</option>
+{% for e in employees %}
+<option value="{{ e.EmployeeID }}" {% if preset_emp == e.EmployeeID %}selected{% endif %}>{{ e.FirstName }} {{ e.LastName }} ({{ e.EmployeeID }})</option>
+{% endfor %}
+</select></div>
+<div class="mb-2 d-flex justify-content-between align-items-center">
+<strong>2. Уреди за раздолжување</strong>
+<label class="form-check-label"><input class="form-check-input" type="checkbox" id="bulkAll"> [✓ Сите]</label>
+</div>
+<div id="bulkList" class="list-group bulk-list">
+<p class="text-muted small mb-0">Изберете вработен за приказ на неговите задолжени уреди.</p>
+</div>
+</div></div>
+<div class="mb-3"><label><b>3. Причина</b></label>
+<input class="form-control" name="reason" value="Раздолжување при заминување"></div>
+<div class="row g-2">
+<div class="col-12 col-md-6"><label><b>4. Состојба</b></label>
+<select class="form-control" name="condition">
+<option>Good</option><option>Damaged</option><option>Broken</option>
+<option>Incomplete</option><option>Other</option>
+</select></div>
+<div class="col-12 col-md-6"><label><b>5. Забелешка</b></label>
+<input class="form-control" name="notes" placeholder="offboarding..."></div>
+</div>
+<div class="mt-3 d-flex gap-2">
+<button class="btn btn-primary btn-lg" type="submit" id="bulkSubmit">Раздолжи избрани</button>
+<a class="btn btn-secondary" href="/">Откажи</a>
+</div>
+</form>
+</div>
+</div>
+<script nonce="{{ csp_nonce }}">
+const DEVS = {{ devices|tojson }};
+const EMPS = {{ employees|tojson }};
+function empName(id) {
+  const e = EMPS.find(x => x.EmployeeID === id);
+  return e ? e.FirstName + " " + e.LastName + " (" + id + ")" : id;
+}
+function lookup(v) {
+  v = v.trim();
+  if (!v) return null;
+  let d = DEVS.find(x => x.AssetID === v);
+  if (!d) d = DEVS.find(x => x.SerialNumber === v);
+  return d || null;
+}
+const invInput = document.getElementById("inv");
+function resolve() {
+  const d = lookup(invInput.value);
+  const card = document.getElementById("devCard");
+  const form = document.getElementById("retForm");
+  if (!d) {
+    card.style.display = "none";
+    form.style.display = "none";
+    document.getElementById("invHint").textContent =
+      invInput.value.trim() ? "Внимание: нема уред со тој број." : "";
+    return;
+  }
+  document.getElementById("invHint").textContent = "";
+  document.getElementById("dcTitle").textContent = d.AssetID + " – " + d.Manufacturer + " " + d.Model;
+  document.getElementById("dcSub").textContent = "SN: " + d.SerialNumber + " | " + d.Type;
+  document.getElementById("dcHolder").textContent = d.EmployeeID ? empName(d.EmployeeID) : "— (не е задолжен)";
+  document.getElementById("dcStatus").textContent = d.Status;
+  document.getElementById("assetHidden").value = d.AssetID;
+  document.getElementById("empHidden").value = d.EmployeeID || "";
+  card.style.display = "block";
+  form.style.display = "block";
+}
+let invTimer = null;
+invInput.addEventListener("input", () => {
+  clearTimeout(invTimer);
+  invTimer = setTimeout(resolve, 250);
+});
+document.getElementById("reason").addEventListener("change", function () {
+  const cond = document.getElementById("condition");
+  if (this.value === "Расипан – на сервис" || this.value === "Расипан – не се поправа") {
+    cond.value = "Broken";
+  } else if (this.value === "Враќање" || this.value === "Заминува од фирма") {
+    cond.value = "Good";
+  }
+});
+const presetAsset = "{{ preset_asset }}";
+if (presetAsset) {
+  invInput.value = presetAsset;
+  resolve();
+}
+/* --- Bulk offboarding --- */
+const bulkEmp = document.getElementById("bulkEmp");
+const bulkList = document.getElementById("bulkList");
+const bulkAll = document.getElementById("bulkAll");
+function renderBulk() {
+  const empId = bulkEmp.value;
+  bulkList.innerHTML = "";
+  bulkAll.checked = false;
+  if (!empId) {
+    bulkList.innerHTML = '<p class="text-muted small mb-0">Изберете вработен за приказ на неговите задолжени уреди.</p>';
+    return;
+  }
+  const mine = DEVS.filter(d => d.EmployeeID === empId);
+  if (!mine.length) {
+    bulkList.innerHTML = '<p class="text-muted small mb-0">Вработениот нема задолжени уреди.</p>';
+    return;
+  }
+  mine.forEach(d => {
+    const label = document.createElement("label");
+    label.className = "list-group-item d-flex gap-2 align-items-center";
+    label.innerHTML = '<input class="form-check-input bulk-check" type="checkbox" name="bulk_asset_ids" value="' + d.AssetID + '">'
+      + '<span><b>' + d.AssetID + '</b> ' + (d.Manufacturer || "") + " " + (d.Model || "")
+      + '<br><small class="text-muted">SN: ' + (d.SerialNumber || "—") + " | " + (d.Type || "") + " | " + (d.Status || "") + "</small></span>";
+    bulkList.appendChild(label);
+  });
+}
+bulkEmp.addEventListener("change", renderBulk);
+bulkAll.addEventListener("change", () => {
+  document.querySelectorAll(".bulk-check").forEach(c => { c.checked = bulkAll.checked; });
+});
+document.getElementById("bulkForm").addEventListener("submit", (ev) => {
+  const checked = document.querySelectorAll(".bulk-check:checked");
+  if (!bulkEmp.value || !checked.length) {
+    ev.preventDefault();
+    alert("Изберете вработен и барем еден уред за враќање.");
+  }
+});
+renderBulk();
+</script>
+{% endblock %}

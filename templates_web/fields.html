@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Дополнителни полиња</h2>
+<p class="text-muted">Дефинициите важат за сите уреди. Вредностите се внесуваат на страницата на уредот.</p>
+<table class="table">
+<thead><tr><th>ID</th><th>Име</th><th>Акција</th></tr></thead>
+<tbody>
+{% for d in defs %}
+<tr>
+<td><code>{{ d.FieldID }}</code></td>
+<td>{{ d.FieldName }}</td>
+<td>
+<form method="post" class="d-inline">
+<input type="hidden" name="action" value="delete">
+<input type="hidden" name="field_id" value="{{ d.FieldID }}">
+<button class="btn btn-sm btn-outline-danger" type="submit">Избриши</button>
+</form>
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+{% if not defs %}
+<div class="empty-state">Нема дефинирани полиња.</div>
+{% endif %}
+<h4 class="mt-4">Ново поле</h4>
+<form method="post">
+<input type="hidden" name="action" value="add">
+<div class="mb-3"><label>Име на поле</label>
+<input class="form-control" name="FieldName" required placeholder="нпр. IMEI" autofocus></div>
+<button class="btn btn-primary" type="submit">Додај</button>
+</form>
+{% endblock %}

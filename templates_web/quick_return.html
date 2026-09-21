@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Брзо раздолжување {% if scan %}<span class="badge bg-primary">SCAN</span>{% endif %}</h2>
+<div class="mb-2">
+{% if scan %}<a class="btn btn-sm btn-outline-secondary" href="/quick-return">Исклучи скен-режим</a>
+{% else %}<a class="btn btn-sm btn-outline-secondary" href="/quick-return?scan=1">Скен-режим</a>{% endif %}
+</div>
+<div class="card sd-card"><div class="card-body">
+<form method="get" action="/quick-return">
+<div class="mb-3"><label>Скенирај или внеси (asset / сериски / модел)</label>
+<input class="form-control form-control-lg" id="q" name="q" value="{{ q }}" {% if scan %}data-scan{% else %}autofocus{% endif %}></div>
+<div id="qPrev" class="form-text"></div>
+<button class="btn btn-primary" type="submit">Најди</button>
+</form>
+</div></div>
+{% if found is not none %}
+{% if found %}
+<div class="card sd-card mt-3"><div class="card-body">
+<h4>{{ found.AssetID }} – {{ found.Manufacturer }} {{ found.Model }}</h4>
+<p>Сериски: {{ found.SerialNumber }} | Статус: <span class="badge badge-st st-{{ found.Status }}">{{ found.Status }}</span></p>
+{% if holder %}
+<p>Задолжен кај: <b>{{ holder.FirstName }} {{ holder.LastName }}</b> ({{ holder.EmployeeID }})</p>
+<form method="post" action="/return">
+<input type="hidden" name="asset_id" value="{{ found.AssetID }}">
+<input type="hidden" name="emp_id" value="{{ found.EmployeeID }}">
+<input type="hidden" name="reason" value="Брзо раздолжување">
+<div class="mb-3"><label>Состојба</label>
+<select class="form-control" name="condition">
+<option>Good</option><option>Damaged</option><option>Broken</option>
+<option>Incomplete</option><option>Other</option>
+</select></div>
+<button class="btn btn-success btn-lg" type="submit"{% if scan %} data-scan autofocus{% endif %}><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg> Раздолжи веднаш</button>
+</form>
+{% else %}
+<p class="text-muted">Уредот не е задолжен – нема што да се врати.</p>
+{% endif %}
+</div></div>
+{% else %}
+<div class="empty-state"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>Не е најден уред за „{{ q }}".</div>
+{% endif %}
+{% endif %}
+<script src="/static/js/autocomplete.js"></script>
+<script nonce="{{ csp_nonce }}">
+const DEVS = {{ devices|tojson }};
+new AutoComplete(document.getElementById("q"), DEVS.map(d => ({
+  value: d.AssetID,
+  search: d.AssetID + " " + d.SerialNumber + " " + d.Manufacturer + " " + d.Model,
+  show: "<b>" + d.AssetID + "</b> " + d.Manufacturer + " " + d.Model + "<br><small>" + d.SerialNumber + "</small>",
+  prev: d.Status
+})), {
+  label: it => it.show,
+  freqKey: "dev",
+  onPick: it => { document.getElementById("q").value = it.value; document.querySelector("form").submit(); }
+});
+</script>
+{% endblock %}

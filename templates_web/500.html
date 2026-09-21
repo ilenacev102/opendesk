@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Грешка 500 - IT ServiceDesk{% endblock %}
+{% block content %}
+<div class="card sd-card anim-in"><div class="card-body">
+<div class="empty-state">
+<svg class="ic" aria-hidden="true"><use href="#i-warn"/></svg>
+<h2>Се случи неочекувана грешка</h2>
+<p>Грешката е запишана со референца <b>{{ ref }}</b>. Обидете се повторно или вратете се назад.</p>
+<div class="d-flex gap-2 justify-content-center mt-3">
+<a class="btn btn-primary" href="/">Контролна табла</a>
+<a class="btn btn-secondary" href="javascript:history.back()">Назад</a>
+</div>
+</div>
+</div></div>
+{% endblock %}

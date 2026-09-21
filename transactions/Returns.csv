@@ -1,0 +1,4 @@
+TransactionID,DateTime,AssetID,EmployeeID,Reason,Condition,Notes,PerformedBy,DocumentPath
+R000001,2026-09-17 07:34,LAP003,EMP002,Test restore,Good,,admin,documents/returns/Return_EMP002_LAP003_R000001.docx
+R000002,2026-09-17 07:37,LAP008,EMP001,Restore,Good,,admin,documents/returns/Return_EMP001_LAP008_R000002.docx
+R000003,2026-09-17 08:36,LAP009,EMP003,Restore,Good,,admin,documents/returns/Return_EMP003_LAP009_R000003.docx

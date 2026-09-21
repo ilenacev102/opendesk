@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Барања за опрема</h2>
+<div class="table-responsive"><table class="table table-striped">
+<thead><tr><th>ID</th><th>Вработен</th><th>Потреба</th><th>Статус</th><th>Одлука</th></tr></thead>
+<tbody>
+{% for r in rows %}
+<tr>
+<td><b>{{ r.RequestID }}</b></td>
+<td>{{ r.EmployeeID or "—" }}</td>
+<td>{{ r.NeedText }}</td>
+<td>{{ r.Status }}</td>
+<td>
+{% if r.Status == "open" %}
+<div class="d-flex gap-1">
+<form method="post" action="/requests/decide" class="d-inline">
+<input type="hidden" name="request_id" value="{{ r.RequestID }}">
+<input type="hidden" name="decision" value="approved">
+<button class="btn btn-sm btn-outline-success" type="submit">Одобри</button>
+</form>
+<form method="post" action="/requests/decide" class="d-inline">
+<input type="hidden" name="request_id" value="{{ r.RequestID }}">
+<input type="hidden" name="decision" value="rejected">
+<button class="btn btn-sm btn-outline-danger" type="submit">Одбиј</button>
+</form>
+</div>
+{% else %}
+<span class="text-muted small">{{ r.DecidedBy or "" }}</span>
+{% endif %}
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table></div>
+{% if not rows %}
+<div class="empty-state">Нема барања.</div>
+{% endif %}
+<h4 class="mt-4">Ново барање</h4>
+<form method="post">
+<input type="hidden" name="action" value="file">
+<div class="row g-2">
+<div class="col-12 col-md-3"><label>Вработен</label><input class="form-control" name="EmployeeID"></div>
+<div class="col-12 col-md-9"><label>Што ви треба? *</label><input class="form-control" name="NeedText" required autofocus></div>
+</div>
+<button class="btn btn-primary mt-2" type="submit">Поднеси</button>
+</form>
+{% endblock %}

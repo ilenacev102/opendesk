@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>API токени</h2>
+{% if plain %}
+<div class="alert alert-warning">Новиот токен (се прикажува еднаш): <code>{{ plain }}</code></div>
+{% endif %}
+<table class="table">
+<thead><tr><th>ID</th><th>Корисник</th><th>Име</th><th>Креиран</th><th>Активен</th><th>Акција</th></tr></thead>
+<tbody>
+{% for t in tokens %}
+<tr>
+<td><code>{{ t.TokenID }}</code></td>
+<td>{{ t.UserName }}</td>
+<td>{{ t.Name }}</td>
+<td>{{ t.Created }}</td>
+<td>{{ t.Active }}</td>
+<td>
+{% if t.Active == "YES" %}
+<form method="post" class="d-inline">
+<input type="hidden" name="action" value="revoke">
+<input type="hidden" name="token_id" value="{{ t.TokenID }}">
+<button class="btn btn-sm btn-secondary" type="submit">Отповикај</button>
+</form>
+{% endif %}
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+<h4>Нов токен</h4>
+<form method="post">
+<input type="hidden" name="action" value="create">
+<div class="mb-3"><label>Корисничко име</label>
+<input class="form-control" name="username" required></div>
+<div class="mb-3"><label>Име (опис)</label>
+<input class="form-control" name="name" placeholder="на пр. скенер-телефон"></div>
+<button class="btn btn-primary" type="submit">Креирај токен</button>
+</form>
+{% endblock %}

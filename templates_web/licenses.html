@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Софтверски лиценци</h2>
+<div class="table-responsive"><table class="table table-striped">
+<thead><tr><th>ID</th><th>Софтвер</th><th>Седишта</th><th>Истек</th><th>Добавувач</th><th>Акции</th></tr></thead>
+<tbody>
+{% for r in rows %}
+<tr{% if r.LicenseID in expiring_ids %} class="table-warning"{% endif %}>
+<td><b>{{ r.LicenseID }}</b>{% if r.LicenseID in expiring_ids %} <span class="badge bg-warning text-dark">Истекува</span>{% endif %}</td>
+<td>{{ r.Software }}</td>
+<td>{{ r.SeatsUsed }} / {{ r.Seats }}</td>
+<td>{{ r.ExpiryDate or "—" }}</td>
+<td>{{ r.Supplier or "—" }}</td>
+<td>
+<div class="d-flex gap-1">
+<form method="post" action="/licenses/assign" class="d-flex gap-1">
+<input type="hidden" name="license_id" value="{{ r.LicenseID }}">
+<input class="form-control form-control-sm" style="max-width:6rem" name="emp_id" placeholder="вработен">
+<button class="btn btn-sm btn-outline-primary" type="submit">Додели</button>
+</form>
+<form method="post" action="/licenses/revoke">
+<input type="hidden" name="license_id" value="{{ r.LicenseID }}">
+<button class="btn btn-sm btn-outline-secondary" type="submit">Ослободи</button>
+</form>
+</div>
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table></div>
+{% if not rows %}
+<div class="empty-state">Нема внесени лиценци.</div>
+{% endif %}
+<h4 class="mt-4">Нова лиценца</h4>
+<form method="post">
+<input type="hidden" name="action" value="add">
+<div class="row g-2">
+<div class="col-12 col-md-2"><label>ID *</label><input class="form-control" name="LicenseID" required autofocus></div>
+<div class="col-12 col-md-3"><label>Софтвер</label><input class="form-control" name="Software"></div>
+<div class="col-12 col-md-2"><label>Клуч</label><input class="form-control" name="LicenseKey"></div>
+<div class="col-6 col-md-1"><label>Седишта</label><input class="form-control" name="Seats" value="1" inputmode="numeric"></div>
+<div class="col-6 col-md-2"><label>Истек</label><input class="form-control" type="date" name="ExpiryDate"></div>
+<div class="col-12 col-md-2"><label>Добавувач</label><input class="form-control" name="Supplier" data-remember="Supplier"></div>
+</div>
+<button class="btn btn-primary mt-2" type="submit">Внеси</button>
+</form>
+{% endblock %}

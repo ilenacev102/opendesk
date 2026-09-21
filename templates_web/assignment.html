@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="workspace-head operation-head">
+<div><div class="eyebrow">ОПЕРАЦИЈА · ИЗДАВАЊЕ</div><h1>Ново задолжување</h1><p>Избери носител и опрема за документот за задолжување.</p></div>
+<a class="btn btn-outline-secondary" href="/"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg>Откажи</a>
+</header>
+<form method="post" class="operation-form">
+<section class="operation-section">
+<div class="step-index">01</div><div class="step-content"><h4>Носител</h4>
+<div class="mb-0"><label>Вработен</label>
+<input class="form-control" id="emp" name="emp_id" value="{{ preset_emp }}" required autofocus>
+<div id="empPrev" class="form-text"></div>
+<div class="form-text"><a id="newEmpLink" href="/employees/new">Нов вработен?</a></div></div></div>
+</section>
+<section class="operation-section">
+<div class="step-index">02</div><div class="step-content"><h4>Опрема</h4>
+<div class="mb-0"><label>Уреди</label>
+<input class="form-control" id="devPick" placeholder="нпр. SN-DELL-001 или Dell 5440...">
+<div id="devPick-list" class="list-group position-relative"></div>
+</div></div>
+</section>
+<section class="operation-section operation-section-last">
+<div class="step-index">03</div><div class="step-content"><h4>Детали</h4>
+<div class="row g-3"><div class="col-md-6"><label>Причина</label><input class="form-control" name="reason"></div>
+<div class="col-md-6"><label>Забелешка</label><input class="form-control" name="notes"></div></div>
+</div></section>
+<section class="operation-section operation-section-last">
+<div class="step-index">04</div><div class="step-content"><h4>Потпис <small class="text-muted">(незадолжително)</small></h4>
+<canvas id="sigPad" width="420" height="140" class="border rounded bg-white touch-none"></canvas>
+<div class="mt-2 d-flex gap-2">
+<button class="btn btn-sm btn-outline-secondary" type="button" id="sigClear">Исчисти</button>
+</div>
+<input type="hidden" name="signature" id="sigField">
+</div></section>
+<div class="operation-footer"><a class="btn btn-outline-secondary" href="/">Откажи</a><button class="btn btn-primary" type="submit"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>Потврди задолжување</button></div>
+</form>
+<script src="/static/js/autocomplete.js"></script>
+<script src="/static/js/picker.js"></script>
+<script nonce="{{ csp_nonce }}">
+const EMPS = {{ employees|tojson }};
+const DEVS = {{ devices|tojson }};
+const empInput = document.getElementById("emp");
+const newEmpLink = document.getElementById("newEmpLink");
+empInput.addEventListener("input", () => {
+  const v = empInput.value.trim();
+  newEmpLink.href = v ? "/employees/new?prefill=" + encodeURIComponent(v) : "/employees/new";
+});
+new AutoComplete(empInput, EMPS.map(e => ({
+  value: e.EmployeeID,
+  search: e.EmployeeID + " " + e.FirstName + " " + e.LastName + " " + e.UserName + " " + e.Email + " " + e.Department,
+  show: "<b>" + e.FirstName + " " + e.LastName + "</b> (" + e.EmployeeID + ")<br><small>" + e.Department + " | " + e.Email + "</small>",
+  prev: "ID: " + e.EmployeeID + " | Email: " + e.Email + " | Оддел: " + e.Department + " | " + e.Organization + " | " + e.Location
+})), {
+  label: it => it.show,
+  freqKey: "emp",
+  onPick: it => { document.getElementById("empPrev").textContent = it.prev; document.getElementById("devPick").focus(); }
+});
+const devPicker = new DevicePicker("devPick", "devPick-list", "asset_ids", DEVS);
+{% if preset_asset %}
+devPicker.add(DEVS.find(d => d.AssetID === "{{ preset_asset }}"));
+{% endif %}
+(function () {
+  const pad = document.getElementById("sigPad");
+  if (!pad) return;
+  const ctx = pad.getContext("2d");
+  ctx.lineWidth = 2;
+  ctx.lineCap = "round";
+  let drawing = false;
+  const pos = (e) => {
+    const r = pad.getBoundingClientRect();
+    const p = e.touches ? e.touches[0] : e;
+    return [p.clientX - r.left, p.clientY - r.top];
+  };
+  const start = (e) => { drawing = true; const [x, y] = pos(e); ctx.beginPath(); ctx.moveTo(x, y); e.preventDefault(); };
+  const move = (e) => { if (!drawing) return; const [x, y] = pos(e); ctx.lineTo(x, y); ctx.stroke(); e.preventDefault(); };
+  const stop = () => { drawing = false; };
+  pad.addEventListener("mousedown", start);
+  pad.addEventListener("mousemove", move);
+  pad.addEventListener("mouseup", stop);
+  pad.addEventListener("mouseleave", stop);
+  pad.addEventListener("touchstart", start, {passive: false});
+  pad.addEventListener("touchmove", move, {passive: false});
+  pad.addEventListener("touchend", stop);
+  document.getElementById("sigClear").addEventListener("click", () => ctx.clearRect(0, 0, pad.width, pad.height));
+  pad.closest("form").addEventListener("submit", () => {
+    const blank = document.createElement("canvas");
+    blank.width = pad.width; blank.height = pad.height;
+    document.getElementById("sigField").value =
+      pad.toDataURL() === blank.toDataURL() ? "" : pad.toDataURL("image/png");
+  });
+})();
+</script>
+{% endblock %}

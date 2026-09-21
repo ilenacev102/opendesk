@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Нов вработен</h2>
+<form method="post">
+<div class="row g-2">
+<div class="col-12 col-md-3"><label>EmployeeID *</label><input class="form-control" name="EmployeeID" required></div>
+<div class="col-12 col-md-3"><label>Име</label><input class="form-control" name="FirstName" value="{{ first }}"></div>
+<div class="col-12 col-md-3"><label>Презиме</label><input class="form-control" name="LastName" value="{{ last }}"></div>
+<div class="col-12 col-md-3"><label>Email</label><input class="form-control" name="Email" type="email"></div>
+<div class="col-12 col-md-4"><label>Оддел</label><input class="form-control" name="Department" list="depts"></div>
+<div class="col-12 col-md-4"><label>Организација</label><input class="form-control" name="Organization" list="orgs"></div>
+<div class="col-12 col-md-4"><label>Локација</label><input class="form-control" name="Location" list="locs" data-remember="Location"></div>
+</div>
+<button class="btn btn-primary mt-3" type="submit">Зачувај</button>
+<a class="btn btn-secondary mt-3" href="/employees">Откажи</a>
+</form>
+<datalist id="depts"></datalist>
+<datalist id="orgs"></datalist>
+<datalist id="locs"></datalist>
+<script nonce="{{ csp_nonce }}">
+fetch("/api/values")
+  .then(r => r.json())
+  .then(d => {
+    for (const [listId, vals] of [["depts", d.Department], ["orgs", d.Organization], ["locs", d.Location]]) {
+      const dl = document.getElementById(listId);
+      (vals || []).forEach(v => {
+        const o = document.createElement("option");
+        o.value = v;
+        dl.appendChild(o);
+      });
+    }
+  });
+</script>
+{% endblock %}

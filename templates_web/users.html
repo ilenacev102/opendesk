@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Корисници</h2>
+<table class="table">
+<thead><tr><th>Корисник</th><th>Улога</th><th>Активен</th><th>Акции</th></tr></thead>
+<tbody>
+{% for u in users %}
+<tr>
+<td>{{ u.UserName }}</td>
+<td>{{ u.Role }}</td>
+<td>{{ u.Active }}</td>
+<td>
+<form method="post" class="d-inline">
+<input type="hidden" name="username" value="{{ u.UserName }}">
+{% if u.Active == "YES" %}
+<button class="btn btn-sm btn-secondary" name="action" value="deactivate" type="submit">Деактивирај</button>
+{% else %}
+<button class="btn btn-sm btn-secondary" name="action" value="activate" type="submit">Активирај</button>
+{% endif %}
+</form>
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+<h4>Нов корисник</h4>
+<form method="post">
+<input type="hidden" name="action" value="create">
+<div class="mb-3"><label>Корисничко име</label>
+<input class="form-control" name="username" required></div>
+<div class="mb-3"><label>Лозинка (мин. 8 знаци)</label>
+<input class="form-control" type="password" name="password" required></div>
+<div class="mb-3"><label>Улога</label>
+<select class="form-control" name="role">
+<option value="magacioner">Магационер</option>
+<option value="citac">Читач</option>
+<option value="admin">Админ</option>
+</select></div>
+<button class="btn btn-primary" type="submit">Креирај</button>
+</form>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Договори</h2>
+<div class="table-responsive"><table class="table table-striped">
+<thead><tr><th>ID</th><th>Наслов</th><th>Добавувач</th><th>Важи до</th><th>Вредност</th></tr></thead>
+<tbody>
+{% for r in rows %}
+<tr{% if r.ContractID in expiring_ids %} class="table-warning"{% endif %}>
+<td><b>{{ r.ContractID }}</b>{% if r.ContractID in expiring_ids %} <span class="badge bg-warning text-dark">Истекува</span>{% endif %}</td>
+<td>{{ r.Title }}</td>
+<td>{{ r.Supplier or "—" }}</td>
+<td>{{ r.ValidUntil or "—" }}</td>
+<td>{{ r.Value or "—" }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table></div>
+{% if not rows %}
+<div class="empty-state">Нема внесени договори.</div>
+{% endif %}
+<h4 class="mt-4">Нов договор</h4>
+<form method="post">
+<input type="hidden" name="action" value="add">
+<div class="row g-2">
+<div class="col-12 col-md-2"><label>ID *</label><input class="form-control" name="ContractID" required autofocus></div>
+<div class="col-12 col-md-4"><label>Наслов</label><input class="form-control" name="Title"></div>
+<div class="col-12 col-md-2"><label>Добавувач</label><input class="form-control" name="Supplier" data-remember="Supplier"></div>
+<div class="col-6 col-md-2"><label>Важи до</label><input class="form-control" type="date" name="ValidUntil"></div>
+<div class="col-6 col-md-2"><label>Вредност</label><input class="form-control" name="Value"></div>
+</div>
+<button class="btn btn-primary mt-2" type="submit">Внеси</button>
+</form>
+{% endblock %}

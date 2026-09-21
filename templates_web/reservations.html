@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Резервации</h2>
+<div class="table-responsive"><table class="table table-striped">
+<thead><tr><th>ID</th><th>Уред</th><th>Вработен</th><th>Од</th><th>До</th><th>Статус</th><th>Акција</th></tr></thead>
+<tbody>
+{% for r in rows %}
+<tr>
+<td><b>{{ r.ReservationID }}</b></td>
+<td>{{ r.AssetID }}</td>
+<td>{{ r.EmployeeID or "—" }}</td>
+<td>{{ r.FromDate }}</td>
+<td>{{ r.ToDate }}</td>
+<td>{{ r.Status }}</td>
+<td>
+{% if r.Status == "active" %}
+<form method="post" action="/reservations/cancel" class="d-inline">
+<input type="hidden" name="reservation_id" value="{{ r.ReservationID }}">
+<button class="btn btn-sm btn-outline-secondary" type="submit">Откажи</button>
+</form>
+{% endif %}
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table></div>
+{% if not rows %}
+<div class="empty-state">Нема резервации.</div>
+{% endif %}
+<h4 class="mt-4">Нова резервација</h4>
+<form method="post">
+<input type="hidden" name="action" value="add">
+<div class="row g-2">
+<div class="col-12 col-md-2"><label>Уред *</label><input class="form-control" name="AssetID" required autofocus></div>
+<div class="col-12 col-md-2"><label>Вработен</label><input class="form-control" name="EmployeeID"></div>
+<div class="col-6 col-md-2"><label>Од *</label><input class="form-control" type="date" name="FromDate" required></div>
+<div class="col-6 col-md-2"><label>До *</label><input class="form-control" type="date" name="ToDate" required></div>
+<div class="col-12 col-md-4"><label>Забелешка</label><input class="form-control" name="Notes"></div>
+</div>
+<button class="btn btn-primary mt-2" type="submit">Резервирај</button>
+</form>
+{% endblock %}

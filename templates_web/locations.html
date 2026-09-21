@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Локации</h2>
+<div class="row g-3">
+{% for c in cards %}
+<div class="col-md-4"><div class="card sd-card anim-in"><div class="card-body">
+<h5><a href="/location/{{ c.name }}">{{ c.name }}</a></h5>
+<p class="mb-1">{{ c.people }} вработени</p>
+<p class="mb-0"><svg class="ic" aria-hidden="true"><use href="#i-monitor"/></svg> {{ c.devices }} уреди ({{ c.assigned }} задолжени)</p>
+</div></div></div>
+{% endfor %}
+</div>
+{% endblock %}

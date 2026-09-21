@@ -1,0 +1,10 @@
+HistoryID,DateTime,Action,AssetID,OldStatus,NewStatus,EmployeeID,EmployeeName,Reason,Notes,PerformedBy,DocumentPath
+H000001,2026-09-17 07:34,ASSIGN,LAP003,Available,Assigned,EMP002,Марија Јованова,Test,,admin,documents/assignments/Assignment_EMP002_LAP003_A000001.docx
+H000002,2026-09-17 07:34,RETURN,LAP003,Assigned,Available,EMP002,Марија Јованова,Test restore,,admin,documents/returns/Return_EMP002_LAP003_R000001.docx
+H000003,2026-09-17 07:37,REPLACE_OUT,LAP002,Assigned,Available,EMP001,Петар Петров,Test,,admin,documents/replacements/Replacement_EMP001_LAP002_LAP008_RP000001.docx
+H000004,2026-09-17 07:37,REPLACE_IN,LAP008,Available,Assigned,EMP001,Петар Петров,Test,,admin,documents/replacements/Replacement_EMP001_LAP002_LAP008_RP000001.docx
+H000005,2026-09-17 07:37,REPAIR_REPAIR,LAP004,Broken,Repair,EMP003,,,,admin,documents/repairs/Repair_LAP004_BR000001.docx
+H000006,2026-09-17 07:37,RETURN,LAP008,Assigned,Available,EMP001,Петар Петров,Restore,,admin,documents/returns/Return_EMP001_LAP008_R000002.docx
+H000007,2026-09-17 07:39,ASSIGN,LAP002,Available,Assigned,EMP001,Петар Петров,Restore original state,,admin,documents/assignments/Assignment_EMP001_LAP002_A000002.docx
+H000008,2026-09-17 08:36,ASSIGN,LAP009,Available,Assigned,EMP003,Горан Стојанов,Test template,,admin,documents/assignments/Assignment_EMP003_LAP009_A000003.docx
+H000009,2026-09-17 08:36,RETURN,LAP009,Assigned,Available,EMP003,Горан Стојанов,Restore,,admin,documents/returns/Return_EMP003_LAP009_R000003.docx

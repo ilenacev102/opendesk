@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Нов уред</h2>
+<form method="post">
+<div class="row">
+<div class="col-md-6">
+<div class="mb-3"><label>Инвентарен број * <small class="text-muted">(ти го одредуваш – уредот се именува по него)</small></label>
+<div class="input-group">
+<input class="form-control" id="assetId" name="AssetID" required placeholder="нпр. LAP-2026-001">
+<button class="btn btn-outline-secondary" type="button" id="genId" title="Предложи следен слободен">⟳</button>
+</div>
+<div id="assetWarn" class="form-text text-danger"></div></div>
+<div class="mb-3"><label>Тип</label>
+<select class="form-control" id="dtype" name="Type" data-prefill="{{ prefill.Type }}">
+<option>Laptop</option><option>Компјутер</option><option>Монитор</option>
+<option>Печатач</option><option>Телефон</option><option>Таблет</option><option>Друго</option>
+</select></div>
+<div class="mb-3"><label>Производител (само од листа)</label>
+<input class="form-control" id="mfr" name="Manufacturer" list="mfrs" value="{{ prefill.Manufacturer }}"></div>
+<div class="mb-3"><label>Модел (само од листа)</label>
+<input class="form-control" id="mdl" name="Model" list="mdls" value="{{ prefill.Model }}"></div>
+<div class="mb-3"><label>Сериски број</label>
+<input class="form-control" id="sn" name="SerialNumber">
+<div id="snWarn" class="form-text text-danger"></div></div>
+</div>
+<div class="col-md-6">
+<div class="mb-3"><label>Статус</label>
+<select class="form-control" name="Status" data-prefill="{{ prefill.Status or 'Available' }}">
+<option>Available</option><option>Assigned</option><option>Broken</option>
+<option>Repair</option><option>Repaired</option><option>Replacement</option>
+<option>Disposal</option><option>Disposed</option><option>Lost</option><option>Stolen</option>
+</select></div>
+<div class="mb-3"><label>Локација (само од листа)</label>
+<input class="form-control" name="Location" list="locs" data-remember="Location" value="{{ prefill.Location }}"></div>
+<div class="mb-3"><label>Датум набавка</label>
+<input class="form-control" type="date" name="PurchaseDate" value="{{ prefill.PurchaseDate }}"></div>
+<div class="mb-3"><label>Гаранција до</label>
+<input class="form-control" type="date" name="WarrantyUntil" value="{{ prefill.WarrantyUntil }}"></div>
+<div class="mb-3"><label>Набавна цена</label>
+<input class="form-control" name="PurchasePrice" placeholder="нпр. 45000" value="{{ prefill.PurchasePrice }}"></div>
+<div class="mb-3"><label>Добавувач</label>
+<input class="form-control" name="Supplier" value="{{ prefill.Supplier }}"></div>
+<div class="mb-3"><label>Забелешка</label>
+<input class="form-control" name="Notes" value="{{ prefill.Notes }}"></div>
+</div>
+</div>
+<button class="btn btn-primary" type="submit">Зачувај</button>
+<button class="btn btn-outline-primary" type="submit" name="add_another" value="1">Зачувај + нов</button>
+<a class="btn btn-secondary" href="/devices">Откажи</a>
+</form>
+<datalist id="mfrs"></datalist>
+<datalist id="mdls"></datalist>
+<datalist id="locs"></datalist>
+<script nonce="{{ csp_nonce }}">
+document.querySelectorAll("select[data-prefill]").forEach(function (sel) {
+  if (sel.getAttribute("data-prefill")) sel.value = sel.getAttribute("data-prefill");
+});
+function genId() {
+  const t = document.getElementById("dtype").value;
+  fetch("/api/next-id?type=" + encodeURIComponent(t))
+    .then(r => r.json())
+    .then(d => { document.getElementById("assetId").value = d.next_id; });
+}
+document.getElementById("genId").addEventListener("click", genId);
+document.getElementById("dtype").addEventListener("change", genId);
+genId();
+fetch("/api/values")
+  .then(r => r.json())
+  .then(d => {
+    for (const [listId, vals] of [["mfrs", d.Manufacturer], ["mdls", d.Model], ["locs", d.Location]]) {
+      const dl = document.getElementById(listId);
+      vals.forEach(v => {
+        const o = document.createElement("option");
+        o.value = v;
+        dl.appendChild(o);
+      });
+    }
+  });
+let assetTimer = null;
+document.getElementById("assetId").addEventListener("input", function () {
+  clearTimeout(assetTimer);
+  const v = this.value.trim();
+  const warn = document.getElementById("assetWarn");
+  if (!v) { warn.textContent = ""; return; }
+  assetTimer = setTimeout(() => {
+    fetch("/api/check-asset?q=" + encodeURIComponent(v))
+      .then(r => r.json())
+      .then(d => {
+        warn.textContent = d.exists ? "Внимание: бројот веќе постои: " + d.info : "Слободен број";
+        warn.className = d.exists ? "form-text text-danger" : "form-text text-success";
+      });
+  }, 300);
+});
+let snTimer = null;
+document.getElementById("sn").addEventListener("input", function () {
+  clearTimeout(snTimer);
+  const v = this.value.trim();
+  const warn = document.getElementById("snWarn");
+  if (!v) { warn.textContent = ""; return; }
+  snTimer = setTimeout(() => {
+    fetch("/api/check-serial?q=" + encodeURIComponent(v))
+      .then(r => r.json())
+      .then(d => {
+        warn.textContent = d.exists ? "Внимание: серискиот веќе постои кај " + d.asset + "!" : "";
+      });
+  }, 300);
+});
+</script>
+{% endblock %}

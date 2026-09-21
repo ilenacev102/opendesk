@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Вработени</h2>
+<div class="mb-2"><a class="btn btn-primary" href="/employees/new">Нов вработен</a></div>
+<div class="table-responsive">
+<table class="table table-striped sortable">
+<thead><tr><th data-sort>ID</th><th data-sort>Име</th><th data-sort>Username</th><th data-sort>Email</th><th data-sort>Оддел</th><th data-sort>Локација</th><th data-sort>Активен</th></tr></thead>
+<tbody>
+{% for e in employees %}
+<tr><td><a href="/employee/{{ e.EmployeeID }}">{{ e.EmployeeID }}</a></td>
+<td>{{ e.FirstName }} {{ e.LastName }}</td><td>{{ e.UserName }}</td>
+<td>{{ e.Email }}</td><td>{{ e.Department }}</td><td>{{ e.Location }}</td><td>{{ e.Active }}</td></tr>
+{% else %}
+<tr><td colspan="7" class="text-center text-muted">Нема вработени.</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% endblock %}

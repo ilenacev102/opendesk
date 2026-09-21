@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Потрошен материјал</h2>
+<div class="table-responsive"><table class="table table-striped">
+<thead><tr><th>ID</th><th>Назив</th><th>Категорија</th><th>Количина</th><th>Мин.</th><th>Локација</th><th>Издавање</th></tr></thead>
+<tbody>
+{% for r in rows %}
+<tr{% if r.ConsumableID in low_ids %} class="table-warning"{% endif %}>
+<td><b>{{ r.ConsumableID }}</b>{% if r.ConsumableID in low_ids %} <span class="badge bg-warning text-dark">Ниска залиха</span>{% endif %}</td>
+<td>{{ r.Name }}</td>
+<td>{{ r.Category }}</td>
+<td>{{ r.Quantity }}</td>
+<td>{{ r.MinLevel }}</td>
+<td>{{ r.Location or "—" }}</td>
+<td>
+<form method="post" action="/consumables/issue" class="d-flex gap-1">
+<input type="hidden" name="consumable_id" value="{{ r.ConsumableID }}">
+<input class="form-control form-control-sm" style="max-width:5rem" name="qty" placeholder="кол." inputmode="numeric">
+<button class="btn btn-sm btn-outline-primary" type="submit">Издај</button>
+</form>
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table></div>
+{% if not rows %}
+<div class="empty-state">Нема внесен потрошен материјал.</div>
+{% endif %}
+<h4 class="mt-4">Нов материјал</h4>
+<form method="post">
+<input type="hidden" name="action" value="add">
+<div class="row g-2">
+<div class="col-12 col-md-2"><label>ID *</label><input class="form-control" name="ConsumableID" required autofocus></div>
+<div class="col-12 col-md-3"><label>Назив</label><input class="form-control" name="Name"></div>
+<div class="col-12 col-md-2"><label>Категорија</label><input class="form-control" name="Category" data-remember="Category"></div>
+<div class="col-6 col-md-1"><label>Количина</label><input class="form-control" name="Quantity" value="0" inputmode="numeric"></div>
+<div class="col-6 col-md-1"><label>Мин.</label><input class="form-control" name="MinLevel" value="0" inputmode="numeric"></div>
+<div class="col-12 col-md-3"><label>Локација</label><input class="form-control" name="Location" data-remember="Location"></div>
+</div>
+<button class="btn btn-primary mt-2" type="submit">Внеси</button>
+</form>
+{% endblock %}

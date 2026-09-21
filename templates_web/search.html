@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Пребарај{% if q %}: {{ q }}{% endif %}</h2>
+{% if q and not results.employees and not results.devices %}
+<div class="empty-state"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg>Нема резултати за „{{ q }}“.</div>
+{% endif %}
+<h4>Вработени ({{ results.employees|length }})</h4>
+<ul>
+{% for e in results.employees %}
+<li><a href="/employee/{{ e.EmployeeID }}">{{ e.FirstName }} {{ e.LastName }}</a> ({{ e.EmployeeID }})</li>
+{% endfor %}
+</ul>
+<h4>Уреди ({{ results.devices|length }})</h4>
+<ul>
+{% for d in results.devices %}
+<li><a href="/device/{{ d.AssetID }}">{{ d.AssetID }}</a> {{ d.Manufacturer }} {{ d.Model }} - {{ d.SerialNumber }}</li>
+{% endfor %}
+</ul>
+{% endblock %}

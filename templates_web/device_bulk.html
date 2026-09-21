@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Bulk внес на уреди</h2>
+<p class="text-muted">Заеднички податоци + по еден сериски број во ред. Дупликатите се прескокнуваат, инвентарните броеви се генерираат автоматски.</p>
+<form method="post">
+<div class="row g-2 mb-3">
+<div class="col-12 col-md-2"><label>Тип</label>
+<select class="form-control" name="Type">
+<option>Laptop</option><option>Компјутер</option><option>Монитор</option>
+<option>Печатач</option><option>Телефон</option><option>Таблет</option><option>Друго</option>
+</select></div>
+<div class="col-12 col-md-3"><label>Производител</label><input class="form-control" name="Manufacturer"></div>
+<div class="col-12 col-md-3"><label>Модел</label><input class="form-control" name="Model"></div>
+<div class="col-12 col-md-2"><label>Локација</label><input class="form-control" name="Location" data-remember="Location"></div>
+<div class="col-12 col-md-2"><label>Добавувач</label><input class="form-control" name="Supplier" data-remember="Supplier"></div>
+</div>
+<div class="mb-3"><label>Сериски броеви (еден по ред) *</label>
+<textarea class="form-control" name="serials" rows="8" required placeholder="SN-001&#10;SN-002&#10;..."></textarea></div>
+<button class="btn btn-primary" type="submit">Внеси ги сите</button>
+<a class="btn btn-secondary" href="/devices">Откажи</a>
+</form>
+{% endblock %}

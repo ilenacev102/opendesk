@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="workspace-head operation-head">
+<div><div class="eyebrow">ОПЕРАЦИЈА · ЖИВОТЕН ЦИКЛУС</div><h1>Замена на уред</h1><p>Пренеси задолжување и одреди ја состојбата на стариот уред.</p></div>
+<a class="btn btn-outline-secondary" href="/"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg>Откажи</a>
+</header>
+<form method="post" class="operation-form compact-operation">
+<div class="mb-3"><label>Вработен</label>
+<input class="form-control" id="emp" name="emp_id" value="{{ preset_emp }}" required autofocus>
+<div id="empPrev" class="form-text"></div></div>
+<div class="mb-3"><label>Стар уред (задолжен)</label>
+<input class="form-control" id="old" name="old_id" value="{{ preset_old }}" required>
+<div id="oldPrev" class="form-text"></div></div>
+<div class="mb-3"><label><b>Нов уред</b> (достапен)</label>
+<input class="form-control" id="new" name="new_id" required>
+<div id="newPrev" class="form-text"></div></div>
+<div class="mb-3"><label><b>Состојба на стариот уред по замената</b></label>
+<select class="form-select" name="old_condition" id="old_condition">
+<option value="Available">Исправен – врати го на залиха (Available)</option>
+<option value="Broken" selected>Расипан / Дефектен – префрли на сервис (Broken)</option>
+<option value="Disposed">За отпис / Расход (Disposed)</option>
+</select>
+<div class="form-text">Ако стариот уред се заменува поради дефект, изберете „Расипан“ за да не се задолжи грешно на друг колега.</div></div>
+<div class="mb-3"><label>Причина</label><input class="form-control" name="reason" placeholder="нпр. Редовна замена, оштетен екран, надградба..."></div>
+<div class="mb-3"><label>Забелешка</label><input class="form-control" name="notes"></div>
+<div class="operation-footer"><a class="btn btn-outline-secondary" href="/">Откажи</a><button class="btn btn-primary" type="submit"><svg class="ic" aria-hidden="true"><use href="#i-swap"/></svg>Потврди замена</button></div>
+</form>
+<script src="/static/js/autocomplete.js"></script>
+<script nonce="{{ csp_nonce }}">
+const EMPS = {{ employees|tojson }};
+const ASSIGNED = {{ assigned|tojson }};
+const AVAIL = {{ available|tojson }};
+function devItem(d, withHolder) {
+  return {
+    value: d.AssetID,
+    holder: d.EmployeeID,
+    search: d.AssetID + " " + d.Manufacturer + " " + d.Model + " " + d.SerialNumber + " " + d.EmployeeID,
+    show: "<b>" + d.AssetID + "</b> " + d.Manufacturer + " " + d.Model + "<br><small>" + d.SerialNumber + (withHolder ? " | кај: " + d.EmployeeID : " | " + d.Status) + "</small>",
+    prev: d.Manufacturer + " " + d.Model + " | SN: " + d.SerialNumber + " | Статус: " + d.Status
+  };
+}
+let oldAC = null;
+function buildOldAC(empId) {
+  const inp = document.getElementById("old");
+  inp.parentElement.querySelectorAll(".ac-list").forEach(el => el.remove());
+  const list = empId ? ASSIGNED.filter(d => d.EmployeeID === empId) : ASSIGNED;
+  oldAC = new AutoComplete(document.getElementById("old"), list.map(d => devItem(d, true)), {
+    label: it => it.show,
+    freqKey: "dev",
+    onPick: it => { document.getElementById("oldPrev").textContent = it.prev; }
+  });
+}
+new AutoComplete(document.getElementById("emp"), EMPS.map(e => ({
+  value: e.EmployeeID,
+  search: e.EmployeeID + " " + e.FirstName + " " + e.LastName + " " + e.UserName,
+  show: "<b>" + e.FirstName + " " + e.LastName + "</b> (" + e.EmployeeID + ")",
+  prev: e.Department
+})), {
+  label: it => it.show,
+  freqKey: "emp",
+  onPick: it => {
+    document.getElementById("empPrev").textContent = it.prev;
+    document.getElementById("old").value = "";
+    document.getElementById("oldPrev").textContent = "";
+    buildOldAC(it.value);
+    document.getElementById("old").focus();
+  }
+});
+const presetEmp = "{{ preset_emp }}";
+buildOldAC(presetEmp || "");
+if (presetEmp) {
+  const e = EMPS.find(x => x.EmployeeID === presetEmp);
+  if (e) document.getElementById("empPrev").textContent = e.Department;
+}
+new AutoComplete(document.getElementById("new"), AVAIL.map(d => devItem(d, false)), {
+  label: it => it.show,
+  freqKey: "dev",
+  onPick: it => { document.getElementById("newPrev").textContent = it.prev; }
+});
+</script>
+{% endblock %}

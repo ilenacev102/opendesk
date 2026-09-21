@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb mb-3">
+<li class="breadcrumb-item"><a href="/devices">Уреди</a></li>
+<li class="breadcrumb-item active" aria-current="page">{{ dev.AssetID }}</li>
+</ol></nav>
+<div class="card sd-card mb-3 anim-in"><div class="card-body">
+<div class="d-flex flex-wrap align-items-center gap-3">
+<span class="stat-ic"><svg class="ic" aria-hidden="true"><use href="#i-monitor"/></svg></span>
+<div class="flex-grow-1">
+<h2 class="mb-1">{{ dev.AssetID }} <span class="text-muted fw-normal">· {{ dev.Manufacturer }} {{ dev.Model }}</span></h2>
+<div class="d-flex flex-wrap gap-2 align-items-center">
+<span class="badge badge-st st-{{ dev.Status }}">{{ dev.Status }}</span>
+<span class="text-muted small">{{ dev.Type }} · SN: {{ dev.SerialNumber }}</span>
+</div>
+</div>
+<div>
+{% for label, url, color in actions %}
+<a class="btn btn-{{ color }} me-2 mb-2" href="{{ url }}">{{ label }}</a>
+{% endfor %}
+<a class="btn btn-outline-secondary me-2 mb-2" href="/devices/new?clone={{ dev.AssetID }}">Дуплирај</a>
+</div>
+<div class="text-center ms-2">
+<img src="/qr/{{ dev.AssetID }}" alt="QR {{ dev.AssetID }}" width="110" height="110" loading="lazy">
+<div><a class="small" href="/labels">Налепници</a></div>
+</div>
+</div>
+</div></div>
+<div class="card sd-card mb-3"><div class="card-body">
+<div class="row g-2">
+<div class="col-12 col-md-6"><div class="text-muted small">Носител</div><div><b>{% if emp %}{{ emp }} ({{ dev.EmployeeID }}){% else %}—{% endif %}</b></div></div>
+<div class="col-6 col-md-3"><div class="text-muted small">Локација</div><div>{{ dev.Location or "—" }}</div></div>
+<div class="col-6 col-md-3"><div class="text-muted small">Тип</div><div>{{ dev.Type or "—" }}</div></div>
+<div class="col-6 col-md-3"><div class="text-muted small">Набавено</div><div>{{ dev.PurchaseDate or "—" }}</div></div>
+<div class="col-6 col-md-3"><div class="text-muted small">Гаранција до</div><div>{{ dev.WarrantyUntil or "—" }}</div></div>
+<div class="col-6 col-md-3"><div class="text-muted small">Набавна цена</div><div>{{ dev.PurchasePrice or "—" }}</div></div>
+<div class="col-6 col-md-3"><div class="text-muted small">Добавувач</div><div>{{ dev.Supplier or "—" }}</div></div>
+<div class="col-12 col-md-6"><div class="text-muted small">Забелешка</div><div>{{ dev.Notes or "—" }}</div></div>
+{% if cfields %}
+<div class="col-12"><div class="text-muted small mb-1">Дополнителни полиња</div>
+<form method="post" action="/device/{{ dev.AssetID }}/fields">
+<div class="row g-2">
+{% for f in cfields %}
+<div class="col-12 col-md-4"><label>{{ f.FieldName }}</label>
+<input class="form-control" name="field_{{ f.FieldID }}" value="{{ f.Value }}"></div>
+{% endfor %}
+</div>
+<button class="btn btn-sm btn-outline-primary mt-2" type="submit">Зачувај полиња</button>
+</form>
+</div>
+{% endif %}
+</div>
+</div></div>
+{% if docs %}
+<h4 class="mt-4">Документи</h4>
+<div class="table-responsive"><table class="table table-sm">
+<thead><tr><th>Датум</th><th>Акција</th><th class="text-end">Преземи</th></tr></thead>
+<tbody>
+{% for d in docs %}
+<tr><td>{{ d.DateTime }}</td><td>{{ d.Action }}</td>
+<td class="text-end"><a class="btn btn-sm btn-outline-primary" href="/doc/{{ d.DocumentPath }}" download><svg class="ic" aria-hidden="true"><use href="#i-file"/></svg> DOCX</a>
+<a class="btn btn-sm btn-outline-primary" href="/pdf/{{ d.DocumentPath }}" download><svg class="ic" aria-hidden="true"><use href="#i-file"/></svg> PDF</a>
+<button class="btn btn-sm btn-success" onclick="mailDoc('/pdf/{{ d.DocumentPath }}', '{{ emails.get(d.EmployeeID, '') }}', 'Документ {{ d.Action }} {{ d.AssetID }}', 'Здраво,\nВо прилог е документот за {{ d.AssetID }}.')"><svg class="ic" aria-hidden="true"><use href="#i-mail"/></svg> Прати</button></td></tr>
+{% endfor %}
+</tbody>
+</table></div>
+{% endif %}
+<h4 class="mt-4">Целосна историја на уредот ({{ hist|length }})</h4>
+{% if hist %}
+<div class="table-responsive"><table class="table table-striped">
+<thead><tr><th>Датум</th><th>Акција</th><th>Стара</th><th>Нова</th><th>Вработен</th><th>Причина</th></tr></thead>
+<tbody>
+{% for h in hist %}
+<tr><td>{{ h.DateTime }}</td><td><b>{{ h.Action }}</b></td>
+<td>{{ h.OldStatus }}</td><td>{{ h.NewStatus }}</td>
+<td>{{ h.EmployeeName }}</td><td>{{ h.Reason }}</td></tr>
+{% endfor %}
+</tbody>
+</table></div>
+{% else %}
+<div class="empty-state"><svg class="ic" aria-hidden="true"><use href="#i-clip"/></svg>Уредот нема историја – нов во системот.</div>
+{% endif %}
+{% endblock %}

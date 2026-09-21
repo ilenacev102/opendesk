@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="workspace-head operation-head">
+<div><div class="eyebrow">ОПЕРАЦИЈА · СЕРВИС</div><h1>Сервисна работна станица</h1><p>Пријави дефект, продолжи сервисен тек или затвори непоправлив уред.</p></div>
+<a class="btn btn-outline-secondary" href="/devices"><svg class="ic" aria-hidden="true"><use href="#i-monitor"/></svg>Уреди</a>
+</header>
+<div class="row g-3">
+<div class="col-lg-6"><section class="operation-panel">
+<div class="panel-heading"><div><span class="eyebrow">НОВ СЛУЧАЈ</span><h4>Пријави расипан уред</h4></div></div>
+<form method="post">
+<input type="hidden" name="action" value="report">
+<div class="mb-3"><label>Уред (пишувај модел, сериски, asset...)</label>
+<input class="form-control" id="dev1" name="asset_id" value="{{ preset_asset }}" required autofocus>
+<div id="dev1Prev" class="form-text"></div></div>
+<div class="mb-3"><label>Проблем</label><input class="form-control" name="problem" required></div>
+<div class="mb-3"><label>Вработен (носител, ако уредот не е задолжен)</label>
+<input class="form-control" id="emp1" name="emp_id">
+<div id="emp1Prev" class="form-text"></div></div>
+<div class="mb-3"><label>Забелешка</label><input class="form-control" name="notes"></div>
+<button class="btn btn-warning" type="submit">Пријави</button>
+</form></section>
+</div>
+<div class="col-lg-6"><section class="operation-panel">
+<div class="panel-heading"><div><span class="eyebrow">АКТИВЕН СЛУЧАЈ</span><h4>Продолжи сервисен статус</h4></div></div>
+<form method="post">
+<input type="hidden" name="action" value="advance">
+<div class="mb-3"><label>Уред</label><input class="form-control" id="dev2" name="asset_id" required>
+<div id="dev2Prev" class="form-text"></div></div>
+<div class="mb-3"><label>Сервисер</label><input class="form-control" name="provider"></div>
+<div class="mb-3"><label>Забелешка</label><input class="form-control" name="notes"></div>
+<div class="mb-3 form-check">
+<input type="checkbox" class="form-check-input" id="return_to_emp" name="return_to_emp">
+<label class="form-check-label" for="return_to_emp">Врати му го на претходниот носител по поправка (наместо на залиха)</label>
+</div>
+<button class="btn btn-primary" type="submit">Следен статус</button>
+ </form>
+<form method="post" class="mt-4 pt-3 border-top" onsubmit="return confirm('Дали сте сигурни дека уредот не може да се поправи и треба да се расходува?');">
+<input type="hidden" name="action" value="unrepairable">
+<h5 class="text-danger"><svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg> Не може да се поправи (директен расход)</h5>
+<div class="mb-2"><label>Уред на сервис</label><input class="form-control" id="dev3" name="asset_id" required>
+<div id="dev3Prev" class="form-text"></div></div>
+<div class="mb-2"><label>Причина</label><input class="form-control" name="reason" value="Тотална штета / Неисплатлива поправка" required></div>
+<button class="btn btn-outline-danger" type="submit">Расходувај како дефектен</button>
+</form></section>
+</div>
+</div>
+<script src="/static/js/autocomplete.js"></script>
+<script nonce="{{ csp_nonce }}">
+const EMPS = {{ employees|tojson }};
+const DEVS = {{ devices|tojson }};
+function devItem(d) {
+  return {
+    value: d.AssetID,
+    search: d.AssetID + " " + d.Manufacturer + " " + d.Model + " " + d.SerialNumber + " " + d.Status,
+    show: "<b>" + d.AssetID + "</b> " + d.Manufacturer + " " + d.Model + "<br><small>" + d.SerialNumber + " | " + d.Status + "</small>",
+    prev: "Сериски: " + d.SerialNumber + " | Статус: " + d.Status
+  };
+}
+new AutoComplete(document.getElementById("emp1"), EMPS.map(e => ({
+  value: e.EmployeeID,
+  search: e.EmployeeID + " " + e.FirstName + " " + e.LastName + " " + e.UserName,
+  show: "<b>" + e.FirstName + " " + e.LastName + "</b> (" + e.EmployeeID + ")",
+  prev: e.Department + " | " + e.Email
+})), {
+  label: it => it.show,
+  freqKey: "emp",
+  onPick: it => { document.getElementById("emp1Prev").textContent = it.prev; }
+});
+new AutoComplete(document.getElementById("dev1"), DEVS.map(devItem), {
+  label: it => it.show,
+  freqKey: "dev",
+  onPick: it => { document.getElementById("dev1Prev").textContent = it.prev; }
+});
+new AutoComplete(document.getElementById("dev2"), DEVS.map(devItem), {
+  label: it => it.show,
+  freqKey: "dev",
+  onPick: it => { document.getElementById("dev2Prev").textContent = it.prev; }
+});
+new AutoComplete(document.getElementById("dev3"), DEVS.map(devItem), {
+  label: it => it.show,
+  freqKey: "dev",
+  onPick: it => { document.getElementById("dev3Prev").textContent = it.prev; }
+});
+</script>
+{% endblock %}

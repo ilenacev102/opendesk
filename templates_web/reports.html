@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<header class="workspace-head list-head">
+<div><div class="eyebrow">АНАЛИТИКА · ИЗВОЗ</div><h1>Извештаи</h1><p>Преглед на составот, распоредот и движењето на опремата.</p></div>
+<div class="workspace-actions"><a class="btn btn-outline-secondary" href="/reports?export=employees">Export вработени</a><a class="btn btn-primary" href="/reports?export=devices">Export уреди</a></div>
+</header>
+<div class="row g-3 report-grid">
+<div class="col-md-4"><section class="report-panel"><span class="eyebrow">СОСТОЈБА</span><h4>По статус</h4>
+<table class="table table-sm">{% for k, v in by_status.items() %}<tr><td>{{ k }}</td><td class="text-end"><b>{{ v }}</b></td></tr>{% endfor %}</table></section></div>
+<div class="col-md-4"><section class="report-panel"><span class="eyebrow">ТИПОВИ</span><h4>По тип</h4>
+<table class="table table-sm">{% for k, v in by_type.items() %}<tr><td>{{ k }}</td><td class="text-end"><b>{{ v }}</b></td></tr>{% endfor %}</table></section></div>
+<div class="col-md-4"><section class="report-panel"><span class="eyebrow">ПРОИЗВОДИТЕЛИ</span><h4>По производител</h4>
+<table class="table table-sm">{% for k, v in by_mfr.items() %}<tr><td>{{ k }}</td><td class="text-end"><b>{{ v }}</b></td></tr>{% endfor %}</table></section></div>
+</div>
+<div class="row g-3 mt-0 report-grid">
+<div class="col-md-4"><section class="report-panel"><span class="eyebrow">РАСПОРЕД</span><h4>По локација</h4>
+<table class="table table-sm">{% for k, v in by_loc.items() %}<tr><td>{{ k }}</td><td class="text-end"><b>{{ v }}</b></td></tr>{% endfor %}</table></section></div>
+<div class="col-md-4"><section class="report-panel"><span class="eyebrow">НОСИТЕЛИ</span><h4>По вработен</h4>
+<table class="table table-sm">{% for k, v in by_emp.items() %}<tr><td>{{ k }}</td><td class="text-end"><b>{{ v }}</b></td></tr>{% endfor %}</table></section></div>
+<div class="col-md-4"><section class="report-panel"><span class="eyebrow">ДВИЖЕЊЕ</span><h4>Сервис, замени и расход</h4>
+<table class="table table-sm">{% for k, v in monthly.items() %}<tr><td>{{ k }}</td><td class="text-end"><b>{{ v }}</b></td></tr>{% endfor %}</table></section></div>
+</div>
+{% endblock %}

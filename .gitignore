@@ -1,0 +1,26 @@
+# runtime data (created at startup, never commit)
+data/
+documents/
+backup/
+.servicedesk_secret
+.env
+logs/
+*.db
+*.db-wal
+*.db-shm
+*.pid
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+# session journals
+.omo/
+.codegraph
+# CI workflow is added separately (needs 'workflow' scope):
+#   gh auth refresh -s workflow && git add -f .github/workflows/tests.yml
+.github/
+# stray root-level template duplicate (canonical copy lives in templates/)
+/Zadolzuvanje_Template.docx
+# misc
+nohup.out

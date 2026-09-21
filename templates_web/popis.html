@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Попис</h2>
+<div class="row g-3">
+<div class="col-12 col-lg-4"><div class="card sd-card"><div class="card-body">
+<h5>Нов попис</h5>
+<form method="post">
+<div class="mb-2"><label class="form-label">Опфат</label>
+<select class="form-control" name="scope" id="scope">
+<option value="location">Локација</option>
+<option value="department">Оддел</option>
+</select></div>
+<div class="mb-2"><label class="form-label">Локација</label>
+<select class="form-control" name="name" id="locSel">
+{% for l in locs %}<option>{{ l }}</option>{% endfor %}
+</select></div>
+<div class="mb-2"><label class="form-label">Оддел</label>
+<select class="form-control" id="depSel">
+{% for d in deps %}<option>{{ d }}</option>{% endfor %}
+</select></div>
+<button class="btn btn-primary w-100" type="submit">Започни попис</button>
+</form>
+</div></div></div>
+<div class="col-12 col-lg-8"><div class="card sd-card"><div class="card-body">
+<h5>Пописи ({{ popisi|length }})</h5>
+{% if popisi %}
+<div class="table-responsive"><table class="table table-sm mb-0">
+<thead><tr><th>ID</th><th>Опфат</th><th>Најдени</th><th>Статус</th><th class="text-end">Акција</th></tr></thead>
+<tbody>
+{% for p in popisi %}
+<tr><td><b>{{ p.id }}</b><br><small class="text-muted">{{ p.scope }}: {{ p.name }}</small></td>
+<td class="text-nowrap">{{ p.found }}/{{ p.total }}</td>
+<td>{% if p.status == "OPEN" %}<span class="badge badge-st st-Repair">отворен</span>{% else %}<span class="badge badge-st st-Repaired">завршен</span>{% endif %}</td>
+<td class="text-end text-nowrap">
+{% if p.status == "OPEN" %}<a class="btn btn-sm btn-primary" href="/popis/{{ p.id }}">Продолжи</a>
+{% elif p.doc %}<a class="btn btn-sm btn-outline-primary" href="/doc/{{ p.doc }}" download>Записник</a>{% endif %}
+</td></tr>
+{% endfor %}
+</tbody>
+</table></div>
+{% else %}
+<div class="empty-state"><svg class="ic" aria-hidden="true"><use href="#i-clip"/></svg>Нема започнати пописи.</div>
+{% endif %}
+</div></div></div>
+</div>
+<script nonce="{{ csp_nonce }}">
+const scope = document.getElementById("scope");
+function sync() {
+  const isLoc = scope.value === "location";
+  document.getElementById("locSel").name = isLoc ? "name" : "";
+  document.getElementById("depSel").name = isLoc ? "" : "name";
+}
+scope.addEventListener("change", sync);
+sync();
+</script>
+{% endblock %}
