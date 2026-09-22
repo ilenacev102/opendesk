@@ -453,4 +453,4 @@ def device_fields_save(asset_id):
     if config.BACKUP_ON_WRITE:
         backup_all([field_values])
     flash("Дополнителните полиња се зачувани.", "success")
-    return redirect(url_for("device_detail", asset_id=asset_id))
+    return redirect(url_for("inventory.device_detail", asset_id=asset_id))
