@@ -1341,7 +1341,7 @@ def dispose():
                 f"Расходувани {len(tids)} уреди ({', '.join(tids)}). Документ: {doc}",
                 "success",
             )
-            return redirect(url_for("reports"))
+            return redirect(url_for("reports.reports"))
         except ValidationError as exc:
             flash(f"ГРЕШКА: {exc}", "danger")
     return render_template(
@@ -1642,10 +1642,14 @@ def internal_error(exc):
 
 from routes.admin import bp as admin_bp
 from routes.api import bp as api_bp
+from routes.files import bp as files_bp
+from routes.reports import bp as reports_bp
 from routes.system import bp as system_bp
 
 app.register_blueprint(admin_bp)
 app.register_blueprint(api_bp)
+app.register_blueprint(files_bp)
+app.register_blueprint(reports_bp)
 app.register_blueprint(system_bp)
 
 
