@@ -38,7 +38,7 @@
 <div class="col-12 col-md-6"><div class="text-muted small">Забелешка</div><div>{{ dev.Notes or "—" }}</div></div>
 {% if cfields %}
 <div class="col-12"><div class="text-muted small mb-1">Дополнителни полиња</div>
-<form method="post" action="/device/{{ dev.AssetID }}/fields">
+<form method="post" action="/device/{{ dev.AssetID }}/fields"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <div class="row g-2">
 {% for f in cfields %}
 <div class="col-12 col-md-4"><label>{{ f.FieldName }}</label>

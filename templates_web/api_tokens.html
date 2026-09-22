@@ -16,7 +16,7 @@
 <td>{{ t.Active }}</td>
 <td>
 {% if t.Active == "YES" %}
-<form method="post" class="d-inline">
+<form method="post" class="d-inline"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="action" value="revoke">
 <input type="hidden" name="token_id" value="{{ t.TokenID }}">
 <button class="btn btn-sm btn-secondary" type="submit">Отповикај</button>
@@ -28,7 +28,7 @@
 </tbody>
 </table>
 <h4>Нов токен</h4>
-<form method="post">
+<form method="post"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="action" value="create">
 <div class="mb-3"><label>Корисничко име</label>
 <input class="form-control" name="username" required></div>

@@ -19,7 +19,7 @@
 </div>
 </div>
 </div></div>
-<form method="post" id="disForm" style="display:none;">
+<form method="post" id="disForm" style="display:none;"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" id="assetHidden" name="asset_id" value="">
 <div class="mb-3"><label><b>2. Причина</b></label>
 <select class="form-control" name="reason">

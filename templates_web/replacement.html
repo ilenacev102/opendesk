@@ -4,7 +4,7 @@
 <div><div class="eyebrow">ОПЕРАЦИЈА · ЖИВОТЕН ЦИКЛУС</div><h1>Замена на уред</h1><p>Пренеси задолжување и одреди ја состојбата на стариот уред.</p></div>
 <a class="btn btn-outline-secondary" href="/"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg>Откажи</a>
 </header>
-<form method="post" class="operation-form compact-operation">
+<form method="post" class="operation-form compact-operation"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <div class="mb-3"><label>Вработен</label>
 <input class="form-control" id="emp" name="emp_id" value="{{ preset_emp }}" required autofocus>
 <div id="empPrev" class="form-text"></div></div>

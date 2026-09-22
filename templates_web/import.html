@@ -9,7 +9,7 @@
 <div class="alert alert-danger">{{ e }}</div>
 {% endfor %}
 {% endif %}
-<form method="post" enctype="multipart/form-data">
+<form method="post" enctype="multipart/form-data"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <div class="mb-3"><label>Тип</label>
 <select class="form-control" name="kind">
 <option value="devices">Уреди (AssetID,Type,Manufacturer,Model,SerialNumber,Status,EmployeeID,Location,PurchaseDate,WarrantyUntil,Notes)</option>

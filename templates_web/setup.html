@@ -2,7 +2,7 @@
 {% block content %}
 <h2>Почетно поставување</h2>
 <p class="text-muted">Создајте го првиот администратор. По ова најавувањето станува задолжително.</p>
-<form method="post">
+<form method="post"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <div class="mb-3"><label>Корисничко име</label>
 <input class="form-control" name="username" required autocomplete="username"></div>
 <div class="mb-3"><label>Лозинка (мин. 8 знаци)</label>

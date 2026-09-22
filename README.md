@@ -7,8 +7,8 @@
 
 > **Напомена:** има автентикација со улоги (`admin`/`magacioner`/`citac`) —
 > првото стартување отвора `/setup` за прв администратор. И покрај тоа,
-> наменето е за доверлива локална мрежа: нема CSRF-токени, rate-limitот е
-> per-process (види `SECURITY.md`). Не го изложувајте директно на интернет.
+> наменето е за доверлива локална мрежа: rate-limitот е per-process
+> (види `SECURITY.md`). Не го изложувајте директно на интернет.
 > Поставете `SERVICEDESK_SECRET`.
 
 ## Брз старт
@@ -34,6 +34,7 @@ docker compose up --build
 | `SERVICEDESK_PORT` | `5000` | Порта |
 | `SERVICEDESK_SECRET` | локално се креира приватен клуч | Flask secret — задолжителен за Docker deploy |
 | `SERVICEDESK_HOST` | `127.0.0.1` | Мрежен интерфејс за локално стартување |
+| `SERVICEDESK_CSRF` | `1` | CSRF-заштита на POST (`0` ја исклучува) |
 
 PDF-извозот бара LibreOffice (`soffice`); без него DOCX работи, PDF враќа
 уредна грешка. Податоците живеат во `data/`, документите во `documents/`,
@@ -62,7 +63,7 @@ Compose по default го објавува сервисот само на `127.0
 ## Развој
 
 ```bash
-python3 -m pytest tests/   # 144 теста: unit + integration + UI-guardови
+python3 -m pytest tests/   # 151 теста: unit + integration + UI-guardови
 ```
 
 Структура: `app.py` (ядро: init, auth-гард, stores, services) · `routes/`

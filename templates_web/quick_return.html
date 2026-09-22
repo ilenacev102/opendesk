@@ -20,7 +20,7 @@
 <p>Сериски: {{ found.SerialNumber }} | Статус: <span class="badge badge-st st-{{ found.Status }}">{{ found.Status }}</span></p>
 {% if holder %}
 <p>Задолжен кај: <b>{{ holder.FirstName }} {{ holder.LastName }}</b> ({{ holder.EmployeeID }})</p>
-<form method="post" action="/return">
+<form method="post" action="/return"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="asset_id" value="{{ found.AssetID }}">
 <input type="hidden" name="emp_id" value="{{ found.EmployeeID }}">
 <input type="hidden" name="reason" value="Брзо раздолжување">

@@ -7,7 +7,7 @@
 <div class="row g-3">
 <div class="col-lg-6"><section class="operation-panel">
 <div class="panel-heading"><div><span class="eyebrow">НОВ СЛУЧАЈ</span><h4>Пријави расипан уред</h4></div></div>
-<form method="post">
+<form method="post"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="action" value="report">
 <div class="mb-3"><label>Уред (пишувај модел, сериски, asset...)</label>
 <input class="form-control" id="dev1" name="asset_id" value="{{ preset_asset }}" required autofocus>
@@ -22,7 +22,7 @@
 </div>
 <div class="col-lg-6"><section class="operation-panel">
 <div class="panel-heading"><div><span class="eyebrow">АКТИВЕН СЛУЧАЈ</span><h4>Продолжи сервисен статус</h4></div></div>
-<form method="post">
+<form method="post"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="action" value="advance">
 <div class="mb-3"><label>Уред</label><input class="form-control" id="dev2" name="asset_id" required>
 <div id="dev2Prev" class="form-text"></div></div>
@@ -34,7 +34,7 @@
 </div>
 <button class="btn btn-primary" type="submit">Следен статус</button>
  </form>
-<form method="post" class="mt-4 pt-3 border-top" onsubmit="return confirm('Дали сте сигурни дека уредот не може да се поправи и треба да се расходува?');">
+<form method="post" class="mt-4 pt-3 border-top" onsubmit="return confirm('Дали сте сигурни дека уредот не може да се поправи и треба да се расходува?');"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="action" value="unrepairable">
 <h5 class="text-danger"><svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg> Не може да се поправи (директен расход)</h5>
 <div class="mb-2"><label>Уред на сервис</label><input class="form-control" id="dev3" name="asset_id" required>

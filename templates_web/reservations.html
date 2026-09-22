@@ -14,7 +14,7 @@
 <td>{{ r.Status }}</td>
 <td>
 {% if r.Status == "active" %}
-<form method="post" action="/reservations/cancel" class="d-inline">
+<form method="post" action="/reservations/cancel" class="d-inline"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="reservation_id" value="{{ r.ReservationID }}">
 <button class="btn btn-sm btn-outline-secondary" type="submit">Откажи</button>
 </form>
@@ -28,7 +28,7 @@
 <div class="empty-state">Нема резервации.</div>
 {% endif %}
 <h4 class="mt-4">Нова резервација</h4>
-<form method="post">
+<form method="post"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="action" value="add">
 <div class="row g-2">
 <div class="col-12 col-md-2"><label>Уред *</label><input class="form-control" name="AssetID" required autofocus></div>

@@ -4,7 +4,7 @@
 <div><div class="eyebrow">ОПЕРАЦИЈА · ИЗДАВАЊЕ</div><h1>Ново задолжување</h1><p>Избери носител и опрема за документот за задолжување.</p></div>
 <a class="btn btn-outline-secondary" href="/"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg>Откажи</a>
 </header>
-<form method="post" class="operation-form">
+<form method="post" class="operation-form"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <section class="operation-section">
 <div class="step-index">01</div><div class="step-content"><h4>Носител</h4>
 <div class="mb-0"><label>Вработен</label>

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <h2>Најава</h2>
-<form method="post">
+<form method="post"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <div class="mb-3"><label>Корисничко име</label>
 <input class="form-control" name="username" required autocomplete="username"></div>
 <div class="mb-3"><label>Лозинка</label>

@@ -10,7 +10,7 @@
 <td><code>{{ d.FieldID }}</code></td>
 <td>{{ d.FieldName }}</td>
 <td>
-<form method="post" class="d-inline">
+<form method="post" class="d-inline"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="action" value="delete">
 <input type="hidden" name="field_id" value="{{ d.FieldID }}">
 <button class="btn btn-sm btn-outline-danger" type="submit">Избриши</button>
@@ -24,7 +24,7 @@
 <div class="empty-state">Нема дефинирани полиња.</div>
 {% endif %}
 <h4 class="mt-4">Ново поле</h4>
-<form method="post">
+<form method="post"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="action" value="add">
 <div class="mb-3"><label>Име на поле</label>
 <input class="form-control" name="FieldName" required placeholder="нпр. IMEI" autofocus></div>

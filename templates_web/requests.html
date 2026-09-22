@@ -13,12 +13,12 @@
 <td>
 {% if r.Status == "open" %}
 <div class="d-flex gap-1">
-<form method="post" action="/requests/decide" class="d-inline">
+<form method="post" action="/requests/decide" class="d-inline"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="request_id" value="{{ r.RequestID }}">
 <input type="hidden" name="decision" value="approved">
 <button class="btn btn-sm btn-outline-success" type="submit">Одобри</button>
 </form>
-<form method="post" action="/requests/decide" class="d-inline">
+<form method="post" action="/requests/decide" class="d-inline"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="request_id" value="{{ r.RequestID }}">
 <input type="hidden" name="decision" value="rejected">
 <button class="btn btn-sm btn-outline-danger" type="submit">Одбиј</button>
@@ -36,7 +36,7 @@
 <div class="empty-state">Нема барања.</div>
 {% endif %}
 <h4 class="mt-4">Ново барање</h4>
-<form method="post">
+<form method="post"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="action" value="file">
 <div class="row g-2">
 <div class="col-12 col-md-3"><label>Вработен</label><input class="form-control" name="EmployeeID"></div>

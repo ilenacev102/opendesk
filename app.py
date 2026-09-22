@@ -19,6 +19,7 @@ from flask import (
     render_template,
     request,
     send_file,
+    session,
     url_for,
 )
 
@@ -43,6 +44,7 @@ app.secret_key = config.SECRET_KEY
 app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["CSRF_ENABLED"] = os.environ.get("SERVICEDESK_CSRF", "1") == "1"
 
 
 @app.after_request
@@ -65,6 +67,13 @@ def set_security_headers(resp):
 @app.context_processor
 def inject_csp_nonce():
     return {"csp_nonce": g.get("csp_nonce", "")}
+
+
+@app.context_processor
+def inject_csrf_token():
+    from services.csrf import ensure_token
+
+    return {"csrf_token": ensure_token(session)}
 
 
 from services.schemas import (  # noqa: E402
@@ -265,6 +274,21 @@ def enforce_auth():
     from flask import redirect as _redirect, url_for as _url_for
 
     return _redirect(_url_for("admin.login", next=request.path))
+
+
+@app.before_request
+def csrf_protect():
+    if not app.config.get("CSRF_ENABLED"):
+        return None
+    if request.method != "POST":
+        return None
+    from services.csrf import is_valid, should_enforce
+
+    if not should_enforce(request.path or ""):
+        return None
+    if not is_valid(session, request):
+        abort(403)
+    return None
 
 
 def roles_required(*roles):

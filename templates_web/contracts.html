@@ -19,7 +19,7 @@
 <div class="empty-state">Нема внесени договори.</div>
 {% endif %}
 <h4 class="mt-4">Нов договор</h4>
-<form method="post">
+<form method="post"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="action" value="add">
 <div class="row g-2">
 <div class="col-12 col-md-2"><label>ID *</label><input class="form-control" name="ContractID" required autofocus></div>

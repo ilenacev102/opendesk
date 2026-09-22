@@ -8,7 +8,7 @@
 <p>Статус: <b>{{ rec.Status }}</b> | Најдени: <b>{{ rec.FoundIDs|length }}/{{ rec.ExpectedIDs|length }}</b></p>
 {% if rec.Status == "OPEN" %}
 <div class="card sd-card"><div class="card-body">
-<form method="post">
+<form method="post"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <div class="mb-3"><label>Скенирај / внеси asset или сериски</label>
 <input class="form-control form-control-lg" name="code" autofocus data-scan></div>
 <button class="btn btn-primary" name="scan" value="1" type="submit">Евидентирај</button>
@@ -23,7 +23,7 @@
 {% endfor %}
 </table>
 {% if rec.Status == "OPEN" %}
-<form method="post" onsubmit="return confirm('Заврши попис?')">
+<form method="post" onsubmit="return confirm('Заврши попис?')"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <button class="btn btn-success" name="finish" value="1" type="submit">Заврши попис и генерирај записник</button>
 </form>
 {% else %}

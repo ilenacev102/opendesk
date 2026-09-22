@@ -146,6 +146,18 @@
 - Import прифаќа само `.csv`. Покриено со `tests/test_hardening.py` (7):
   вклучувајќи abuse-тест (40 брзи логини → 429).
 
+## Фаза З — CSRF-заштита
+
+- `services/csrf.py`: session-токен (`secrets.token_urlsafe`, 32B) во
+  `session["_csrf_token"]`; споредба со `hmac.compare_digest`; токенот се
+  вади од hidden поле `_csrf_token` или header `X-CSRF-Token`.
+- `csrf_protect` `before_request` (по `enforce_auth`): секој POST без валиден
+  токен → 403; патеките под `/api/` се изземени (Bearer, не cookie auth).
+  Контекст-процесор `inject_csrf_token` го изложува токенот на сите шаблони.
+- 37 POST-форми во 24 шаблони добија hidden `_csrf_token` поле.
+- Конфиг: `SERVICEDESK_CSRF` (default `1`; `tests/conftest.py` става `0` за
+  suite-от, `tests/test_csrf.py` го вклучува per-test). 7 нови теста.
+
 ## Фаза Ж — тест-изолација
 
 - `SERVICEDESK_DB` env-override во `app.py` + `tests/conftest.py` што ги врзува
@@ -167,7 +179,7 @@
 - Security-заклучувања: `SESSION_COOKIE_HTTPONLY` + `SAMESITE=Lax`;
   regression-тестови за blueprint auth-матрица, cookie flags и doc/pdf traversal.
 
-## Тестови (144: сè TDD или route-проверено со извршување)
+## Тестови (151: сè TDD или route-проверено со извршување)
 
 - `tests/test_phases.py` (10): замена, сопственост, Repair-блокада, расход-блокада,
   bulk offboarding, сервис-тек, филтри/пагинација на рути.

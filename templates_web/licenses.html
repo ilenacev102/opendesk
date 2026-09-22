@@ -13,12 +13,12 @@
 <td>{{ r.Supplier or "—" }}</td>
 <td>
 <div class="d-flex gap-1">
-<form method="post" action="/licenses/assign" class="d-flex gap-1">
+<form method="post" action="/licenses/assign" class="d-flex gap-1"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="license_id" value="{{ r.LicenseID }}">
 <input class="form-control form-control-sm" style="max-width:6rem" name="emp_id" placeholder="вработен">
 <button class="btn btn-sm btn-outline-primary" type="submit">Додели</button>
 </form>
-<form method="post" action="/licenses/revoke">
+<form method="post" action="/licenses/revoke"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="license_id" value="{{ r.LicenseID }}">
 <button class="btn btn-sm btn-outline-secondary" type="submit">Ослободи</button>
 </form>
@@ -32,7 +32,7 @@
 <div class="empty-state">Нема внесени лиценци.</div>
 {% endif %}
 <h4 class="mt-4">Нова лиценца</h4>
-<form method="post">
+<form method="post"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="action" value="add">
 <div class="row g-2">
 <div class="col-12 col-md-2"><label>ID *</label><input class="form-control" name="LicenseID" required autofocus></div>

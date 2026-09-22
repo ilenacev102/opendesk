@@ -5,3 +5,4 @@ import tempfile
 
 _tmp = tempfile.mkdtemp(prefix="servicedesk-test-")
 os.environ["SERVICEDESK_DB"] = os.path.join(_tmp, "test.db")
+os.environ.setdefault("SERVICEDESK_CSRF", "0")

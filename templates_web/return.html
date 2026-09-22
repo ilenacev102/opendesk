@@ -20,7 +20,7 @@
 Носител: <b id="dcHolder"></b> | Статус: <b id="dcStatus"></b>
 </div>
 </div></div>
-<form method="post" id="retForm" style="display:none;">
+<form method="post" id="retForm" style="display:none;"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="mode" value="single">
 <input type="hidden" id="assetHidden" name="asset_id" value="{{ preset_asset }}">
 <input type="hidden" id="empHidden" name="emp_id" value="">
@@ -47,7 +47,7 @@
 </form>
 </div>
 <div class="tab-pane fade {% if preset_emp and not preset_asset %}show active{% endif %}" id="tab-bulk" role="tabpanel">
-<form method="post" id="bulkForm">
+<form method="post" id="bulkForm"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="mode" value="bulk">
 <div class="card sd-card mb-3"><div class="card-body">
 <div class="mb-3"><label><b>1. Вработен (за offboarding)</b></label>

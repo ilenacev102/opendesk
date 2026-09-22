@@ -2,7 +2,7 @@
 {% block content %}
 <h2>Bulk внес на уреди</h2>
 <p class="text-muted">Заеднички податоци + по еден сериски број во ред. Дупликатите се прескокнуваат, инвентарните броеви се генерираат автоматски.</p>
-<form method="post">
+<form method="post"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <div class="row g-2 mb-3">
 <div class="col-12 col-md-2"><label>Тип</label>
 <select class="form-control" name="Type">
