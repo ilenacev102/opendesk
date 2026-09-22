@@ -62,10 +62,12 @@ Compose по default го објавува сервисот само на `127.0
 ## Развој
 
 ```bash
-python3 -m pytest tests/   # 135 теста: unit + integration + UI-guardови
+python3 -m pytest tests/   # 138 теста: unit + integration + UI-guardови
 ```
 
-Структура: `app.py` (рути) · `services/` (бизнис-логика) · `utils/` (валидатори,
+Структура: `app.py` (ядро: init, auth-гард, stores, services) · `routes/`
+(blueprints: admin, api, catalog, files, inventory, operations, popis, reports,
+system) · `services/` (бизнис-логика) · `utils/` (валидатори,
 помошни) · `templates_web/` (Jinja) · `static/` (CSS/JS) · `tests/`.
 Дизајн-токени: `DESIGN.md`. Детален дневник на измени: `CHANGELOG.md`.
 

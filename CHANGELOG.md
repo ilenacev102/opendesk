@@ -152,7 +152,22 @@
   сите app-stores кон tmp-база. Доказ: mtime на `data/` идентичен пред/по suite;
   `tests/test_isolation.py` го заклучува однесувањето.
 
-## Тестови (109: сè TDD или route-проверено со извршување)
+## Фаза 3 — blueprints (app.py 2414 → 436)
+
+- Сите рути исечени од `app.py` во `routes/`: `admin` (auth, users, api-tokens),
+  `api` (REST v1 + autocomplete), `catalog` (consumables, licenses, contracts,
+  reservations, requests, fields), `files` (qr, labels, doc, pdf), `inventory`
+  (employees, devices, departments, locations), `operations` (assign, return,
+  replace, repair, quick-return, dispose, packages), `popis`, `reports`
+  (reports, import, notify-digest), `system` (dashboard, search, history, health).
+- Во `app.py` останаа само јадрото (init, auth-гард, stores, services,
+  `ID_PREFIX`, `warranty_days`/`warranty_level`, errorhandler) и регистрацијата
+  на blueprints. `ID_PREFIX` намерно остана во `app.py` — го увезува и
+  `routes/api.py`. Бизнис-логиката е недопрена (ист suite, проширен).
+- Security-заклучувања: `SESSION_COOKIE_HTTPONLY` + `SAMESITE=Lax`;
+  regression-тестови за blueprint auth-матрица, cookie flags и doc/pdf traversal.
+
+## Тестови (138: сè TDD или route-проверено со извршување)
 
 - `tests/test_phases.py` (10): замена, сопственост, Repair-блокада, расход-блокада,
   bulk offboarding, сервис-тек, филтри/пагинација на рути.
