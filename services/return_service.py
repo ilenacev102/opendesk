@@ -2,11 +2,12 @@
 
 import uuid
 
-from services.db_service import open_store
-from services.document_service import fill_zadolzenie
+from services.db_service import db_transaction, open_store
+from services.document_service import fill_zadolzenie, fill_zadolzenie_multi
 from services.return_documents import multi_return_items, single_return_doc, today_datum
-from utils.helpers import next_id, next_id_in, stamp, backup_all
+from utils.helpers import next_id_in, stamp, backup_all
 from utils.validators import require_employee, require_returnable
+from utils.validators import ValidationError
 
 RETURN_COLS = [
     "TransactionID",
@@ -30,14 +31,13 @@ CONDITION_STATUS = {
 
 
 class ReturnService:
-    def __init__(self, paths, devices, employees, history, make_doc):
+    def __init__(self, paths, devices, employees, history):
         self.store = open_store(
             paths.get("db"), "returns", paths["returns"], RETURN_COLS
         )
         self.devices = devices
         self.employees = employees
         self.history = history
-        self.make_doc = make_doc
         self.paths = paths
 
     def confirm(
@@ -61,48 +61,13 @@ class ReturnService:
         )
         backup_all([self.devices, self.employees, self.store, self.history.store])
         db_path = self.paths.get("db")
-        if db_path:
-            from services.db_service import db_transaction
-
-            with db_transaction(db_path) as con:
-                tid = next_id_in(self.store, "TransactionID", "R", con)
-                self.devices.update_where(
-                    "AssetID",
-                    asset_id,
-                    {"Status": new_status, "EmployeeID": ""},
-                    con=con,
-                )
-                self.store.append_row(
-                    {
-                        "TransactionID": tid,
-                        "DateTime": stamp(),
-                        "AssetID": asset_id,
-                        "EmployeeID": emp_id,
-                        "Reason": reason,
-                        "Condition": condition,
-                        "Notes": notes,
-                        "PerformedBy": performed_by,
-                        "DocumentPath": doc_rel,
-                    },
-                    con=con,
-                )
-                self.history.log(
-                    "RETURN",
-                    asset_id,
-                    old_status,
-                    new_status,
-                    emp_id,
-                    f"{emp['FirstName']} {emp['LastName']}",
-                    reason,
-                    notes,
-                    performed_by,
-                    doc_rel,
-                    con=con,
-                )
-        else:
-            tid = next_id(self.store, "TransactionID", "R")
+        with db_transaction(db_path) as con:
+            tid = next_id_in(self.store, "TransactionID", "R", con)
             self.devices.update_where(
-                "AssetID", asset_id, {"Status": new_status, "EmployeeID": ""}
+                "AssetID",
+                asset_id,
+                {"Status": new_status, "EmployeeID": ""},
+                con=con,
             )
             self.store.append_row(
                 {
@@ -115,7 +80,8 @@ class ReturnService:
                     "Notes": notes,
                     "PerformedBy": performed_by,
                     "DocumentPath": doc_rel,
-                }
+                },
+                con=con,
             )
             self.history.log(
                 "RETURN",
@@ -128,6 +94,7 @@ class ReturnService:
                 notes,
                 performed_by,
                 doc_rel,
+                con=con,
             )
         return tid, doc_rel
 
@@ -140,9 +107,6 @@ class ReturnService:
         notes="",
         performed_by="admin",
     ):
-        from services.document_service import fill_zadolzenie_multi
-        from utils.validators import ValidationError
-
         emp = require_employee(self.employees, emp_id)
         if not asset_ids:
             raise ValidationError("Избери барем еден уред за враќање.")
@@ -167,53 +131,15 @@ class ReturnService:
         new_status = CONDITION_STATUS.get(condition, "Available")
         tids = []
         db_path = self.paths.get("db")
-        if db_path:
-            from services.db_service import db_transaction
-
-            with db_transaction(db_path) as con:
-                for dev, aid in zip(devs, asset_ids):
-                    old_status = dev.get("Status", "")
-                    tid = next_id_in(self.store, "TransactionID", "R", con)
-                    self.devices.update_where(
-                        "AssetID",
-                        aid,
-                        {"Status": new_status, "EmployeeID": ""},
-                        con=con,
-                    )
-                    self.store.append_row(
-                        {
-                            "TransactionID": tid,
-                            "DateTime": stamp(),
-                            "AssetID": aid,
-                            "EmployeeID": emp_id,
-                            "Reason": reason,
-                            "Condition": condition,
-                            "Notes": notes,
-                            "PerformedBy": performed_by,
-                            "DocumentPath": doc_rel,
-                        },
-                        con=con,
-                    )
-                    self.history.log(
-                        "RETURN",
-                        aid,
-                        old_status,
-                        new_status,
-                        emp_id,
-                        f"{emp['FirstName']} {emp['LastName']}",
-                        reason,
-                        notes,
-                        performed_by,
-                        doc_rel,
-                        con=con,
-                    )
-                    tids.append(tid)
-        else:
+        with db_transaction(db_path) as con:
             for dev, aid in zip(devs, asset_ids):
                 old_status = dev.get("Status", "")
-                tid = next_id(self.store, "TransactionID", "R")
+                tid = next_id_in(self.store, "TransactionID", "R", con)
                 self.devices.update_where(
-                    "AssetID", aid, {"Status": new_status, "EmployeeID": ""}
+                    "AssetID",
+                    aid,
+                    {"Status": new_status, "EmployeeID": ""},
+                    con=con,
                 )
                 self.store.append_row(
                     {
@@ -226,7 +152,8 @@ class ReturnService:
                         "Notes": notes,
                         "PerformedBy": performed_by,
                         "DocumentPath": doc_rel,
-                    }
+                    },
+                    con=con,
                 )
                 self.history.log(
                     "RETURN",
@@ -239,6 +166,7 @@ class ReturnService:
                     notes,
                     performed_by,
                     doc_rel,
+                    con=con,
                 )
                 tids.append(tid)
         return tids, doc_rel

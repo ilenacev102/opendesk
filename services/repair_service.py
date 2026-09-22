@@ -2,9 +2,9 @@
 
 import uuid
 
-from services.db_service import open_store
+from services.db_service import db_transaction, open_store
 from services.document_service import fill_template, mk_date
-from utils.helpers import next_id, next_id_in, stamp, backup_all
+from utils.helpers import next_id_in, stamp, backup_all
 from utils.validators import ValidationError, require_device, require_employee
 
 REPAIR_COLS = [
@@ -26,14 +26,13 @@ FLOW = {"Broken": "Repair", "Repair": "Repaired", "Repaired": "Available"}
 
 
 class RepairService:
-    def __init__(self, paths, devices, employees, history, make_doc):
+    def __init__(self, paths, devices, employees, history):
         self.store = open_store(
             paths.get("db"), "repairs", paths["repairs"], REPAIR_COLS
         )
         self.devices = devices
         self.employees = employees
         self.history = history
-        self.make_doc = make_doc
         self.paths = paths
 
     def report_broken(
@@ -59,46 +58,26 @@ class RepairService:
             "DocumentPath": "",
         }
         db_path = self.paths.get("db")
-        if db_path:
-            from services.db_service import db_transaction
-
-            with db_transaction(db_path) as con:
-                tid = next_id_in(self.store, "TransactionID", "BR", con)
-                row["TransactionID"] = tid
-                self.devices.update_where(
-                    "AssetID", asset_id, {"Status": "Broken"}, con=con
-                )
-                self.store.append_row(row, con=con)
-                self.history.log(
-                    "BROKEN",
-                    asset_id,
-                    old,
-                    "Broken",
-                    dev.get("EmployeeID", ""),
-                    "",
-                    problem,
-                    notes,
-                    performed_by,
-                    "",
-                    con=con,
-                )
-            return tid
-        tid = next_id(self.store, "TransactionID", "BR")
-        row["TransactionID"] = tid
-        self.devices.update_where("AssetID", asset_id, {"Status": "Broken"})
-        self.store.append_row(row)
-        self.history.log(
-            "BROKEN",
-            asset_id,
-            old,
-            "Broken",
-            dev.get("EmployeeID", ""),
-            "",
-            problem,
-            notes,
-            performed_by,
-            "",
-        )
+        with db_transaction(db_path) as con:
+            tid = next_id_in(self.store, "TransactionID", "BR", con)
+            row["TransactionID"] = tid
+            self.devices.update_where(
+                "AssetID", asset_id, {"Status": "Broken"}, con=con
+            )
+            self.store.append_row(row, con=con)
+            self.history.log(
+                "BROKEN",
+                asset_id,
+                old,
+                "Broken",
+                dev.get("EmployeeID", ""),
+                "",
+                problem,
+                notes,
+                performed_by,
+                "",
+                con=con,
+            )
         return tid
 
     def advance(
@@ -165,47 +144,9 @@ class RepairService:
                 patch["EmployeeID"] = ""
 
         db_path = self.paths.get("db")
-        if db_path:
-            from services.db_service import db_transaction
-
-            with db_transaction(db_path) as con:
-                tid = next_id_in(self.store, "TransactionID", "BR", con)
-                self.devices.update_where("AssetID", asset_id, patch, con=con)
-                self.store.append_row(
-                    {
-                        "TransactionID": tid,
-                        "DateTime": stamp(),
-                        "AssetID": asset_id,
-                        "EmployeeID": holder_id,
-                        "Problem": "",
-                        "RepairStatus": final_status,
-                        "ServiceProvider": provider,
-                        "ServiceDate": stamp() if old == "Broken" else "",
-                        "ReturnDate": stamp()
-                        if final_status in ("Available", "Assigned")
-                        else "",
-                        "Notes": notes,
-                        "PerformedBy": performed_by,
-                        "DocumentPath": doc_rel,
-                    },
-                    con=con,
-                )
-                self.history.log(
-                    "REPAIR_" + final_status.upper(),
-                    asset_id,
-                    old,
-                    final_status,
-                    holder_id,
-                    "",
-                    "",
-                    notes,
-                    performed_by,
-                    doc_rel,
-                    con=con,
-                )
-        else:
-            tid = next_id(self.store, "TransactionID", "BR")
-            self.devices.update_where("AssetID", asset_id, patch)
+        with db_transaction(db_path) as con:
+            tid = next_id_in(self.store, "TransactionID", "BR", con)
+            self.devices.update_where("AssetID", asset_id, patch, con=con)
             self.store.append_row(
                 {
                     "TransactionID": tid,
@@ -222,7 +163,8 @@ class RepairService:
                     "Notes": notes,
                     "PerformedBy": performed_by,
                     "DocumentPath": doc_rel,
-                }
+                },
+                con=con,
             )
             self.history.log(
                 "REPAIR_" + final_status.upper(),
@@ -235,5 +177,6 @@ class RepairService:
                 notes,
                 performed_by,
                 doc_rel,
+                con=con,
             )
         return tid, doc_rel

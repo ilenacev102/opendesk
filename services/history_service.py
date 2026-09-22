@@ -2,7 +2,6 @@
 
 from typing import Any
 
-from services.csv_service import CsvStore
 from utils.helpers import next_id, next_id_in, stamp
 
 HISTORY_COLS = [
@@ -22,11 +21,8 @@ HISTORY_COLS = [
 
 
 class HistoryService:
-    def __init__(self, store_or_path):
-        if isinstance(store_or_path, str):
-            self.store = CsvStore(store_or_path, HISTORY_COLS)
-        else:
-            self.store = store_or_path
+    def __init__(self, store):
+        self.store = store
 
     def log(
         self,

@@ -23,7 +23,6 @@ from flask import (
 )
 
 import config
-from services.csv_service import CsvStore
 
 os.makedirs(config.LOG_DIR, exist_ok=True)
 _handler = logging.handlers.RotatingFileHandler(
@@ -110,7 +109,6 @@ from services.api_token_service import TOKEN_COLS, ApiTokenService  # noqa: E402
 from services.auth_service import USER_COLS, AuthService  # noqa: E402
 from services.db_service import open_store  # noqa: E402
 from services.disposal_service import DisposalService  # noqa: E402
-from services.document_service import save_doc  # noqa: E402
 from services.history_service import HISTORY_COLS, HistoryService  # noqa: E402
 from services.notify_service import (  # noqa: E402
     assignment_email,
@@ -133,12 +131,12 @@ from utils.validators import ValidationError  # noqa: E402
 history = HistoryService(
     open_store(PATHS["db"], "history", PATHS["history"], HISTORY_COLS)
 )
-assign_svc = AssignmentService(PATHS, devices, employees, history, save_doc)
-return_svc = ReturnService(PATHS, devices, employees, history, save_doc)
-replace_svc = ReplacementService(PATHS, devices, employees, history, save_doc)
-repair_svc = RepairService(PATHS, devices, employees, history, save_doc)
+assign_svc = AssignmentService(PATHS, devices, employees, history)
+return_svc = ReturnService(PATHS, devices, employees, history)
+replace_svc = ReplacementService(PATHS, devices, employees, history)
+repair_svc = RepairService(PATHS, devices, employees, history)
 repair_close_svc = RepairClosureService(PATHS, devices, history)
-dispose_svc = DisposalService(PATHS, devices, history, save_doc)
+dispose_svc = DisposalService(PATHS, devices, history)
 popis_svc = PopisService(
     PATHS["db"], os.path.join(config.TRANSACTIONS_DIR, "Popis.csv")
 )
@@ -167,7 +165,7 @@ try:
     )
 
     login_manager = LoginManager(app)
-    login_manager.login_view = "login"  # type: ignore[assignment]
+    login_manager.login_view = "admin.login"  # type: ignore[assignment]
 
     class AppUser(UserMixin):
         def __init__(self, row):
@@ -218,7 +216,7 @@ except ImportError:  # Flask-Login недостапен: рутите остан
 
 
 def _open_paths():
-    return {"health", "static", "login", "setup"}
+    return {"health", "static", "admin.login", "admin.setup"}
 
 
 _RATE_LIMITS = (
@@ -264,7 +262,7 @@ def enforce_auth():
     _flash("Најавете се за да продолжите.", "warning")
     from flask import redirect as _redirect, url_for as _url_for
 
-    return _redirect(_url_for("login", next=request.path))
+    return _redirect(_url_for("admin.login", next=request.path))
 
 
 def roles_required(*roles):
@@ -327,63 +325,6 @@ def _notify_return(emp_id, asset_ids, tid):
             send_email(*built)
     except Exception:
         log.exception("Notify return failed emp=%s", emp_id)
-
-
-@app.route("/notify-digest", methods=["POST"])
-@roles_required("admin", "magacioner")
-def notify_digest():
-    import os as _os
-
-    expiring = warranty_expiring(devices.records(), days=30)
-    admin_email = _os.environ.get("SERVICEDESK_ADMIN_EMAIL", "").strip()
-    if not expiring:
-        flash("Нема гаранции што истекуваат во следните 30 дена.", "success")
-    elif not admin_email:
-        flash("ГРЕШКА: поставете SERVICEDESK_ADMIN_EMAIL.", "danger")
-    else:
-        to, subject, body = digest_email(admin_email, expiring)
-        if send_email(to, subject, body):
-            flash(
-                f"Digest испратен на {admin_email} ({len(expiring)} уреди).", "success"
-            )
-        else:
-            flash("ГРЕШКА: mail не е испратен. Проверете SMTP-поставки.", "danger")
-    return redirect(url_for("reports"))
-
-
-@app.route("/qr/<asset_id>")
-def qr_image(asset_id):
-    dev = devices.find("AssetID", asset_id)
-    if dev is None:
-        abort(404)
-    try:
-        png = qr_png_bytes(asset_id, request.host_url)
-    except ValueError:
-        abort(404)
-    import io as _io
-
-    return send_file(
-        _io.BytesIO(png),
-        mimetype="image/png",
-        download_name=f"{asset_id}.png",
-    )
-
-
-@app.route("/labels")
-def labels():
-    st = (request.args.get("status") or "").strip()
-    tp = (request.args.get("type") or "").strip()
-    loc = (request.args.get("loc") or "").strip()
-    rows = []
-    for d in devices.records():
-        if st and d.get("Status") != st:
-            continue
-        if tp and d.get("Type") != tp:
-            continue
-        if loc and d.get("Location") != loc:
-            continue
-        rows.append(d)
-    return render_template("labels.html", rows=rows, st=st, tp=tp, loc=loc)
 
 
 def _parse_qty(raw):
@@ -789,11 +730,6 @@ def device_fields_save(asset_id):
     return redirect(url_for("device_detail", asset_id=asset_id))
 
 
-@app.route("/health")
-def health():
-    return {"status": "ok"}, 200
-
-
 def _api_user():
     if current_user is None or not getattr(current_user, "is_authenticated", False):
         return None
@@ -814,278 +750,6 @@ def _require_api_roles(*roles):
 
         return _jsonify({"error": "forbidden"}), 403
     return None
-
-
-@app.route("/api/v1/devices")
-def api_v1_devices():
-    denied = _require_api_roles("magacioner", "citac")
-    if denied is not None:
-        return denied
-    st = (request.args.get("status") or "").strip()
-    tp = (request.args.get("type") or "").strip()
-    loc = (request.args.get("location") or "").strip()
-    q = (request.args.get("q") or "").strip().lower()
-    out = []
-    for d in devices.records():
-        if st and d.get("Status") != st:
-            continue
-        if tp and d.get("Type") != tp:
-            continue
-        if loc and d.get("Location") != loc:
-            continue
-        if (
-            q
-            and q
-            not in " ".join(
-                [
-                    d.get("AssetID", ""),
-                    d.get("SerialNumber", ""),
-                    d.get("Manufacturer", ""),
-                    d.get("Model", ""),
-                    d.get("EmployeeID", ""),
-                ]
-            ).lower()
-        ):
-            continue
-        out.append(d)
-    return {"results": out, "count": len(out)}
-
-
-@app.route("/api/v1/devices/<asset_id>")
-def api_v1_device_detail(asset_id):
-    denied = _require_api_roles("magacioner", "citac")
-    if denied is not None:
-        return denied
-    dev = devices.find("AssetID", asset_id)
-    if dev is None:
-        from flask import jsonify as _jsonify
-
-        return _jsonify({"error": "not_found"}), 404
-    return dev
-
-
-@app.route("/api/v1/employees")
-def api_v1_employees():
-    denied = _require_api_roles("magacioner", "citac")
-    if denied is not None:
-        return denied
-    return {"results": employees.records()}
-
-
-@app.route("/api/v1/checkout", methods=["POST"])
-def api_v1_checkout():
-    denied = _require_api_roles("magacioner")
-    if denied is not None:
-        return denied
-    data = request.get_json(silent=True) or {}
-    try:
-        tid, doc = assign_svc.confirm(
-            (data.get("asset_id") or "").strip(),
-            (data.get("emp_id") or "").strip(),
-            (data.get("reason") or "").strip(),
-            (data.get("notes") or "").strip(),
-            getattr(_api_user(), "id", "api"),
-        )
-    except ValidationError as exc:
-        from flask import jsonify as _jsonify
-
-        return _jsonify({"error": str(exc)}), 422
-    return {"transaction_id": tid, "document": doc}, 201
-
-
-@app.route("/api/v1/checkin", methods=["POST"])
-def api_v1_checkin():
-    denied = _require_api_roles("magacioner")
-    if denied is not None:
-        return denied
-    data = request.get_json(silent=True) or {}
-    try:
-        tid, doc = return_svc.confirm(
-            (data.get("asset_id") or "").strip(),
-            (data.get("emp_id") or "").strip(),
-            (data.get("reason") or "").strip(),
-            (data.get("condition") or "Good").strip(),
-            (data.get("notes") or "").strip(),
-            getattr(_api_user(), "id", "api"),
-        )
-    except ValidationError as exc:
-        from flask import jsonify as _jsonify
-
-        return _jsonify({"error": str(exc)}), 422
-    return {"transaction_id": tid, "document": doc}, 201
-
-
-@app.route("/api/v1/history")
-def api_v1_history():
-    denied = _require_api_roles("magacioner", "citac")
-    if denied is not None:
-        return denied
-    asset_id = (request.args.get("asset_id") or "").strip()
-    try:
-        limit = min(200, max(1, int(request.args.get("limit", "50"))))
-    except ValueError:
-        limit = 50
-    rows = history.recent(5000)
-    if asset_id:
-        rows = [h for h in rows if h.get("AssetID") == asset_id]
-    return {"results": rows[:limit], "count": min(len(rows), limit)}
-
-
-@app.route("/api-tokens", methods=["GET", "POST"])
-@roles_required("admin")
-def api_tokens():
-    plain = None
-    if request.method == "POST":
-        action = request.form.get("action", "create")
-        if action == "create":
-            owner = request.form.get("username", "").strip()
-            if auth_svc.get(owner) is None:
-                flash(f"ГРЕШКА: корисникот {owner} не постои.", "danger")
-            else:
-                plain = token_svc.create(
-                    owner,
-                    request.form.get("name", "").strip(),
-                )
-                flash(
-                    "Токенот е креиран. Копирајте го сега — нема повторно прикажување.",
-                    "success",
-                )
-        elif action == "revoke":
-            try:
-                tid = request.form.get("token_id", "").strip()
-                rows = token_svc.store.filter_eq("TokenID", tid)
-                owner = rows[0].get("UserName", "") if rows else ""
-                token_svc.revoke(tid, owner)
-                flash("Токенот е отповикан.", "success")
-            except ValueError as exc:
-                flash(f"ГРЕШКА: {exc}", "danger")
-    return render_template(
-        "api_tokens.html", tokens=token_svc.store.records(), plain=plain
-    )
-
-
-@app.route("/setup", methods=["GET", "POST"])
-def setup():
-    if auth_svc.auth_required():
-        return redirect(url_for("login"))
-    if request.method == "POST":
-        try:
-            auth_svc.create_user(
-                request.form.get("username", ""),
-                request.form.get("password", ""),
-                role="admin",
-            )
-            flash("Администраторот е креиран. Најавете се.", "success")
-            return redirect(url_for("login"))
-        except ValueError as exc:
-            flash(f"ГРЕШКА: {exc}", "danger")
-    return render_template("setup.html")
-
-
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    if request.method == "POST":
-        user = auth_svc.verify(
-            request.form.get("username", ""), request.form.get("password", "")
-        )
-        if user is None:
-            flash("ГРЕШКА: погрешно корисничко име или лозинка.", "danger")
-        else:
-            login_user(AppUser(user))
-            log.info("Login user=%s", user.get("UserName", ""))
-            nxt = request.args.get("next") or url_for("dashboard")
-            return redirect(nxt)
-    return render_template("login.html")
-
-
-@app.route("/logout")
-def logout():
-    logout_user()
-    return redirect(url_for("login"))
-
-
-@app.route("/users", methods=["GET", "POST"])
-@roles_required("admin")
-def users():
-    if request.method == "POST":
-        action = request.form.get("action", "create")
-        try:
-            if action == "create":
-                auth_svc.create_user(
-                    request.form.get("username", ""),
-                    request.form.get("password", ""),
-                    request.form.get("role", "magacioner"),
-                )
-                flash("Корисникот е креиран.", "success")
-            elif action == "deactivate":
-                auth_svc.set_active(request.form.get("username", ""), False)
-            elif action == "activate":
-                auth_svc.set_active(request.form.get("username", ""), True)
-            elif action == "role":
-                auth_svc.set_role(
-                    request.form.get("username", ""),
-                    request.form.get("role", "citac"),
-                )
-        except ValueError as exc:
-            flash(f"ГРЕШКА: {exc}", "danger")
-    return render_template("users.html", users=auth_svc.list_users())
-
-
-@app.route("/")
-def dashboard():
-    devs = devices.records()
-    active_emps = employees.filter_eq("Active", "YES")
-    counts = dict(Counter(r.get("Status", "") for r in devs)) if devs else {}
-    monthly = {}
-    for h in history.recent(1000):
-        month = (h.get("DateTime", "") or "")[:7]
-        if month:
-            monthly[month] = monthly.get(month, 0) + 1
-    warranties = []
-    for d in devs:
-        days = warranty_days(d.get("WarrantyUntil", ""))
-        if days is not None and days <= 90:
-            level, text = warranty_level(days)
-            warranties.append(
-                {
-                    "AssetID": d.get("AssetID", ""),
-                    "Model": f"{d.get('Manufacturer', '')} {d.get('Model', '')}",
-                    "Days": days,
-                    "Level": level,
-                    "Text": text,
-                }
-            )
-    warranties.sort(key=lambda x: (x["Days"] is None, x["Days"]))
-    attention_devs = [
-        {
-            "AssetID": d.get("AssetID", ""),
-            "Model": f"{d.get('Manufacturer', '')} {d.get('Model', '')}",
-            "Status": d.get("Status", ""),
-            "Holder": d.get("EmployeeID", "") or "—",
-        }
-        for d in devs
-        if d.get("Status") in ("Broken", "Repair", "Lost", "Stolen")
-    ]
-    stats = {
-        "total_devices": len(devs),
-        "total_employees": len(active_emps),
-        "computers": sum(
-            1 for d in devs if d.get("Type", "") in ("Компјутер", "Laptop")
-        ),
-        "statuses": counts,
-        "available": counts.get("Available", 0),
-        "assigned": counts.get("Assigned", 0),
-        "attention": sum(
-            counts.get(s, 0) for s in ("Broken", "Repair", "Lost", "Stolen")
-        ),
-        "recent": history.recent(8),
-        "months": sorted(monthly),
-        "mcounts": [monthly[m] for m in sorted(monthly)],
-        "warranties": warranties[:8],
-        "wcount": len(warranties),
-        "attention_devs": attention_devs,
-    }
-    return render_template("dashboard.html", stats=stats)
 
 
 def _row(store, col, value):
@@ -1204,6 +868,17 @@ def device_new():
                 prefill[c] = src.get(c, "")
         prefill["Status"] = "Available"
     return render_template("device_new.html", prefill=prefill)
+
+
+ID_PREFIX = {
+    "Laptop": "LAP",
+    "Компјутер": "PC",
+    "Монитор": "MON",
+    "Печатач": "PRN",
+    "Телефон": "TEL",
+    "Таблет": "TAB",
+    "Друго": "AST",
+}
 
 
 @app.route("/devices/bulk", methods=["GET", "POST"])
@@ -1412,20 +1087,6 @@ def device_detail(asset_id):
     )
 
 
-@app.route("/search")
-def search():
-    q = (request.args.get("q") or "").strip().lower()
-    results = {"employees": [], "devices": []}
-    if q:
-        results["employees"] = [
-            r for r in employees.records() if q in " ".join(r.values()).lower()
-        ]
-        results["devices"] = [
-            r for r in devices.records() if q in " ".join(r.values()).lower()
-        ]
-    return render_template("search.html", q=q, results=results)
-
-
 def _save_signature(data_url):
     """Decode canvas dataURL into documents/signatures. Never raises."""
     try:
@@ -1552,82 +1213,6 @@ def return_device():
     )
 
 
-@app.route("/history")
-def history_view():
-    try:
-        page = max(1, int(request.args.get("page", "1")))
-    except ValueError:
-        page = 1
-    try:
-        per = min(200, max(20, int(request.args.get("per", "50"))))
-    except ValueError:
-        per = 50
-    all_rows = history.recent(5000)
-    total = len(all_rows)
-    total_pages = max(1, (total + per - 1) // per)
-    if page > total_pages:
-        page = total_pages
-    start = (page - 1) * per
-    rows = all_rows[start : start + per]
-    emails = {}
-    for h in rows:
-        eid = h.get("EmployeeID", "")
-        if eid and eid not in emails:
-            holder_rec = employees.find("EmployeeID", eid)
-            emails[eid] = holder_rec.get("Email", "") if holder_rec else ""
-    return render_template(
-        "history.html",
-        rows=rows,
-        emails=emails,
-        page=page,
-        per=per,
-        total=total,
-        total_pages=total_pages,
-    )
-
-
-@app.route("/doc/<path:rel>")
-def download_doc(rel):
-    docs_base = os.path.abspath(config.DOCUMENTS_DIR)
-    root_base = os.path.abspath(config.BASE_DIR)
-    clean = (rel or "").lstrip("/\\")
-    full = os.path.abspath(os.path.join(root_base, clean))
-    if os.path.commonpath([docs_base, full]) != docs_base:
-        abort(404)
-    if not os.path.isfile(full):
-        abort(404)
-    return send_file(full)
-
-
-@app.route("/pdf/<path:rel>")
-def download_pdf(rel):
-    import subprocess
-
-    docs_base = os.path.abspath(config.DOCUMENTS_DIR)
-    root_base = os.path.abspath(config.BASE_DIR)
-    clean = (rel or "").lstrip("/\\")
-    # only .docx inside documents/ can be converted
-    if not clean.lower().endswith(".docx"):
-        abort(404)
-    full = os.path.abspath(os.path.join(root_base, clean))
-    if os.path.commonpath([docs_base, full]) != docs_base:
-        abort(404)
-    if not os.path.isfile(full):
-        abort(404)
-    pdf = os.path.splitext(full)[0] + ".pdf"
-    if not os.path.exists(pdf) or (os.path.getmtime(full) > os.path.getmtime(pdf)):
-        outdir = os.path.dirname(full)
-        proc = subprocess.run(
-            ["soffice", "--headless", "--convert-to", "pdf", "--outdir", outdir, full],
-            capture_output=True,
-            timeout=120,
-        )
-        if proc.returncode != 0 or not os.path.exists(pdf):
-            log.error("PDF convert failed: %s", proc.stderr.decode()[-500:])
-            abort(500)
-    return send_file(pdf)
-
-
 @app.route("/replace", methods=["GET", "POST"])
 def replace():
     if request.method == "POST":
@@ -1699,220 +1284,6 @@ def repair():
         employees=employees.records(),
         preset_asset=request.args.get("asset", ""),
     )
-
-
-@app.route("/dashboard")
-def dashboard_alias():
-    return redirect(url_for("dashboard"))
-
-
-@app.route("/reports")
-def reports():
-
-    devs = devices.records()
-    by = lambda key: dict(Counter(r.get(key, "") or "—" for r in devs))
-    hist = history.recent(1000)
-    monthly = Counter()
-    for h in hist:
-        if h.get("Action") in ("REPAIR_REPAIR", "REPLACE_IN", "DISPOSE"):
-            monthly[h.get("DateTime", "")[:7]] += 1
-    if request.args.get("export") == "devices":
-        import csv
-        import io
-
-        def _safe(v):
-            s = str(v or "")
-            if s[:1] in ("=", "+", "-", "@", "\t", "\r"):
-                s = "'" + s
-            return s
-
-        buf = io.StringIO()
-        w = csv.writer(buf, quoting=csv.QUOTE_MINIMAL)
-        w.writerow(
-            [
-                "AssetID",
-                "Type",
-                "Manufacturer",
-                "Model",
-                "SerialNumber",
-                "Status",
-                "EmployeeID",
-                "Location",
-                "PurchasePrice",
-                "Supplier",
-            ]
-        )
-        for r in devs:
-            w.writerow(
-                _safe(r.get(c, ""))
-                for c in [
-                    "AssetID",
-                    "Type",
-                    "Manufacturer",
-                    "Model",
-                    "SerialNumber",
-                    "Status",
-                    "EmployeeID",
-                    "Location",
-                    "PurchasePrice",
-                    "Supplier",
-                ]
-            )
-        return app.response_class(
-            buf.getvalue(),
-            mimetype="text/csv",
-            headers={"Content-Disposition": "attachment;filename=devices.csv"},
-        )
-    if request.args.get("export") == "employees":
-        import csv
-        import io
-
-        def _safe2(v):
-            s = str(v or "")
-            if s[:1] in ("=", "+", "-", "@", "\t", "\r"):
-                s = "'" + s
-            return s
-
-        emps = employees.records()
-        buf = io.StringIO()
-        w = csv.writer(buf, quoting=csv.QUOTE_MINIMAL)
-        w.writerow(EMP_COLS)
-        for r in emps:
-            w.writerow(_safe2(r.get(c, "")) for c in EMP_COLS)
-        return app.response_class(
-            buf.getvalue(),
-            mimetype="text/csv",
-            headers={"Content-Disposition": "attachment;filename=employees.csv"},
-        )
-    return render_template(
-        "reports.html",
-        by_status=by("Status"),
-        by_type=by("Type"),
-        by_mfr=by("Manufacturer"),
-        by_loc=by("Location"),
-        by_emp=by("EmployeeID"),
-        monthly=dict(sorted(monthly.items())),
-    )
-
-
-@app.route("/import", methods=["GET", "POST"])
-def import_bulk():
-    from services.schemas import DEV_COLS as _DC, EMP_COLS as _EC
-    from services.schemas import OPTIONAL_DEV_COLS as _OPT
-    import io
-    import pandas as pd
-
-    report = None
-    if request.method == "POST":
-        kind = request.form.get("kind", "devices")
-        file = request.files.get("file")
-        if not file or not file.filename:
-            flash("ГРЕШКА: избери CSV фајл.", "danger")
-        else:
-            try:
-                ext = (
-                    file.filename.rsplit(".", 1)[-1] if "." in file.filename else ""
-                ).lower()
-                if ext != "csv":
-                    raise ValueError("Дозволени се само .csv фајлови.")
-                df = pd.read_csv(io.BytesIO(file.read()), dtype=str).fillna("")
-                cols = list(_DC) if kind == "devices" else list(_EC)
-                optional = set(_OPT) if kind == "devices" else set()
-                missing = [c for c in cols if c not in df.columns and c not in optional]
-                if missing:
-                    raise ValueError(f"Недостасуваат колони: {missing}")
-                store = devices if kind == "devices" else employees
-                key = "AssetID" if kind == "devices" else "EmployeeID"
-                seen = {r.get(key) for r in store.records()}
-                dup_file = df[df.duplicated(subset=[key], keep=False)][key].tolist()
-                dup_base = [v for v in df[key].tolist() if v in seen]
-                serials = set()
-                dup_sn = []
-                if kind == "devices":
-                    for v in df["SerialNumber"].tolist():
-                        if v and v in serials:
-                            dup_sn.append(v)
-                        serials.add(v)
-                    base_sn = {r.get("SerialNumber") for r in store.records()}
-                    dup_sn += [
-                        v for v in df["SerialNumber"].tolist() if v and v in base_sn
-                    ]
-                errors = []
-                if dup_file:
-                    errors.append(
-                        f"Дупликати во фајлот: {sorted(str(v) for v in set(dup_file) if v)}"
-                    )
-                if dup_base:
-                    errors.append(
-                        f"Веќе постојат: {sorted(str(v) for v in set(dup_base) if v)}"
-                    )
-                if dup_sn:
-                    errors.append(
-                        f"Дупли сериски: {sorted(str(v) for v in set(dup_sn) if v)}"
-                    )
-                valid_status = {
-                    "Available",
-                    "Assigned",
-                    "Broken",
-                    "Repair",
-                    "Repaired",
-                    "Disposed",
-                    "Lost",
-                    "Stolen",
-                }
-                if kind == "devices" and "Status" in df.columns:
-                    bad_status = sorted(
-                        {
-                            str(v)
-                            for v in df["Status"].tolist()
-                            if str(v) not in valid_status
-                        }
-                    )
-                    if bad_status:
-                        errors.append(f"Непознат статус: {bad_status}")
-                if errors:
-                    report = {"ok": 0, "errors": errors}
-                else:
-                    from services.db_service import db_transaction
-
-                    rows = [
-                        {c: str(df.at[i, c]) if c in df.columns else "" for c in cols}
-                        for i in df.index
-                    ]
-                    db_path = getattr(store, "db_path", None)
-                    if db_path:
-                        with db_transaction(db_path) as con:
-                            for row in rows:
-                                store.append_row(row, con=con)
-                                if kind == "devices":
-                                    history.log(
-                                        "IMPORT",
-                                        row.get("AssetID", ""),
-                                        "",
-                                        row.get("Status", ""),
-                                        row.get("EmployeeID", ""),
-                                        "",
-                                        "Bulk import",
-                                        "",
-                                        "admin",
-                                        "",
-                                        con=con,
-                                    )
-                    else:
-                        for row in rows:
-                            store.append_row(row)
-                    if config.BACKUP_ON_WRITE:
-                        backup_all([store])
-                    report = {"ok": len(rows), "errors": []}
-            except (ValueError, KeyError) as exc:
-                flash(f"ГРЕШКА: {exc}", "danger")
-            except Exception as exc:
-                # Import boundary: user file + bulk write can fail mid-way
-                # (transaction rolls back); present clean failure, keep traceback in log.
-                log.exception("Import failed")
-                flash(f"ГРЕШКА при увоз: {exc}", "danger")
-                report = {"ok": 0, "errors": [str(exc)]}
-    return render_template("import.html", report=report)
 
 
 @app.route("/quick-return")
@@ -2261,151 +1632,21 @@ def popis_detail(pid):
     return render_template("popis_detail.html", rec=rec2, items=items)
 
 
-@app.route("/api/search")
-def api_search():
-
-    t0 = time.time()
-    q = (request.args.get("q") or "").strip().lower()
-    out = []
-    if len(q) >= 2:
-        words = q.split()
-        for d in devices.records():
-            hay = " ".join(
-                [
-                    d.get("AssetID", ""),
-                    d.get("SerialNumber", ""),
-                    d.get("Manufacturer", ""),
-                    d.get("Model", ""),
-                    d.get("Type", ""),
-                    d.get("Status", ""),
-                    d.get("EmployeeID", ""),
-                ]
-            ).lower()
-            if all(w in hay for w in words):
-                out.append(
-                    {
-                        "kind": "device",
-                        "id": d.get("AssetID", ""),
-                        "title": f"{d.get('AssetID', '')} "
-                        f"{d.get('Manufacturer', '')} "
-                        f"{d.get('Model', '')}",
-                        "sub": f"{d.get('SerialNumber', '')} | {d.get('Status', '')}",
-                        "url": f"/device/{d.get('AssetID', '')}",
-                    }
-                )
-                if len(out) >= 12:
-                    break
-        for e in employees.records():
-            hay = " ".join(
-                [
-                    e.get("EmployeeID", ""),
-                    e.get("FirstName", ""),
-                    e.get("LastName", ""),
-                    e.get("UserName", ""),
-                    e.get("Email", ""),
-                    e.get("Department", ""),
-                ]
-            ).lower()
-            if all(w in hay for w in words):
-                out.append(
-                    {
-                        "kind": "employee",
-                        "id": e.get("EmployeeID", ""),
-                        "title": f"{e.get('FirstName', '')} {e.get('LastName', '')}",
-                        "sub": f"{e.get('EmployeeID', '')} | {e.get('Department', '')}",
-                        "url": f"/employee/{e.get('EmployeeID', '')}",
-                    }
-                )
-                if len(out) >= 20:
-                    break
-    ms = round((time.time() - t0) * 1000)
-    return {"results": out, "ms": ms}
-
-
-ID_PREFIX = {
-    "Laptop": "LAP",
-    "Компјутер": "PC",
-    "Монитор": "MON",
-    "Печатач": "PRN",
-    "Телефон": "TEL",
-    "Таблет": "TAB",
-    "Друго": "AST",
-}
-
-
-@app.route("/api/next-id")
-def api_next_id():
-    dtype = request.args.get("type", "Друго")
-    prefix = ID_PREFIX.get(dtype, "AST")
-    best = 0
-    for r in devices.records():
-        aid = r.get("AssetID", "")
-        if aid.startswith(prefix):
-            try:
-                best = max(best, int(aid[len(prefix) :]))
-            except ValueError:
-                continue
-    return {"next_id": f"{prefix}{best + 1:03d}"}
-
-
-@app.route("/api/check-serial")
-def api_check_serial():
-    sn = (request.args.get("q") or "").strip()
-    if not sn:
-        return {"exists": False}
-    for r in devices.records():
-        if r.get("SerialNumber") == sn:
-            return {"exists": True, "asset": r.get("AssetID", "")}
-    return {"exists": False}
-
-
-@app.route("/api/check-asset")
-def api_check_asset():
-    aid = (request.args.get("q") or "").strip()
-    if not aid:
-        return {"exists": False}
-    for r in devices.records():
-        if r.get("AssetID") == aid:
-            return {
-                "exists": True,
-                "info": f"{r.get('Manufacturer', '')} "
-                f"{r.get('Model', '')} | SN: "
-                f"{r.get('SerialNumber', '')} | "
-                f"{r.get('Status', '')}",
-            }
-    return {"exists": False}
-
-
-@app.route("/api/values")
-def api_values():
-    fields = ["Manufacturer", "Model", "Location"]
-    out = {}
-    for field in fields:
-        seen = []
-        for r in devices.records():
-            val = r.get(field, "")
-            if val and val not in seen:
-                seen.append(val)
-        out[field] = sorted(seen)
-    for field in ["Department", "Organization", "Location"]:
-        seen = []
-        for r in employees.records():
-            val = r.get(field, "")
-            if val and val not in seen:
-                seen.append(val)
-        if field == "Location":
-            out[field] = sorted(set(out[field]) | set(seen))
-        else:
-            out[field] = sorted(seen)
-    return out
-
-
 @app.errorhandler(500)
 def internal_error(exc):
     """Boundary handler: log traceback with reference, render friendly page."""
     ref = uuid.uuid4().hex[:8]
     log.exception("Unhandled error ref=%s path=%s", ref, request.path)
     return render_template("500.html", ref=ref), 500
+
+
+from routes.admin import bp as admin_bp
+from routes.api import bp as api_bp
+from routes.system import bp as system_bp
+
+app.register_blueprint(admin_bp)
+app.register_blueprint(api_bp)
+app.register_blueprint(system_bp)
 
 
 if __name__ == "__main__":

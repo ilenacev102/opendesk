@@ -54,7 +54,7 @@ def _env():
             }
         )
     history = HistoryService(DbStore(db, "history", HISTORY_COLS))
-    svc = AssignmentService(paths, devices, employees, history, lambda *a, **k: "x")
+    svc = AssignmentService(paths, devices, employees, history)
     return svc
 
 

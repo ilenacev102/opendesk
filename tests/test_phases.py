@@ -120,16 +120,12 @@ def env(monkeypatch):
     except (ImportError, AttributeError):
         pass
 
-    assign_svc = AssignmentService(
-        paths, devices, employees, history, lambda *a, **k: "x"
-    )
-    return_svc = ReturnService(paths, devices, employees, history, lambda *a, **k: "x")
-    replace_svc = ReplacementService(
-        paths, devices, employees, history, lambda *a, **k: "x"
-    )
-    repair_svc = RepairService(paths, devices, employees, history, lambda *a, **k: "x")
+    assign_svc = AssignmentService(paths, devices, employees, history)
+    return_svc = ReturnService(paths, devices, employees, history)
+    replace_svc = ReplacementService(paths, devices, employees, history)
+    repair_svc = RepairService(paths, devices, employees, history)
     repair_close_svc = RepairClosureService(paths, devices, history)
-    dispose_svc = DisposalService(paths, devices, history, lambda *a, **k: "x")
+    dispose_svc = DisposalService(paths, devices, history)
     return {
         "devices": devices,
         "employees": employees,

@@ -86,7 +86,6 @@ def _sig_env(monkeypatch):
             app_mod.devices,
             app_mod.employees,
             app_mod.history,
-            app_mod.save_doc,
         ),
     )
     return app_mod, tmp
