@@ -218,7 +218,7 @@ except ImportError:  # Flask-Login недостапен: рутите остан
 
 
 def _open_paths():
-    return {"health", "static", "admin.login", "admin.setup"}
+    return {"system.health", "static", "admin.login", "admin.setup"}
 
 
 _RATE_LIMITS = (
