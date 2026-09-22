@@ -50,28 +50,39 @@ class PopisService:
         return rec
 
     def scan(self, pid, asset_id):
-        rec = self.get(pid)
-        if rec is None or rec.get("Status") != "OPEN":
-            return None
-        found = cast(list[str], rec["FoundIDs"])
-        if asset_id in rec["ExpectedIDs"] and asset_id not in found:
-            found.append(asset_id)
-            self.store.update_where("PopisID", pid, {"Found": json.dumps(found)})
+        from services.db_service import db_transaction
+
+        with db_transaction(self.db_path) as con:
+            rec = self.get(pid)
+            if rec is None or rec.get("Status") != "OPEN":
+                return None
+            found = cast(list[str], rec["FoundIDs"])
+            if asset_id in rec["ExpectedIDs"] and asset_id not in found:
+                found.append(asset_id)
+                self.store.update_where(
+                    "PopisID", pid, {"Found": json.dumps(found)}, con=con
+                )
+                return True
+            if asset_id not in rec["ExpectedIDs"]:
+                return False
             return True
-        if asset_id not in rec["ExpectedIDs"]:
-            return False
-        return True
 
     def finish(self, pid, doc_rel=""):
-        rec = self.get(pid)
-        if rec is None:
-            return None
-        missing = [a for a in rec["ExpectedIDs"] if a not in rec["FoundIDs"]]
-        self.store.update_where(
-            "PopisID", pid, {"Status": "CLOSED", "DocumentPath": doc_rel}
-        )
-        return {
-            "expected": rec["ExpectedIDs"],
-            "found": rec["FoundIDs"],
-            "missing": missing,
-        }
+        from services.db_service import db_transaction
+
+        with db_transaction(self.db_path) as con:
+            rec = self.get(pid)
+            if rec is None:
+                return None
+            missing = [a for a in rec["ExpectedIDs"] if a not in rec["FoundIDs"]]
+            self.store.update_where(
+                "PopisID",
+                pid,
+                {"Status": "CLOSED", "DocumentPath": doc_rel},
+                con=con,
+            )
+            return {
+                "expected": rec["ExpectedIDs"],
+                "found": rec["FoundIDs"],
+                "missing": missing,
+            }
