@@ -167,7 +167,7 @@
 - Security-заклучувања: `SESSION_COOKIE_HTTPONLY` + `SAMESITE=Lax`;
   regression-тестови за blueprint auth-матрица, cookie flags и doc/pdf traversal.
 
-## Тестови (138: сè TDD или route-проверено со извршување)
+## Тестови (144: сè TDD или route-проверено со извршување)
 
 - `tests/test_phases.py` (10): замена, сопственост, Repair-блокада, расход-блокада,
   bulk offboarding, сервис-тек, филтри/пагинација на рути.

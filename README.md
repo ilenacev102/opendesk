@@ -7,8 +7,8 @@
 
 > **Напомена:** има автентикација со улоги (`admin`/`magacioner`/`citac`) —
 > првото стартување отвора `/setup` за прв администратор. И покрај тоа,
-> наменето е за доверлива локална мрежа: нема rate-limit ниту CSRF-токени
-> (види `SECURITY.md`). Не го изложувајте директно на интернет.
+> наменето е за доверлива локална мрежа: нема CSRF-токени, rate-limitот е
+> per-process (види `SECURITY.md`). Не го изложувајте директно на интернет.
 > Поставете `SERVICEDESK_SECRET`.
 
 ## Брз старт
@@ -62,7 +62,7 @@ Compose по default го објавува сервисот само на `127.0
 ## Развој
 
 ```bash
-python3 -m pytest tests/   # 138 теста: unit + integration + UI-guardови
+python3 -m pytest tests/   # 144 теста: unit + integration + UI-guardови
 ```
 
 Структура: `app.py` (ядро: init, auth-гард, stores, services) · `routes/`
