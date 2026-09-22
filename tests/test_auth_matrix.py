@@ -55,3 +55,55 @@ def test_roles_matrix(monkeypatch):
         assert ca.post("/devices/new", data={}).status_code == 200
     finally:
         _wipe_users()
+
+
+def test_new_blueprints_auth(monkeypatch):
+    """files/reports blueprints honor the same auth matrix."""
+    app_mod = _auth_env(monkeypatch)
+    try:
+        anon = app_mod.app.test_client()
+        ca, cc = app_mod.app.test_client(), app_mod.app.test_client()
+        _login(ca, "adm")
+        _login(cc, "cit")
+        # anonymous: pages redirect, api 401
+        assert anon.get("/labels").status_code == 302
+        assert anon.get("/reports").status_code == 302
+        assert anon.get("/import").status_code == 302
+        # logged-in GET allowed for both roles
+        assert ca.get("/labels").status_code == 200
+        assert cc.get("/labels").status_code == 200
+        assert ca.get("/reports").status_code == 200
+        assert cc.get("/reports").status_code == 200
+        assert ca.get("/import").status_code == 200
+        assert cc.get("/import").status_code == 200
+        # citac POST blocked, admin POST passes guard (may 200/302, never 403)
+        assert cc.post("/notify-digest", data={}).status_code == 403
+        assert cc.post("/import", data={}).status_code == 403
+        assert ca.post("/notify-digest", data={}).status_code in (200, 302)
+    finally:
+        _wipe_users()
+
+
+def test_session_cookie_flags(monkeypatch):
+    app_mod = _auth_env(monkeypatch)
+    try:
+        c = app_mod.app.test_client()
+        resp = _login(c, "adm")
+        cookie = resp.headers.get("Set-Cookie", "")
+        assert "HttpOnly" in cookie
+        assert "SameSite" in cookie
+    finally:
+        _wipe_users()
+
+
+def test_files_traversal_blocked(monkeypatch):
+    app_mod = _auth_env(monkeypatch)
+    try:
+        ca = app_mod.app.test_client()
+        _login(ca, "adm")
+        assert ca.get("/doc/../app.py").status_code == 404
+        assert ca.get("/doc/documents/../../app.py").status_code == 404
+        assert ca.get("/pdf/../app.py").status_code == 404
+        assert ca.get("/pdf/etc/passwd").status_code == 404
+    finally:
+        _wipe_users()
