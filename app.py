@@ -441,6 +441,7 @@ def internal_error(exc):
 from routes.admin import bp as admin_bp
 from routes.api import bp as api_bp
 from routes.catalog import bp as catalog_bp
+from routes.cmdb import bp as cmdb_bp
 from routes.files import bp as files_bp
 from routes.inventory import bp as inventory_bp
 from routes.incidents import bp as incidents_bp
@@ -452,6 +453,7 @@ from routes.system import bp as system_bp
 app.register_blueprint(admin_bp)
 app.register_blueprint(api_bp)
 app.register_blueprint(catalog_bp)
+app.register_blueprint(cmdb_bp)
 app.register_blueprint(files_bp)
 app.register_blueprint(inventory_bp)
 app.register_blueprint(incidents_bp)

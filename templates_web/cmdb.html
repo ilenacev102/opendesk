@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+<li class="breadcrumb-item"><a href="/">Почетна</a></li>
+<li class="breadcrumb-item"><a href="/device/{{ dev.AssetID }}">{{ dev.AssetID }}</a></li>
+<li class="breadcrumb-item active" aria-current="page">Врски</li>
+</ol></nav>
+<h2>Врски — {{ dev.AssetID }}</h2>
+<p>{{ dev.Manufacturer }} {{ dev.Model }} | Статус: <b>{{ dev.Status }}</b></p>
+{% if owner %}
+<p>Сопственик: <b>{{ owner.FirstName }} {{ owner.LastName }}</b> ({{ owner.EmployeeID }})</p>
+{% endif %}
+<h4 class="mt-4">Лиценци</h4>
+{% if licenses %}
+<ul class="list-group">{% for l in licenses %}
+<li class="list-group-item"><b>{{ l.Software }}</b> ({{ l.LicenseID }})</li>
+{% endfor %}</ul>
+{% else %}<p class="text-muted">Нема поврзани лиценци.</p>{% endif %}
+<h4 class="mt-4">Договори</h4>
+{% if contracts %}
+<ul class="list-group">{% for c in contracts %}
+<li class="list-group-item"><b>{{ c.Title }}</b> ({{ c.ContractID }}) — {{ c.Supplier }}</li>
+{% endfor %}</ul>
+{% else %}<p class="text-muted">Нема поврзани договори.</p>{% endif %}
+<h4 class="mt-4">Резервации</h4>
+{% if reservations %}
+<ul class="list-group">{% for r in reservations %}
+<li class="list-group-item"><b>{{ r.ReservationID }}</b> — {{ r.FromDate }} до {{ r.ToDate }} ({{ r.Status }})</li>
+{% endfor %}</ul>
+{% else %}<p class="text-muted">Нема поврзани резервации.</p>{% endif %}
+<h4 class="mt-4">Барања на сопственикот</h4>
+{% if requests %}
+<ul class="list-group">{% for q in requests %}
+<li class="list-group-item"><b>{{ q.RequestID }}</b> — {{ q.NeedText }} ({{ q.Status }})</li>
+{% endfor %}</ul>
+{% else %}<p class="text-muted">Нема поврзани барања.</p>{% endif %}
+<h4 class="mt-4">Инциденти</h4>
+{% if incidents %}
+<ul class="list-group">{% for i in incidents %}
+<li class="list-group-item"><b><a href="/incident/{{ i.IncidentID }}">{{ i.IncidentID }}</a></b> — {{ i.Title }} ({{ i.Status }})</li>
+{% endfor %}</ul>
+{% else %}<p class="text-muted">Нема поврзани инциденти.</p>{% endif %}
+{% if not licenses and not contracts and not reservations and not requests and not incidents %}
+<div class="empty-state mt-3">Нема поврзани записи.</div>
+{% endif %}
+{% endblock %}
