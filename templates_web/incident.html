@@ -37,4 +37,19 @@
 {% else %}
 <p class="text-muted">Инцидентот е затворен.</p>
 {% endif %}
+<h4 class="mt-4">Активност</h4>
+{% if thread %}
+<ul class="list-group">{% for c in thread %}
+<li class="list-group-item"><b>{{ c.Author }}</b>
+<span class="text-muted small">{{ c.Created }}</span><br>{{ c.Body }}</li>
+{% endfor %}</ul>
+{% else %}
+<p class="text-muted">Нема коментари.</p>
+{% endif %}
+<form method="post" action="/incidents/comment" class="mt-2"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<input type="hidden" name="incident_id" value="{{ inc.IncidentID }}">
+<div class="mb-2"><label>Нов коментар</label>
+<textarea class="form-control" name="body" rows="2" maxlength="2000" required></textarea></div>
+<button class="btn btn-primary btn-sm" type="submit">Додај коментар</button>
+</form>
 {% endblock %}

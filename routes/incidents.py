@@ -95,16 +95,24 @@ def incident_list():
 
 @bp.route("/incident/<iid>")
 def incident_detail(iid):
-    from app import incidents
+    from app import comments, history, incidents
+    from services.comment_service import CommentService
 
     inc = incidents.find("IncidentID", iid)
     if inc is None:
         abort(404)
+    thread = CommentService(
+        comments,
+        incidents,
+        history,
+        db_path=getattr(comments, "db_path", None),
+    ).for_incident(iid)
     return render_template(
         "incident.html",
         inc=inc,
         statuses=list(STATUSES),
         priorities=list(PRIORITIES),
+        thread=thread,
     )
 
 
@@ -187,3 +195,29 @@ def incident_escalate():
     if iid:
         return redirect(url_for("incidents.incident_detail", iid=iid))
     return redirect(url_for("incidents.incident_list"))
+
+
+@bp.route("/incidents/comment", methods=["POST"])
+@require("admin", "magacioner")
+def incident_comment():
+    from app import backup_all, comments, history, incidents
+    from services.comment_service import CommentService
+
+    import config
+
+    db_path = getattr(comments, "db_path", None)
+    svc = CommentService(comments, incidents, history, db_path=db_path)
+    iid = request.form.get("incident_id", "").strip()
+    try:
+        svc.add(
+            iid,
+            _who(),
+            request.form.get("body", ""),
+            performed_by=_who(),
+        )
+        if config.BACKUP_ON_WRITE:
+            backup_all([comments])
+        flash("Коментарот е додаден.", "success")
+    except ValueError as exc:
+        flash(f"ГРЕШКА: {exc}", "danger")
+    return redirect(url_for("incidents.incident_detail", iid=iid))
