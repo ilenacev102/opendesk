@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+<li class="breadcrumb-item"><a href="/">Почетна</a></li>
+<li class="breadcrumb-item active" aria-current="page">Инциденти</li>
+</ol></nav>
+<h2>Инциденти</h2>
+<form method="get" class="row g-2 mb-3">
+<div class="col-6 col-md-2"><label>Статус</label>
+<select class="form-control" name="status">
+<option value="">Сите</option>
+{% for s in statuses %}<option value="{{ s }}" {% if f_status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+</select></div>
+<div class="col-6 col-md-2"><label>Приоритет</label>
+<select class="form-control" name="priority">
+<option value="">Сите</option>
+{% for p in priorities %}<option value="{{ p }}" {% if f_priority == p %}selected{% endif %}>{{ p }}</option>{% endfor %}
+</select></div>
+<div class="col-6 col-md-2"><label>Одговорен</label>
+<select class="form-control" name="assignee">
+<option value="">Сите</option>
+{% for a in assignees %}<option value="{{ a }}" {% if f_assignee == a %}selected{% endif %}>{{ a }}</option>{% endfor %}
+</select></div>
+<div class="col-6 col-md-4"><label>Пребарај</label><input class="form-control" name="q" value="{{ f_q }}"></div>
+<div class="col-12 col-md-2 d-flex align-items-end"><button class="btn btn-primary" type="submit">Филтрирај</button></div>
+</form>
+<div class="table-responsive"><table class="table table-striped">
+<thead><tr><th>ID</th><th>Наслов</th><th>Уред</th><th>Приоритет</th><th>Статус</th><th>Одговорен</th><th>Рок</th></tr></thead>
+<tbody>
+{% for r in rows %}
+<tr>
+<td><b><a href="/incident/{{ r.IncidentID }}">{{ r.IncidentID }}</a></b></td>
+<td>{{ r.Title }}</td>
+<td>{{ r.AssetID or "—" }}</td>
+<td>{% if r.Priority == "urgent" %}<span class="badge badge-st st-Broken">urgent</span>{% elif r.Priority == "high" %}<span class="badge badge-st st-Repair">high</span>{% elif r.Priority == "medium" %}<span class="badge badge-st st-Assigned">medium</span>{% else %}<span class="badge badge-st st-Repaired">low</span>{% endif %}</td>
+<td>{% if r.Status == "open" %}<span class="badge badge-st st-Assigned">open</span>{% elif r.Status == "in-progress" %}<span class="badge badge-st st-Repair">in-progress</span>{% else %}<span class="badge badge-st st-Repaired">resolved</span>{% endif %}</td>
+<td>{{ r.Assignee or "—" }}</td>
+<td>{{ r.DueDate or "—" }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table></div>
+{% if not rows %}
+<div class="empty-state">Нема инциденти.</div>
+{% endif %}
+<p class="text-muted small">Вкупно {{ total }} — стр. {{ page }}/{{ total_pages }}.</p>
+<h4 class="mt-4">Нов инцидент</h4>
+<form method="post" action="/incidents/new"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<div class="row g-2">
+<div class="col-12 col-md-2"><label>Уред</label><input class="form-control" name="AssetID"></div>
+<div class="col-12 col-md-4"><label>Наслов *</label><input class="form-control" name="Title" required></div>
+<div class="col-6 col-md-2"><label>Приоритет</label>
+<select class="form-control" name="Priority">
+<option value="low">low</option><option value="medium" selected>medium</option>
+<option value="high">high</option><option value="urgent">urgent</option>
+</select></div>
+<div class="col-6 col-md-2"><label>Одговорен</label><input class="form-control" name="Assignee"></div>
+<div class="col-6 col-md-2"><label>Рок</label><input class="form-control" type="date" name="DueDate"></div>
+<div class="col-12 col-md-6"><label>Вработен</label><input class="form-control" name="EmployeeID"></div>
+<div class="col-12 col-md-6"><label>Забелешка</label><input class="form-control" name="Notes"></div>
+</div>
+<button class="btn btn-primary mt-2" type="submit">Заведи</button>
+</form>
+{% endblock %}

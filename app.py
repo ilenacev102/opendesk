@@ -444,6 +444,7 @@ from routes.api import bp as api_bp
 from routes.catalog import bp as catalog_bp
 from routes.files import bp as files_bp
 from routes.inventory import bp as inventory_bp
+from routes.incidents import bp as incidents_bp
 from routes.operations import bp as operations_bp
 from routes.popis import bp as popis_bp
 from routes.reports import bp as reports_bp
@@ -454,6 +455,7 @@ app.register_blueprint(api_bp)
 app.register_blueprint(catalog_bp)
 app.register_blueprint(files_bp)
 app.register_blueprint(inventory_bp)
+app.register_blueprint(incidents_bp)
 app.register_blueprint(operations_bp)
 app.register_blueprint(popis_bp)
 app.register_blueprint(reports_bp)

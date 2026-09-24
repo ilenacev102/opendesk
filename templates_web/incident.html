@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+<li class="breadcrumb-item"><a href="/">Почетна</a></li>
+<li class="breadcrumb-item"><a href="/incidents">Инциденти</a></li>
+<li class="breadcrumb-item active" aria-current="page">{{ inc.IncidentID }}</li>
+</ol></nav>
+<h2>Инцидент {{ inc.IncidentID }}</h2>
+<dl class="row">
+<dt class="col-sm-3">Наслов</dt><dd class="col-sm-9">{{ inc.Title }}</dd>
+<dt class="col-sm-3">Уред</dt><dd class="col-sm-9">{{ inc.AssetID or "—" }}</dd>
+<dt class="col-sm-3">Вработен</dt><dd class="col-sm-9">{{ inc.EmployeeID or "—" }}</dd>
+<dt class="col-sm-3">Приоритет</dt><dd class="col-sm-9">{{ inc.Priority }}</dd>
+<dt class="col-sm-3">Статус</dt><dd class="col-sm-9">{% if inc.Status == "open" %}<span class="badge badge-st st-Assigned">open</span>{% elif inc.Status == "in-progress" %}<span class="badge badge-st st-Repair">in-progress</span>{% else %}<span class="badge badge-st st-Repaired">resolved</span>{% endif %}</dd>
+<dt class="col-sm-3">Одговорен</dt><dd class="col-sm-9">{{ inc.Assignee or "—" }}</dd>
+<dt class="col-sm-3">Рок</dt><dd class="col-sm-9">{{ inc.DueDate or "—" }}</dd>
+<dt class="col-sm-3">Креиран</dt><dd class="col-sm-9">{{ inc.Created }}</dd>
+<dt class="col-sm-3">Затворен</dt><dd class="col-sm-9">{{ inc.ClosedAt or "—" }}</dd>
+<dt class="col-sm-3">Забелешка</dt><dd class="col-sm-9">{{ inc.Notes or "—" }}</dd>
+</dl>
+{% if inc.Status == "open" %}
+<form method="post" action="/incidents/transition" class="d-inline"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<input type="hidden" name="incident_id" value="{{ inc.IncidentID }}">
+<input type="hidden" name="to_status" value="in-progress">
+<button class="btn btn-sm btn-outline-primary" type="submit">Започни работа</button>
+</form>
+{% elif inc.Status == "in-progress" %}
+<form method="post" action="/incidents/transition" class="d-inline"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<input type="hidden" name="incident_id" value="{{ inc.IncidentID }}">
+<input type="hidden" name="to_status" value="resolved">
+<button class="btn btn-sm btn-outline-success" type="submit">Затвори</button>
+</form>
+{% else %}
+<p class="text-muted">Инцидентот е затворен.</p>
+{% endif %}
+{% endblock %}
