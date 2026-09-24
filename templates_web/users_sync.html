@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+<li class="breadcrumb-item"><a href="/users">Корисници</a></li>
+<li class="breadcrumb-item active" aria-current="page">LDAP синхронизација</li>
+</ol></nav>
+<h2>LDAP синхронизација</h2>
+{% if hint %}
+<div class="alert alert-info">LDAP не е конфигуриран. Поставете ги променливите
+<b>SERVICEDESK_LDAP_URL</b> и <b>SERVICEDESK_LDAP_BASE</b> (опционално
+<b>SERVICEDESK_LDAP_BIND_DN</b>, <b>SERVICEDESK_LDAP_PASSWORD</b>,
+<b>SERVICEDESK_LDAP_FILTER</b>), па освежете ја страницата.</div>
+{% elif preview %}
+<h4>Преглед: {{ preview.matched|length }} поврзани, {{ preview.staged|length }} за евиденција</h4>
+<div class="table-responsive"><table class="table table-striped">
+<thead><tr><th>Корисничко име</th><th>Е-пошта</th><th>Оддел</th><th>Статус</th></tr></thead>
+<tbody>
+{% for m in preview.matched %}
+<tr><td>{{ m.ldap.UserName }}</td><td>{{ m.ldap.Email or "—" }}</td><td>{{ m.ldap.Department or "—" }}</td>
+<td><span class="badge badge-st st-Repaired">поврзан ({{ m.employee.EmployeeID }})</span></td></tr>
+{% endfor %}
+{% for u in preview.staged %}
+<tr><td>{{ u.UserName }}</td><td>{{ u.Email or "—" }}</td><td>{{ u.Department or "—" }}</td>
+<td><span class="badge badge-st st-Assigned">за евиденција</span></td></tr>
+{% endfor %}
+</tbody>
+</table></div>
+<form method="post"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<input type="hidden" name="confirm" value="1">
+<button class="btn btn-primary" type="submit">Потврди синхронизација</button>
+<a class="btn btn-secondary" href="/users">Откажи</a></form>
+{% else %}
+<div class="alert alert-danger">LDAP пребарувањето не успеа. Проверете ги поставките и обидете се повторно.</div>
+{% endif %}
+{% endblock %}

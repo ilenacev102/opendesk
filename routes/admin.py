@@ -108,6 +108,47 @@ def logout():
     return redirect(url_for("admin.login"))
 
 
+def _who():
+    from flask_login import current_user as _cu
+
+    return str(getattr(_cu, "id", "admin")) if _cu else "admin"
+
+
+@bp.route("/users/sync", methods=["GET", "POST"])
+@_admin_only
+def users_sync():
+    from app import backup_all, employees, history, ldapmap
+    from services.ldap_service import LdapError, LdapService, configured
+
+    import config
+
+    db_path = getattr(ldapmap, "db_path", None)
+    svc = LdapService(employees, ldapmap, history, db_path=db_path)
+    if not configured():
+        return render_template("users_sync.html", preview=None, hint=True)
+    if request.method == "POST" and request.form.get("confirm") == "1":
+        try:
+            users = svc.fetch_users()
+            result = svc.sync(users, dry_run=False, performed_by=_who())
+        except LdapError as exc:
+            flash(f"ГРЕШКА: {exc}", "danger")
+            return redirect(url_for("admin.users_sync"))
+        if config.BACKUP_ON_WRITE:
+            backup_all([ldapmap])
+        flash(
+            f"LDAP синхронизација: {result['matched']} поврзани, "
+            f"{result['staged']} за евиденција.",
+            "success",
+        )
+        return redirect(url_for("admin.users"))
+    try:
+        users = svc.fetch_users()
+    except LdapError as exc:
+        flash(f"ГРЕШКА: {exc}", "danger")
+        return render_template("users_sync.html", preview=None, hint=False)
+    return render_template("users_sync.html", preview=svc.reconcile(users), hint=False)
+
+
 @bp.route("/users", methods=["GET", "POST"])
 @_admin_only
 def users():
