@@ -152,6 +152,12 @@ def reports():
     )
 
 
+def _who():
+    from flask_login import current_user as _cu
+
+    return str(getattr(_cu, "id", "admin")) if _cu else "admin"
+
+
 def _discovery_import():
     """Discovery CSV: preview (dry-run) or confirm step.
 
@@ -188,7 +194,7 @@ def _discovery_import():
             devices,
             staging,
             history,
-            performed_by="admin",
+            performed_by=_who(),
             db_path=db_path,
         )
         if config.BACKUP_ON_WRITE:

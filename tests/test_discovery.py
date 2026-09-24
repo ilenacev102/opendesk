@@ -140,7 +140,12 @@ def test_confirm_writes_new_and_updates_match(stores):
     assert created["AssetID"].startswith("AST")
     matched = devices.find("SerialNumber", "DEF456")
     assert "2026-09-02" in matched["Notes"]
-    assert len(history.store.records()) == 2
+    assert len(history.store.records()) == 3
+    summaries = [
+        h for h in history.store.records() if h.get("Action") == "DISCOVERY_IMPORT"
+    ]
+    assert len(summaries) == 1
+    assert "new=1" in summaries[0].get("Reason", "")
 
 
 def test_confirm_never_touches_assigned(stores):

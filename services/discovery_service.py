@@ -179,6 +179,20 @@ def confirm(rows, devices, staging, history, performed_by="admin", db_path=None)
                     con=con,
                 )
                 counts["new"] += 1
+        history.log(
+            "DISCOVERY_IMPORT",
+            "",
+            "",
+            "",
+            "",
+            "",
+            f"new={counts['new']} updated={counts['updated']} "
+            f"skipped={counts['skipped']}",
+            "",
+            performed_by,
+            "",
+            con=con,
+        )
 
     if db_path:
         with db_transaction(db_path) as con:
