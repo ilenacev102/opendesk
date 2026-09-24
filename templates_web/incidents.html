@@ -35,7 +35,7 @@
 <td>{% if r.Priority == "urgent" %}<span class="badge badge-st st-Broken">urgent</span>{% elif r.Priority == "high" %}<span class="badge badge-st st-Repair">high</span>{% elif r.Priority == "medium" %}<span class="badge badge-st st-Assigned">medium</span>{% else %}<span class="badge badge-st st-Repaired">low</span>{% endif %}</td>
 <td>{% if r.Status == "open" %}<span class="badge badge-st st-Assigned">open</span>{% elif r.Status == "in-progress" %}<span class="badge badge-st st-Repair">in-progress</span>{% else %}<span class="badge badge-st st-Repaired">resolved</span>{% endif %}</td>
 <td>{{ r.Assignee or "—" }}</td>
-<td>{{ r.DueDate or "—" }}</td>
+<td>{{ r.DueDate or "—" }}{% if r.Breached %} <span class="badge badge-st st-Broken">пробиен рок</span>{% endif %}</td>
 </tr>
 {% endfor %}
 </tbody>

@@ -28,20 +28,32 @@ log = __import__("logging").getLogger("servicedesk")
 def notify_digest():
     import os as _os
 
-    from app import devices
-    from services.notify_service import digest_email, send_email, warranty_expiring
+    from app import devices, incidents
+    from services.notify_service import (
+        breached_incidents,
+        digest_email,
+        send_email,
+        warranty_expiring,
+    )
 
     expiring = warranty_expiring(devices.records(), days=30)
+    breached = breached_incidents(incidents.records())
     admin_email = _os.environ.get("SERVICEDESK_ADMIN_EMAIL", "").strip()
-    if not expiring:
+    if not expiring and not breached:
         flash("Нема гаранции што истекуваат во следните 30 дена.", "success")
     elif not admin_email:
-        flash("ГРЕШКА: поставете SERVICEDESK_ADMIN_EMAIL.", "danger")
+        flash(
+            f"ГРЕШКА: поставете SERVICEDESK_ADMIN_EMAIL. "
+            f"(гаранции {len(expiring)}, пробиени рокови {len(breached)})",
+            "danger",
+        )
     else:
-        to, subject, body = digest_email(admin_email, expiring)
+        to, subject, body = digest_email(admin_email, expiring, breached)
         if send_email(to, subject, body):
             flash(
-                f"Digest испратен на {admin_email} ({len(expiring)} уреди).", "success"
+                f"Digest испратен на {admin_email} ({len(expiring)} уреди, "
+                f"пробиени рокови {len(breached)}).",
+                "success",
             )
         else:
             flash("ГРЕШКА: mail не е испратен. Проверете SMTP-поставки.", "danger")

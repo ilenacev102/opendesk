@@ -31,6 +31,7 @@ def _who():
 @bp.route("/incidents")
 def incident_list():
     from app import incidents
+    from services.incident_service import breach as _breach
 
     st = request.args.get("status", "").strip()
     pr = request.args.get("priority", "").strip()
@@ -60,6 +61,8 @@ def incident_list():
                 continue
         filtered.append(r)
     filtered.sort(key=lambda r: r.get("Created", ""), reverse=True)
+    for r in filtered:
+        r["Breached"] = r.get("Status") != "resolved" and _breach(r.get("DueDate", ""))
     try:
         page = max(1, int(request.args.get("page", "1")))
     except ValueError:

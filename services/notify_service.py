@@ -87,7 +87,24 @@ def warranty_expiring(rows, days=30):
     return out
 
 
-def digest_email(admin_email, expiring_rows):
+def breached_incidents(rows, today=None):
+    """Incidents with passed DueDate, excluding resolved ones.
+
+    Empty/garbage dates never breach (same contract as incident breach()).
+    """
+    from services.incident_service import breach as _breach
+
+    today = today or datetime.date.today()
+    out = []
+    for r in rows or []:
+        if (r.get("Status", "") or "") == "resolved":
+            continue
+        if _breach(r.get("DueDate", ""), today):
+            out.append(r)
+    return out
+
+
+def digest_email(admin_email, expiring_rows, breached_rows=None):
     lines = [
         f"- {r.get('AssetID', '')} "
         f"({r.get('Manufacturer', '')} {r.get('Model', '')}): "
@@ -96,4 +113,14 @@ def digest_email(admin_email, expiring_rows):
     ]
     subject = f"Гаранции што истекуваат ({len(expiring_rows)})"
     body = "Уреди со гаранција што истекува наскоро:\n\n" + "\n".join(lines)
+    breached_rows = breached_rows or []
+    if breached_rows:
+        blines = [
+            f"- {r.get('IncidentID', '')} "
+            f"({r.get('Title', '')}, {r.get('Assignee', '')}): "
+            f"{r.get('DueDate', '')}"
+            for r in breached_rows
+        ]
+        subject += f", пробиени рокови ({len(breached_rows)})"
+        body += "\n\nИнциденти со пробиен рок:\n\n" + "\n".join(blines)
     return admin_email, subject, body
