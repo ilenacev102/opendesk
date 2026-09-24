@@ -107,6 +107,7 @@ def incident_detail(iid):
         history,
         db_path=getattr(comments, "db_path", None),
     ).for_incident(iid)
+    linked_articles = _kb_link_service().for_incident(iid)
     return render_template(
         "incident.html",
         inc=inc,
@@ -114,6 +115,7 @@ def incident_detail(iid):
         priorities=list(PRIORITIES),
         thread=thread,
         attachments=_attachments(iid),
+        linked_articles=linked_articles,
     )
 
 
@@ -305,6 +307,57 @@ def incident_comment():
         if config.BACKUP_ON_WRITE:
             backup_all([comments])
         flash("Коментарот е додаден.", "success")
+    except ValueError as exc:
+        flash(f"ГРЕШКА: {exc}", "danger")
+    return redirect(url_for("incidents.incident_detail", iid=iid))
+
+
+def _kb_link_service():
+    from app import history, incidents, kb_articles, kb_links
+    from services.kb_link_service import KbLinkService
+
+    return KbLinkService(
+        kb_links,
+        incidents,
+        kb_articles,
+        history,
+        db_path=getattr(kb_links, "db_path", None),
+    )
+
+
+@bp.route("/incidents/link-kb", methods=["POST"])
+@require("admin", "magacioner")
+def incident_link_kb():
+    from app import backup_all, kb_links
+
+    import config
+
+    iid = request.form.get("incident_id", "").strip()
+    aid = request.form.get("article_id", "").strip()
+    try:
+        _kb_link_service().link(iid, aid, performed_by=_who())
+        if config.BACKUP_ON_WRITE:
+            backup_all([kb_links])
+        flash(f"Написот {aid} е поврзан со {iid}.", "success")
+    except ValueError as exc:
+        flash(f"ГРЕШКА: {exc}", "danger")
+    return redirect(url_for("incidents.incident_detail", iid=iid))
+
+
+@bp.route("/incidents/resolve-kb", methods=["POST"])
+@require("admin", "magacioner")
+def incident_resolve_kb():
+    from app import backup_all, incidents, kb_links
+
+    import config
+
+    iid = request.form.get("incident_id", "").strip()
+    aid = request.form.get("article_id", "").strip()
+    try:
+        _kb_link_service().resolve_from_article(iid, aid, performed_by=_who())
+        if config.BACKUP_ON_WRITE:
+            backup_all([incidents, kb_links])
+        flash(f"Инцидентот {iid} е решен од написот {aid}.", "success")
     except ValueError as exc:
         flash(f"ГРЕШКА: {exc}", "danger")
     return redirect(url_for("incidents.incident_detail", iid=iid))
