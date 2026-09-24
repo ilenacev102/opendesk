@@ -5,7 +5,25 @@ services:
       - "${SERVICEDESK_BIND:-127.0.0.1}:5000:5000"
     environment:
       SERVICEDESK_SECRET: ${SERVICEDESK_SECRET:?Set SERVICEDESK_SECRET in .env or your shell}
+      SERVICEDESK_DB_URL: ${SERVICEDESK_DB_URL:-}
     volumes:
       - ./data:/app/data
       - ./documents:/app/documents
       - ./backup:/app/backup
+  db:
+    image: postgres:16-alpine
+    profiles: ["pg"]
+    environment:
+      POSTGRES_USER: servicedesk
+      POSTGRES_PASSWORD: ${SERVICEDESK_PG_PASSWORD:?Set SERVICEDESK_PG_PASSWORD for the pg profile}
+      POSTGRES_DB: servicedesk
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U servicedesk -d servicedesk"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:

@@ -224,5 +224,13 @@ def db_transaction(db_path):
 
 
 def open_store(db_path, table, csv_path, cols):
-    """SQLite-only: always DbStore (csv_path kept for migrate compatibility)."""
+    """PgStore when SERVICEDESK_DB_URL is set, else SQLite DbStore.
+
+    csv_path is kept for migrate compatibility and ignored by both backends.
+    """
+    dsn = os.environ.get("SERVICEDESK_DB_URL", "").strip()
+    if dsn:
+        from services.pg_store import PgStore
+
+        return PgStore(dsn, table, cols)
     return DbStore(db_path, table, cols)
