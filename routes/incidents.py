@@ -113,7 +113,94 @@ def incident_detail(iid):
         statuses=list(STATUSES),
         priorities=list(PRIORITIES),
         thread=thread,
+        attachments=_attachments(iid),
     )
+
+
+ALLOWED_ATTACH_EXTS = {".png", ".jpg", ".jpeg", ".pdf", ".log", ".txt"}
+
+
+def _attach_dir(iid):
+    import os
+
+    import config
+
+    return os.path.join(os.path.abspath(config.DOCUMENTS_DIR), "incidents", iid)
+
+
+def _attachments(iid):
+    import os
+
+    target = _attach_dir(iid)
+    if not os.path.isdir(target):
+        return []
+    return sorted(
+        f for f in os.listdir(target) if os.path.isfile(os.path.join(target, f))
+    )
+
+
+@bp.route("/incidents/attach", methods=["POST"])
+@require("admin", "magacioner")
+def incident_attach():
+    import os
+
+    from app import backup_all, history, incidents
+
+    import config
+
+    iid = request.form.get("incident_id", "").strip()
+    if incidents.find("IncidentID", iid) is None:
+        abort(404)
+    file = request.files.get("file")
+    if not file or not file.filename:
+        flash("ГРЕШКА: избери фајл.", "danger")
+        return redirect(url_for("incidents.incident_detail", iid=iid))
+    name = os.path.basename(file.filename.strip())
+    ext = (name.rsplit(".", 1)[-1] if "." in name else "").lower()
+    if not name or f".{ext}" not in ALLOWED_ATTACH_EXTS:
+        flash("ГРЕШКА: дозволени се само png, jpg, pdf, log, txt фајлови.", "danger")
+        return render_template(
+            "incident.html",
+            inc=incidents.find("IncidentID", iid),
+            statuses=list(STATUSES),
+            priorities=list(PRIORITIES),
+            thread=[],
+            attachments=_attachments(iid),
+        )
+    target_dir = _attach_dir(iid)
+    os.makedirs(target_dir, exist_ok=True)
+    full = os.path.abspath(os.path.join(target_dir, name))
+    base = os.path.abspath(config.DOCUMENTS_DIR)
+    if os.path.commonpath([base, full]) != base:
+        abort(400)
+    file.save(full)
+    history.log("INC_ATTACH", iid, "", "", "", "", name, "", _who(), "")
+    if config.BACKUP_ON_WRITE:
+        backup_all([incidents])
+    flash(f"Прилогот {name} е зачуван.", "success")
+    return redirect(url_for("incidents.incident_detail", iid=iid))
+
+
+@bp.route("/incidents/attach/<iid>/<name>")
+def incident_attachment(iid, name):
+    import os
+
+    from flask import send_file
+
+    import config
+
+    from app import incidents
+
+    if incidents.find("IncidentID", iid) is None:
+        abort(404)
+    clean = os.path.basename((name or "").strip())
+    if not clean:
+        abort(404)
+    full = os.path.abspath(os.path.join(_attach_dir(iid), clean))
+    base = os.path.abspath(config.DOCUMENTS_DIR)
+    if os.path.commonpath([base, full]) != base or not os.path.isfile(full):
+        abort(404)
+    return send_file(full)
 
 
 @bp.route("/incidents/new", methods=["POST"])
