@@ -30,6 +30,10 @@
 <input type="hidden" name="to_status" value="resolved">
 <button class="btn btn-sm btn-outline-success" type="submit">Затвори</button>
 </form>
+<form method="post" action="/incidents/escalate" class="d-inline"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<input type="hidden" name="incident_id" value="{{ inc.IncidentID }}">
+<button class="btn btn-sm btn-outline-danger" type="submit">Ескалирај</button>
+</form>
 {% else %}
 <p class="text-muted">Инцидентот е затворен.</p>
 {% endif %}

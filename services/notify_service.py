@@ -104,7 +104,7 @@ def breached_incidents(rows, today=None):
     return out
 
 
-def digest_email(admin_email, expiring_rows, breached_rows=None):
+def digest_email(admin_email, expiring_rows, breached_rows=None, escalated_rows=None):
     lines = [
         f"- {r.get('AssetID', '')} "
         f"({r.get('Manufacturer', '')} {r.get('Model', '')}): "
@@ -123,4 +123,13 @@ def digest_email(admin_email, expiring_rows, breached_rows=None):
         ]
         subject += f", пробиени рокови ({len(breached_rows)})"
         body += "\n\nИнциденти со пробиен рок:\n\n" + "\n".join(blines)
+    escalated_rows = escalated_rows or []
+    if escalated_rows:
+        elines = [
+            f"- {r.get('IncidentID', '')} "
+            f"({r.get('Title', '')}, {r.get('Priority', '')})"
+            for r in escalated_rows
+        ]
+        subject += f", ескалирани ({len(escalated_rows)})"
+        body += "\n\nЕскалирани инциденти:\n\n" + "\n".join(elines)
     return admin_email, subject, body

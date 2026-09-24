@@ -154,3 +154,36 @@ def incident_transition():
     except ValueError as exc:
         flash(f"ГРЕШКА: {exc}", "danger")
     return redirect(url_for("incidents.incident_detail", iid=iid))
+
+
+@bp.route("/incidents/escalate", methods=["POST"])
+@require("admin", "magacioner")
+def incident_escalate():
+    from app import backup_all, history, incidents
+    from services.escalation_service import EscalationService
+
+    import config
+
+    db_path = getattr(incidents, "db_path", None)
+    svc = EscalationService(incidents, history, db_path=db_path)
+    iid = request.form.get("incident_id", "").strip()
+    try:
+        if iid:
+            result = svc.escalate(iid, performed_by=_who())
+            if result["escalated"]:
+                flash(f"Инцидентот {iid} е ескалиран.", "success")
+            else:
+                flash(f"Инцидентот {iid} не е за ескалација.", "warning")
+        else:
+            counts = svc.escalate_all(performed_by=_who())
+            flash(
+                f"Ескалирани {counts['escalated']}, прескокнати {counts['skipped']}.",
+                "success",
+            )
+        if config.BACKUP_ON_WRITE:
+            backup_all([incidents])
+    except ValueError as exc:
+        flash(f"ГРЕШКА: {exc}", "danger")
+    if iid:
+        return redirect(url_for("incidents.incident_detail", iid=iid))
+    return redirect(url_for("incidents.incident_list"))

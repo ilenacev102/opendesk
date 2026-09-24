@@ -28,7 +28,7 @@ log = __import__("logging").getLogger("servicedesk")
 def notify_digest():
     import os as _os
 
-    from app import devices, incidents
+    from app import devices, history, incidents
     from services.notify_service import (
         breached_incidents,
         digest_email,
@@ -38,21 +38,31 @@ def notify_digest():
 
     expiring = warranty_expiring(devices.records(), days=30)
     breached = breached_incidents(incidents.records())
+    escalated_ids = {
+        h.get("AssetID", "")
+        for h in history.store.records()
+        if h.get("Action") == "ESC_ESCALATE" and h.get("AssetID")
+    }
+    escalated = [
+        inc for inc in incidents.records() if inc.get("IncidentID") in escalated_ids
+    ]
     admin_email = _os.environ.get("SERVICEDESK_ADMIN_EMAIL", "").strip()
-    if not expiring and not breached:
+    if not expiring and not breached and not escalated:
         flash("Нема гаранции што истекуваат во следните 30 дена.", "success")
     elif not admin_email:
         flash(
             f"ГРЕШКА: поставете SERVICEDESK_ADMIN_EMAIL. "
-            f"(гаранции {len(expiring)}, пробиени рокови {len(breached)})",
+            f"(гаранции {len(expiring)}, пробиени рокови {len(breached)}, "
+            f"ескалирани {len(escalated)})",
             "danger",
         )
     else:
-        to, subject, body = digest_email(admin_email, expiring, breached)
+        to, subject, body = digest_email(admin_email, expiring, breached, escalated)
         if send_email(to, subject, body):
             flash(
                 f"Digest испратен на {admin_email} ({len(expiring)} уреди, "
-                f"пробиени рокови {len(breached)}).",
+                f"пробиени рокови {len(breached)}, "
+                f"ескалирани {len(escalated)}).",
                 "success",
             )
         else:
