@@ -14,11 +14,31 @@
 <select class="form-control" name="kind">
 <option value="devices">Уреди (AssetID,Type,Manufacturer,Model,SerialNumber,Status,EmployeeID,Location,PurchaseDate,WarrantyUntil,Notes)</option>
 <option value="employees">Вработени (EmployeeID,FirstName,LastName,UserName,Email,Department,Organization,Location,Active)</option>
+<option value="discovery">Discovery (Hostname,SerialNumber,Manufacturer,Model,OS,LastSeen,Source) — преглед пред запис</option>
 </select></div>
 <div class="mb-3"><label>CSV фајл</label>
 <input class="form-control" type="file" name="file" accept=".csv" required></div>
 <button class="btn btn-primary" type="submit">Внеси</button>
 </form>
+{% if preview %}
+<h3 class="mt-4">Преглед на discovery увоз</h3>
+<p>нови: {{ preview.counts.new }}, совпаѓања: {{ preview.counts.match }}, конфликти: {{ preview.counts.conflict }}.</p>
+<table class="table table-sm">
+<thead><tr><th>Hostname</th><th>Сериски</th><th>Статус</th><th>Причина</th></tr></thead>
+<tbody>
+{% for r in preview.rows %}
+<tr><td>{{ r.Hostname }}</td><td>{{ r.SerialNumber }}</td>
+<td>{% if r.verdict == "new" %}<span class="badge badge-st st-Available">нов</span>{% elif r.verdict == "match" %}<span class="badge badge-st st-Assigned">совпаѓање</span>{% else %}<span class="badge badge-st st-Broken">конфликт</span>{% endif %}</td>
+<td>{{ r.reason }}</td></tr>
+{% endfor %}
+</tbody></table>
+<form method="post"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<input type="hidden" name="kind" value="discovery">
+<input type="hidden" name="confirm" value="1">
+<input type="hidden" name="rows" value="{{ preview.rows_json }}">
+<button class="btn btn-success" type="submit">Потврди увоз</button>
+<a class="btn btn-secondary" href="/import">Откажи</a></form>
+{% endif %}
 <p class="mt-3"><a href="/reports?export=devices">Симни уреди (CSV)</a> |
 <a href="/reports?export=employees">Симни вработени (CSV)</a></p>
 {% endblock %}

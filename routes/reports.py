@@ -140,6 +140,80 @@ def reports():
     )
 
 
+def _discovery_import():
+    """Discovery CSV: preview (dry-run) or confirm step.
+
+    Returns (preview, report). Preview writes nothing; confirm re-reconciles
+    against live devices so verdicts are never stale, then writes.
+    """
+    import json as _json
+
+    import config
+    from app import backup_all, devices, history, staging
+    from services.discovery_service import DISCOVERY_COLUMNS
+    from services.discovery_service import confirm as _confirm
+    from services.discovery_service import parse_discovery_csv as _parse
+    from services.discovery_service import reconcile as _reconcile
+
+    if request.form.get("confirm") == "1":
+        try:
+            raw = _json.loads(request.form.get("rows", "[]"))
+            rows = [
+                {c: str(r.get(c, "")) for c in DISCOVERY_COLUMNS}
+                for r in raw
+                if isinstance(r, dict)
+            ]
+        except ValueError:
+            flash("ГРЕШКА: невалидни податоци за потврда.", "danger")
+            return None, {"ok": 0, "errors": ["Невалидни податоци за потврда."]}
+        if not rows:
+            flash("ГРЕШКА: нема редови за потврда.", "danger")
+            return None, {"ok": 0, "errors": ["Нема редови за потврда."]}
+        preview = _reconcile(rows, devices)
+        db_path = getattr(devices, "db_path", None)
+        counts = _confirm(
+            preview,
+            devices,
+            staging,
+            history,
+            performed_by="admin",
+            db_path=db_path,
+        )
+        if config.BACKUP_ON_WRITE:
+            backup_all([devices, staging])
+        flash(
+            f"Внесени {counts['new']} нови, "
+            f"ажурирани {counts['updated']}, "
+            f"прескокнати {counts['skipped']}.",
+            "success",
+        )
+        return None, {"ok": counts["new"] + counts["updated"], "errors": []}
+    file = request.files.get("file")
+    if not file or not file.filename:
+        flash("ГРЕШКА: избери CSV фајл.", "danger")
+        return None, None
+    ext = (file.filename.rsplit(".", 1)[-1] if "." in file.filename else "").lower()
+    if ext != "csv":
+        msg = "Дозволени се само .csv фајлови."
+        flash(f"ГРЕШКА: {msg}", "danger")
+        return None, {"ok": 0, "errors": [msg]}
+    try:
+        rows = _parse(file.read())
+    except ValueError as exc:
+        flash(f"ГРЕШКА: {exc}", "danger")
+        return None, {"ok": 0, "errors": [str(exc)]}
+    reconciled = _reconcile(rows, devices)
+    counts = {"new": 0, "match": 0, "conflict": 0}
+    for row in reconciled:
+        counts[row["verdict"]] += 1
+    preview = {
+        "rows": reconciled,
+        "counts": counts,
+        "rows_json": _json.dumps(rows),
+    }
+    return preview, None
+
+
 @bp.route("/import", methods=["GET", "POST"])
 def import_bulk():
     import io
@@ -153,12 +227,17 @@ def import_bulk():
     from services.schemas import OPTIONAL_DEV_COLS as _OPT
 
     report = None
+    preview = None
     if request.method == "POST":
         kind = request.form.get("kind", "devices")
-        file = request.files.get("file")
-        if not file or not file.filename:
+        if kind == "discovery":
+            preview, report = _discovery_import()
+        elif (
+            request.files.get("file") is None or not request.files.get("file").filename
+        ):
             flash("ГРЕШКА: избери CSV фајл.", "danger")
         else:
+            file = request.files.get("file")
             try:
                 ext = (
                     file.filename.rsplit(".", 1)[-1] if "." in file.filename else ""
@@ -260,4 +339,4 @@ def import_bulk():
                 log.exception("Import failed")
                 flash(f"ГРЕШКА при увоз: {exc}", "danger")
                 report = {"ok": 0, "errors": [str(exc)]}
-    return render_template("import.html", report=report)
+    return render_template("import.html", report=report, preview=preview)
