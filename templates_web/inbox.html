@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+<li class="breadcrumb-item"><a href="/incidents">Инциденти</a></li>
+<li class="breadcrumb-item active" aria-current="page">Mail сандаче</li>
+</ol></nav>
+<h2>Mail сандаче</h2>
+{% if hint %}
+<div class="alert alert-info">Mail не е конфигуриран. Поставете ги променливите
+<b>SERVICEDESK_IMAP_HOST</b> и <b>SERVICEDESK_IMAP_USER</b> (опционално
+<b>SERVICEDESK_IMAP_PORT</b>, <b>SERVICEDESK_IMAP_PASSWORD</b>,
+<b>SERVICEDESK_IMAP_MAILBOX</b>), па освежете ја страницата. Преземањето е
+рачно — нема background polling.</div>
+{% elif preview %}
+<p>нови: {{ preview.counts.new }}, одговори: {{ preview.counts.reply }}, дупликати: {{ preview.counts.duplicate }}.</p>
+<table class="table table-sm">
+<thead><tr><th>Од</th><th>Наслов</th><th>Статус</th><th>Причина</th></tr></thead>
+<tbody>
+{% for r in preview.rows %}
+<tr><td>{{ r.from }}</td><td>{{ r.subject }}</td>
+<td>{% if r.verdict == "new" %}<span class="badge badge-st st-Available">нов</span>{% elif r.verdict == "reply" %}<span class="badge badge-st st-Assigned">одговор</span>{% else %}<span class="badge badge-st st-Broken">дупликат</span>{% endif %}</td>
+<td>{{ r.reason }}</td></tr>
+{% endfor %}
+</tbody></table>
+<form method="post"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<input type="hidden" name="confirm" value="1">
+<input type="hidden" name="rows" value="{{ preview.rows_json }}">
+<button class="btn btn-success" type="submit">Потврди увоз</button>
+<a class="btn btn-secondary" href="/incidents">Откажи</a></form>
+{% else %}
+<div class="alert alert-danger">Преземањето не успеа. Проверете ги поставките и обидете се повторно.</div>
+{% endif %}
+{% endblock %}

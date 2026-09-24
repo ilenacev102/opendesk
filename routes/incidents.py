@@ -361,3 +361,65 @@ def incident_resolve_kb():
     except ValueError as exc:
         flash(f"ГРЕШКА: {exc}", "danger")
     return redirect(url_for("incidents.incident_detail", iid=iid))
+
+
+@bp.route("/incidents/inbox", methods=["GET", "POST"])
+@require("admin", "magacioner")
+def incident_inbox():
+    import json as _json
+
+    from app import backup_all, comments, history, incidents
+    from services.mail_ingest import (
+        MailError,
+        configured,
+        confirm as _confirm,
+    )
+    from services.mail_ingest import fetch_unseen as _fetch
+    from services.mail_ingest import reconcile as _reconcile
+
+    import config
+
+    if not configured():
+        return render_template("inbox.html", preview=None, hint=True)
+    if request.method == "POST" and request.form.get("confirm") == "1":
+        try:
+            raw = _json.loads(request.form.get("rows", "[]"))
+            rows = [r for r in raw if isinstance(r, dict)]
+        except ValueError:
+            flash("ГРЕШКА: невалидни податоци за потврда.", "danger")
+            return redirect(url_for("incidents.incident_inbox"))
+        if not rows:
+            flash("ГРЕШКА: нема редови за потврда.", "danger")
+            return redirect(url_for("incidents.incident_inbox"))
+        preview = _reconcile(rows, incidents, comments, history)
+        db_path = getattr(incidents, "db_path", None)
+        counts = _confirm(
+            preview,
+            incidents,
+            comments,
+            history,
+            performed_by=_who(),
+            db_path=db_path,
+        )
+        if config.BACKUP_ON_WRITE:
+            backup_all([incidents, comments])
+        flash(
+            f"Од mail: нови {counts['new']}, одговори {counts['replies']}, "
+            f"прескокнати {counts['skipped']}.",
+            "success",
+        )
+        return redirect(url_for("incidents.incident_list"))
+    try:
+        mails = _fetch()
+    except MailError as exc:
+        flash(f"ГРЕШКА: {exc}", "danger")
+        return render_template("inbox.html", preview=None, hint=False)
+    preview = _reconcile(mails, incidents, comments, history)
+    counts = {"new": 0, "reply": 0, "duplicate": 0}
+    for row in preview:
+        counts[row["verdict"]] += 1
+    return render_template(
+        "inbox.html",
+        preview={"rows": preview, "counts": counts, "rows_json": _json.dumps(mails)},
+        hint=False,
+    )
