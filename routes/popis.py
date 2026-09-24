@@ -7,7 +7,16 @@ monkeypatching of ``app`` attributes working.
 
 import json
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import (
+    Blueprint,
+    abort,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 
 bp = Blueprint("popis", __name__)
 
@@ -138,3 +147,46 @@ def popis_detail(pid):
             }
         )
     return render_template("popis_detail.html", rec=rec2, items=items)
+
+
+@bp.route("/popis/<pid>/scan")
+def popis_scan(pid):
+    from app import popis_svc
+
+    rec = popis_svc.get(pid)
+    if rec is None:
+        abort(404)
+    return render_template(
+        "popis_scan.html",
+        pid=pid,
+        total=len(rec["ExpectedIDs"]),
+        found=len(rec["FoundIDs"]),
+        status=rec.get("Status", ""),
+    )
+
+
+@bp.route("/popis/<pid>/found", methods=["POST"])
+def popis_found(pid):
+    from app import popis_svc
+
+    rec = popis_svc.get(pid)
+    if rec is None or rec.get("Status") != "OPEN":
+        return jsonify(ok=False, error="Пописот не постои или е затворен."), 404
+    data = request.get_json(silent=True) or {}
+    code = str(data.get("asset_id", "")).strip()
+    if not code:
+        return jsonify(ok=False, error="Недостасува asset_id."), 400
+    res = popis_svc.scan(pid, code)
+    if res is None:
+        return jsonify(ok=False, error="Пописот е затворен."), 404
+    if res is False:
+        return jsonify(ok=False, error=f"{code} не припаѓа на овој попис."), 404
+    rec2 = popis_svc.get(pid)
+    if rec2 is None:
+        return jsonify(ok=False, error="Пописот е затворен."), 404
+    return jsonify(
+        ok=True,
+        asset_id=code,
+        found=len(rec2["FoundIDs"]),
+        total=len(rec2["ExpectedIDs"]),
+    )

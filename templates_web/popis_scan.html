@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+<li class="breadcrumb-item"><a href="/popis">Попис</a></li>
+<li class="breadcrumb-item"><a href="/popis/{{ pid }}">{{ pid }}</a></li>
+<li class="breadcrumb-item active" aria-current="page">Скенер</li>
+</ol></nav>
+<h2>Скенер — попис {{ pid }}</h2>
+<p>Најдени: <b id="scan-count">{{ found }}/{{ total }}</b>{% if status != "OPEN" %} <span class="badge badge-st st-Repair">затворен</span>{% endif %}</p>
+<div id="scan-app" data-pid="{{ pid }}" data-csrf="{{ csrf_token }}" data-total="{{ total }}">
+<div class="card sd-card mb-3"><div class="card-body">
+<video id="scan-video" class="w-100" playsinline muted></video>
+<p id="scan-hint" class="text-muted small mt-2">Насочете ја камерата кон баркодот. Ако нема камера, користете рачен внес.</p>
+<button id="scan-start" class="btn btn-primary" type="button">Вклучи камера</button>
+<button id="scan-stop" class="btn btn-secondary" type="button" hidden>Исклучи камера</button>
+</div></div>
+<div class="card sd-card mb-3"><div class="card-body">
+<form id="scan-manual">
+<div class="mb-2"><label>Рачен внес (asset ID)</label>
+<input id="scan-input" class="form-control form-control-lg" autocomplete="off"></div>
+<button class="btn btn-outline-primary" type="submit">Евидентирај</button>
+</form>
+</div></div>
+<h4>Ред за испраќање (<span id="scan-queue-count">0</span>)</h4>
+<ul id="scan-queue" class="list-group mb-3"></ul>
+<div id="scan-log" class="mt-2" aria-live="polite"></div>
+</div>
+<script src="/static/js/pwa-scan.js"></script>
+{% endblock %}
