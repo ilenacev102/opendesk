@@ -192,6 +192,29 @@
   requests (3).
 - Фази Д–Ж: hardening (7), isolation (2).
 
+## Фаза Enterprise — доближување до светските платформи
+
+- **Discovery увоз**: `services/discovery_service.py` (normalize + reconcile
+  new/match/conflict + transactional confirm; задолжените уреди никогаш не се
+  допираат) + dry-run preview во `/import` со `DISCOVERY_IMPORT` summary во audit.
+- **Инциденти**: `services/incident_service.py` (open → in-progress → resolved,
+  приоритети, рокови) + `/incidents` листа/детал/креирање/транзиција со филтри
+  и пагинација; SLA breach-беџ „пробиен рок" + breached-секција во digest.
+- **PWA скенер**: `/popis/<pid>/scan` (камера преку BarcodeDetector +
+  getUserMedia, offline ред во localStorage) + JSON endpoint
+  `/popis/<pid>/found` (CSRF преку `X-CSRF-Token` header).
+- **CMDB преглед**: `/cmdb/<asset_id>` (уред + сопственик + лиценци +
+  договори + резервации + барања + инциденти, empty-state безбеден).
+- **LDAP/AD**: read-only sync (`sAMAccountName` мапирање, dry-run, без лозинки
+  во repo) + `/users/sync` admin UI со преглед пред потврда.
+- **Складирање**: `StoreProtocol` апстракција + `open_store()` фабрика;
+  Postgres-опција преку `SERVICEDESK_DB_URL` (SQLite останува default);
+  shared rate-limit (`memory`/`file`) + upload-лимит 25MB.
+- **Тестови (221 passed, 3 skipped)**: enterprise +27 (schemas, discovery,
+  import-ui, incidents, incidents-ui, sla, scan, history-wire, ldap, ldap-ui,
+  store-base, pg-option, ratelimit-shared, cmdb, migrate-check); pg parity
+  се прескокнува чисто без жив сервер.
+
 ## Стартување
 
 ```bash
