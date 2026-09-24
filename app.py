@@ -41,7 +41,7 @@ log = logging.getLogger("servicedesk")
 
 app = Flask(__name__, template_folder="templates_web", static_folder="static")
 app.secret_key = config.SECRET_KEY
-app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["CSRF_ENABLED"] = os.environ.get("SERVICEDESK_CSRF", "1") == "1"
