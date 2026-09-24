@@ -88,3 +88,33 @@ REQUEST_COLS = [
     "Created",
     "DecidedBy",
 ]
+
+INCIDENT_COLS = [
+    "IncidentID",
+    "AssetID",
+    "EmployeeID",
+    "Title",
+    "Priority",
+    "Status",
+    "Assignee",
+    "DueDate",
+    "Created",
+    "ClosedAt",
+    "Notes",
+]
+
+STAGING_COLS = [
+    "SerialNumber",
+    "Manufacturer",
+    "Model",
+    "Hostname",
+    "OS",
+    "LastSeen",
+    "Source",
+]
+
+LDAPMAP_COLS = [
+    "UserName",
+    "DN",
+    "LastSync",
+]

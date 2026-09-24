@@ -44,6 +44,7 @@ class DbStore:
                 "employees": ("EmployeeID",),
                 "history": ("HistoryID",),
                 "popis": ("PopisID",),
+                "incidents": ("IncidentID",),
             }.get(table, ("TransactionID",))
             for unique_col in identity_columns:
                 if unique_col in columns:

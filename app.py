@@ -83,9 +83,12 @@ from services.schemas import (  # noqa: E402
     EMP_COLS,
     FIELD_DEF_COLS,
     FIELD_VAL_COLS,
+    INCIDENT_COLS,
+    LDAPMAP_COLS,
     LIC_COLS,
     REQUEST_COLS,
     RESERV_COLS,
+    STAGING_COLS,
 )
 
 USE_DB = True
@@ -104,6 +107,9 @@ field_values = DbStore(DB_PATH, "field_values", FIELD_VAL_COLS)
 contracts = DbStore(DB_PATH, "contracts", CONTRACT_COLS)
 reservations = DbStore(DB_PATH, "reservations", RESERV_COLS)
 requests = DbStore(DB_PATH, "requests", REQUEST_COLS)
+incidents = DbStore(DB_PATH, "incidents", INCIDENT_COLS)
+staging = DbStore(DB_PATH, "staging", STAGING_COLS)
+ldapmap = DbStore(DB_PATH, "ldapmap", LDAPMAP_COLS)
 
 PATHS = {
     "db": DB_PATH,
