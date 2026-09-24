@@ -19,6 +19,7 @@ def test_incident_cols_defined():
         "Created",
         "ClosedAt",
         "Notes",
+        "LinkedTo",
     ]
 
 

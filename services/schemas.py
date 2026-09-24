@@ -101,6 +101,7 @@ INCIDENT_COLS = [
     "Created",
     "ClosedAt",
     "Notes",
+    "LinkedTo",
 ]
 
 STAGING_COLS = [
@@ -117,4 +118,34 @@ LDAPMAP_COLS = [
     "UserName",
     "DN",
     "LastSync",
+]
+
+SLA_POLICY_COLS = [
+    "PolicyID",
+    "Priority",
+    "WarnHours",
+    "BreachHours",
+    "Active",
+]
+
+KB_COLS = [
+    "ArticleID",
+    "Title",
+    "Body",
+    "Tags",
+    "Created",
+    "Updated",
+]
+
+COMMENT_COLS = [
+    "CommentID",
+    "IncidentID",
+    "Author",
+    "Body",
+    "Created",
+]
+
+KB_LINK_COLS = [
+    "ArticleID",
+    "IncidentID",
 ]

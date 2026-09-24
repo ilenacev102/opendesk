@@ -77,6 +77,7 @@ def inject_csrf_token():
 
 
 from services.schemas import (  # noqa: E402
+    COMMENT_COLS,
     CONS_COLS,
     CONTRACT_COLS,
     DEV_COLS,
@@ -84,10 +85,13 @@ from services.schemas import (  # noqa: E402
     FIELD_DEF_COLS,
     FIELD_VAL_COLS,
     INCIDENT_COLS,
+    KB_COLS,
+    KB_LINK_COLS,
     LDAPMAP_COLS,
     LIC_COLS,
     REQUEST_COLS,
     RESERV_COLS,
+    SLA_POLICY_COLS,
     STAGING_COLS,
 )
 
@@ -110,6 +114,10 @@ requests = open_store(DB_PATH, "requests", None, REQUEST_COLS)
 incidents = open_store(DB_PATH, "incidents", None, INCIDENT_COLS)
 staging = open_store(DB_PATH, "staging", None, STAGING_COLS)
 ldapmap = open_store(DB_PATH, "ldapmap", None, LDAPMAP_COLS)
+sla_policies = open_store(DB_PATH, "sla_policies", None, SLA_POLICY_COLS)
+kb_articles = open_store(DB_PATH, "kb_articles", None, KB_COLS)
+comments = open_store(DB_PATH, "comments", None, COMMENT_COLS)
+kb_links = open_store(DB_PATH, "kb_links", None, KB_LINK_COLS)
 
 PATHS = {
     "db": DB_PATH,
