@@ -96,20 +96,20 @@ DB_PATH = os.environ.get(
     "SERVICEDESK_DB", os.path.join(config.DATA_DIR, "servicedesk.db")
 )
 
-from services.db_service import DbStore  # noqa: E402
+from services.db_service import open_store  # noqa: E402
 
-employees = DbStore(DB_PATH, "employees", EMP_COLS)
-devices = DbStore(DB_PATH, "devices", DEV_COLS)
-consumables = DbStore(DB_PATH, "consumables", CONS_COLS)
-licenses = DbStore(DB_PATH, "licenses", LIC_COLS)
-field_defs = DbStore(DB_PATH, "field_defs", FIELD_DEF_COLS)
-field_values = DbStore(DB_PATH, "field_values", FIELD_VAL_COLS)
-contracts = DbStore(DB_PATH, "contracts", CONTRACT_COLS)
-reservations = DbStore(DB_PATH, "reservations", RESERV_COLS)
-requests = DbStore(DB_PATH, "requests", REQUEST_COLS)
-incidents = DbStore(DB_PATH, "incidents", INCIDENT_COLS)
-staging = DbStore(DB_PATH, "staging", STAGING_COLS)
-ldapmap = DbStore(DB_PATH, "ldapmap", LDAPMAP_COLS)
+employees = open_store(DB_PATH, "employees", None, EMP_COLS)
+devices = open_store(DB_PATH, "devices", None, DEV_COLS)
+consumables = open_store(DB_PATH, "consumables", None, CONS_COLS)
+licenses = open_store(DB_PATH, "licenses", None, LIC_COLS)
+field_defs = open_store(DB_PATH, "field_defs", None, FIELD_DEF_COLS)
+field_values = open_store(DB_PATH, "field_values", None, FIELD_VAL_COLS)
+contracts = open_store(DB_PATH, "contracts", None, CONTRACT_COLS)
+reservations = open_store(DB_PATH, "reservations", None, RESERV_COLS)
+requests = open_store(DB_PATH, "requests", None, REQUEST_COLS)
+incidents = open_store(DB_PATH, "incidents", None, INCIDENT_COLS)
+staging = open_store(DB_PATH, "staging", None, STAGING_COLS)
+ldapmap = open_store(DB_PATH, "ldapmap", None, LDAPMAP_COLS)
 
 PATHS = {
     "db": DB_PATH,
@@ -124,7 +124,6 @@ PATHS = {
 from services.assignment_service import AssignmentService  # noqa: E402
 from services.api_token_service import TOKEN_COLS, ApiTokenService  # noqa: E402
 from services.auth_service import USER_COLS, AuthService  # noqa: E402
-from services.db_service import open_store  # noqa: E402
 from services.disposal_service import DisposalService  # noqa: E402
 from services.history_service import HISTORY_COLS, HistoryService  # noqa: E402
 from services.notify_service import (  # noqa: E402
