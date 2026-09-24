@@ -55,6 +55,10 @@ Compose по default го објавува сервисот само на `127.0
 - Животен циклус на уред: Available ↔ Assigned → Broken → Repair → Repaired,
   Unrepairable → Disposed; валидации на секој премин
 - Bulk offboarding, пакети опрема, попис со скенирање и записник
+- Discovery увоз (Intune/SCCM CSV) со преглед пред запис (`/import`)
+- Минимални инциденти со рокови и breach-ознаки (`/incidents`), CMDB-врски по уред (`/cmdb/<id>`)
+- PWA скенер за попис со телефон-камера и offline ред (скенер-страница `/popis/scan` со ID на попис, на пр. `/popis/P000001/scan`)
+- LDAP/AD read-only sync со dry-run (`/users/sync`, само admin), Postgres-опција преку `SERVICEDESK_DB_URL`
 - Трансакциска атомарност (`BEGIN IMMEDIATE`), WAL-режим, audit trail за секоја
   мутација, import со rollback при грешка
 - Command palette (Ctrl+K), fuzzy autocomplete, сортирачки табели, breadcrumbs,
@@ -67,8 +71,8 @@ python3 -m pytest tests/   # 151 теста: unit + integration + UI-guardови
 ```
 
 Структура: `app.py` (ядро: init, auth-гард, stores, services) · `routes/`
-(blueprints: admin, api, catalog, files, inventory, operations, popis, reports,
-system) · `services/` (бизнис-логика) · `utils/` (валидатори,
+(blueprints: admin, api, catalog, cmdb, files, incidents, inventory,
+operations, popis, reports, system) · `services/` (бизнис-логика) · `utils/` (валидатори,
 помошни) · `templates_web/` (Jinja) · `static/` (CSS/JS) · `tests/`.
 Дизајн-токени: `DESIGN.md`. Детален дневник на измени: `CHANGELOG.md`.
 
