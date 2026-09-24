@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+<li class="breadcrumb-item"><a href="/">Почетна</a></li>
+<li class="breadcrumb-item active" aria-current="page">База на знаење</li>
+</ol></nav>
+<h2>База на знаење</h2>
+<form method="get" class="row g-2 mb-3">
+<div class="col-10"><input class="form-control" name="q" value="{{ q }}" placeholder="Пребарај по наслов, текст или тагови"></div>
+<div class="col-2"><button class="btn btn-primary" type="submit">Барај</button></div>
+</form>
+<div class="list-group mb-4">
+{% for r in rows %}
+<a class="list-group-item list-group-item-action" href="/kb/{{ r.ArticleID }}"><b>{{ r.Title }}</b>
+{% if r.Tags %}<span class="text-muted small"> — {{ r.Tags }}</span>{% endif %}</a>
+{% endfor %}
+</div>
+{% if not rows %}
+<div class="empty-state">Нема написи.</div>
+{% endif %}
+<h4 class="mt-4">Нов напис</h4>
+<form method="post" action="/kb/new"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<div class="mb-2"><label>Наслов *</label><input class="form-control" name="Title" required></div>
+<div class="mb-2"><label>Текст *</label><textarea class="form-control" name="Body" rows="4" required></textarea></div>
+<div class="mb-2"><label>Тагови (запирка)</label><input class="form-control" name="Tags"></div>
+<button class="btn btn-primary" type="submit">Зачувај</button>
+</form>
+{% endblock %}

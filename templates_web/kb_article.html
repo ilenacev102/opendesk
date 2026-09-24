@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+<li class="breadcrumb-item"><a href="/">Почетна</a></li>
+<li class="breadcrumb-item"><a href="/kb">База на знаење</a></li>
+<li class="breadcrumb-item active" aria-current="page">{{ art.ArticleID }}</li>
+</ol></nav>
+<h2>{{ art.Title }}</h2>
+<p class="text-muted small">{{ art.ArticleID }}{% if art.Tags %} | {{ art.Tags }}{% endif %} | {{ art.Updated }}</p>
+<div class="card sd-card mb-3"><div class="card-body">{{ art.Body }}</div></div>
+<h4>Измени</h4>
+<form method="post" action="/kb/{{ art.ArticleID }}/edit"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<div class="mb-2"><label>Наслов *</label><input class="form-control" name="Title" value="{{ art.Title }}" required></div>
+<div class="mb-2"><label>Текст *</label><textarea class="form-control" name="Body" rows="4" required>{{ art.Body }}</textarea></div>
+<div class="mb-2"><label>Тагови</label><input class="form-control" name="Tags" value="{{ art.Tags }}"></div>
+<button class="btn btn-primary" type="submit">Зачувај измени</button>
+</form>
+{% endblock %}
