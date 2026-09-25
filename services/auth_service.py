@@ -6,7 +6,15 @@ Once at least one user exists, login is required everywhere.
 
 from werkzeug.security import check_password_hash, generate_password_hash
 
-USER_COLS = ["UserID", "UserName", "PasswordHash", "Role", "Active"]
+USER_COLS = [
+    "UserID",
+    "UserName",
+    "PasswordHash",
+    "Role",
+    "Active",
+    "Email",
+    "OIDCSubject",
+]
 
 ROLES = ("admin", "magacioner", "citac")
 
@@ -50,6 +58,31 @@ class AuthService:
                 "PasswordHash": hash_password(password),
                 "Role": role,
                 "Active": "YES",
+            }
+        )
+        return self.get(username)
+
+    def create_sso_user(
+        self, username: str, email: str = "", subject: str = "", role: str = "citac"
+    ):
+        """Provision a user from SSO (OIDC). Empty PasswordHash means local
+        login is impossible — verify() refuses empty hashes."""
+        username = (username or "").strip()
+        if not username:
+            raise ValueError("Корисничкото име е задолжително.")
+        if role not in ROLES:
+            raise ValueError(f"Невалидна улога: {role}.")
+        if self.get(username) is not None:
+            raise ValueError(f"Корисникот {username} веќе постои.")
+        self.store.append_row(
+            {
+                "UserID": username,
+                "UserName": username,
+                "PasswordHash": "",
+                "Role": role,
+                "Active": "YES",
+                "Email": (email or "").strip(),
+                "OIDCSubject": (subject or "").strip(),
             }
         )
         return self.get(username)
