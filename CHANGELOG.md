@@ -237,6 +237,20 @@
   escalation, comments, attachments, kb-ui, kb-links, mail-ingest,
   duplicates); pg parity и понатаму skip без сервер.
 
+## Фаза SSO — најава преку OIDC
+
+- **Кориснички шеми**: `USER_COLS` + `Email`/`OIDCSubject` (auto-migrate) +
+  `AuthService.create_sso_user()` со празен hash — SSO-корисниците не можат
+  локално да се најават.
+- **OIDC сервис**: `services/oidc_service.py` (env config, authorize-URL,
+  callback-verify преку injectable factory, claim-мапирање со username-
+  fallback, `OidcError`, без secrets во логови) + `Authlib==1.6.12` pin.
+- **Рути**: `GET /login/sso` (302 кон провајдер) + `GET /login/sso/callback`
+  (JIT `citac`, link-по-email, улогата се чува) + SSO-копче на login; локалната
+  најава недопрена. Без SAML (OIDC ги покрива Entra ID/Google/Keycloak).
+- **Тестови**: sso-schemas, oidc (fake client, без мрежа), sso-ui (mocked flow,
+  role-preserved, unconfigured-redirect).
+
 ## Стартување
 
 ```bash

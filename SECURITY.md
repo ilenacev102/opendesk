@@ -49,6 +49,11 @@
   лозинката е само во env (`SERVICEDESK_IMAP_PASSWORD`), прилозите од mail
   не се преземаат (само наслов/текст), дупликатите се дедуплицираат по
   Message-ID.
+- SSO најавата е OIDC (Entra ID / Google / Keycloak) со Authlib: client secret
+  е само во env (`SERVICEDESK_OIDC_CLIENT_SECRET`) и никогаш не влегува во
+  логови; callback е `http://127.0.0.1:5000/login/sso/callback` (регистрирајте
+  го точно тој URI кај провајдерот); првиот login креира `citac`, улогите не
+  се пребришуваат од IdP; локалната најава останува достапна како fallback.
 - Прилозите на инциденти се чуваат под `documents/incidents/<id>/` со
   traversal-заштита (`commonpath`) и дозволени екстензии
   (png, jpg, pdf, log, txt); лимит 25MB.
