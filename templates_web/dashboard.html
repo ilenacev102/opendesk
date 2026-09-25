@@ -116,6 +116,33 @@
 {% endif %}
 </div></div></div>
 </div>
+<div class="row g-3 mt-1">
+<div class="col-lg-5"><div class="card sd-card panel-card anim-in anim-5"><div class="card-body">
+<div class="panel-heading"><div><span class="eyebrow">ТИКЕТИНГ</span><h5>Инциденти по статус</h5></div><a class="panel-link" href="/incidents">Отвори инциденти <span aria-hidden="true">→</span></a></div>
+<div class="chart-box"><canvas id="chIncidents"></canvas></div>
+<p class="mt-2 mb-0">MTTR: <b>{{ stats.mttr if stats.mttr is not none else "—" }}</b> ч. |
+Пробиени рокови (отворени): <b>{{ stats.breach_open }}</b></p>
+</div></div></div>
+<div class="col-lg-4"><div class="card sd-card panel-card anim-in anim-5"><div class="card-body">
+<div class="panel-heading"><div><span class="eyebrow">ПРОГНОЗА</span><h5>Гарантна прогноза</h5></div></div>
+<div class="chart-box"><canvas id="chWarranty"></canvas></div>
+</div></div></div>
+<div class="col-lg-3"><div class="card sd-card panel-card anim-in anim-5"><div class="card-body">
+<div class="panel-heading"><div><span class="eyebrow">ФИНАНСИИ</span><h5>Трошоци по локација</h5></div></div>
+{% if stats.costs_loc %}
+<table class="table table-sm mb-0">
+<thead><tr><th>Локација</th><th class="text-end">Ден.</th></tr></thead>
+<tbody>
+{% for loc, total in stats.costs_loc.items() %}
+<tr><td>{{ loc }}</td><td class="text-end"><b>{{ total }}</b></td></tr>
+{% endfor %}
+</tbody>
+</table>
+{% else %}
+<div class="empty-state">Нема евидентирани трошоци.</div>
+{% endif %}
+</div></div></div>
+</div>
 <script src="/static/js/chart.umd.min.js"></script>
 <script nonce="{{ csp_nonce }}">
 document.querySelectorAll("[data-count]").forEach(el => {
@@ -161,11 +188,32 @@ const chMonthly = new Chart(document.getElementById("chMonthly"), {
   options: { responsive: true, maintainAspectRatio: false, animation: { duration: 800 },
     plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
 });
+const chIncidents = new Chart(document.getElementById("chIncidents"), {
+  type: "doughnut",
+  data: {
+    labels: {{ stats.inc_status.keys()|list|tojson }},
+    datasets: [{ data: {{ stats.inc_status.values()|list|tojson }}, backgroundColor: PALETTE, borderWidth: 2 }]
+  },
+  options: { responsive: true, maintainAspectRatio: false, animation: { duration: 800 },
+    plugins: { legend: { position: "bottom" } } }
+});
+const chWarranty = new Chart(document.getElementById("chWarranty"), {
+  type: "bar",
+  data: {
+    labels: ["Истечени", "30 дена", "60 дена", "90 дена"],
+    datasets: [{ label: "Гаранции", data: {{ [stats.warranty_fc.expired, stats.warranty_fc.d30, stats.warranty_fc.d60, stats.warranty_fc.d90]|tojson }}, backgroundColor: sdChartColors().accent, borderRadius: 6 }]
+  },
+  options: { responsive: true, maintainAspectRatio: false, animation: { duration: 800 },
+    plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+});
 document.addEventListener("sd-theme", () => {
   applyChartTheme();
   chMonthly.data.datasets[0].backgroundColor = sdChartColors().accent;
+  chWarranty.data.datasets[0].backgroundColor = sdChartColors().accent;
   chStatus.update();
   chMonthly.update();
+  chIncidents.update();
+  chWarranty.update();
 });
 </script>
 {% endblock %}

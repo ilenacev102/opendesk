@@ -20,7 +20,11 @@ def health():
 
 @bp.route("/")
 def dashboard():
-    from app import devices, employees, history, warranty_days, warranty_level
+    import datetime
+
+    from app import devices, employees, history, incidents, licenses
+    from app import warranty_days, warranty_level
+    from services import analytics_service as analytics
 
     devs = devices.records()
     active_emps = employees.filter_eq("Active", "YES")
@@ -74,6 +78,20 @@ def dashboard():
         "wcount": len(warranties),
         "attention_devs": attention_devs,
     }
+    inc_records = incidents.records()
+    inc_status, inc_priority = analytics.incidents_by(inc_records)
+    today = datetime.date.today()
+    stats.update(
+        {
+            "inc_status": inc_status,
+            "inc_priority": inc_priority,
+            "warranty_fc": analytics.warranty_buckets(devs, today),
+            "costs_loc": analytics.costs_by(devs, "Location"),
+            "mttr": analytics.mttr_hours(inc_records),
+            "breach_open": analytics.breach_counts(inc_records, today),
+            "lic_expiring": analytics.license_expiry(licenses.records(), today),
+        }
+    )
     return render_template("dashboard.html", stats=stats)
 
 
