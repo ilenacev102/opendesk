@@ -58,6 +58,9 @@ Compose по default го објавува сервисот само на `127.0
   Unrepairable → Disposed; валидации на секој премин
 - Bulk offboarding, пакети опрема, попис со скенирање и записник
 - Discovery увоз (Intune/SCCM CSV) со преглед пред запис (`/import`)
+- Heartbeat агенти (`agents/heartbeat.sh`, `agents/heartbeat.ps1`) што се
+  пријавуваат на `POST /api/v1/discovery/heartbeat` со Bearer токен;
+  SNMP printer sweep (read-only) и Intune Graph sync со преглед пред запис
 - Минимални инциденти со рокови и breach-ознаки (`/incidents`), CMDB-врски по уред (`/cmdb/<id>`)
 - SLA работни часови со авто-ескалација, коментари и прилози по инцидент, дупликати
 - База на знаење (`/kb`) со поврзување написи и решавање од напис

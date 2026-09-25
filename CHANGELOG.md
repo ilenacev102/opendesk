@@ -251,6 +251,25 @@
 - **Тестови**: sso-schemas, oidc (fake client, без мрежа), sso-ui (mocked flow,
   role-preserved, unconfigured-redirect).
 
+## Фаза Discovery Pro — уредите сами се пријавуваат
+
+- **Heartbeat API**: `POST /api/v1/discovery/heartbeat` (Bearer magacioner,
+  JSON-валидација hostname+serial → 400, 401 без токен, 429 со Retry-After;
+  full reconcile/confirm flow со verdict во одговор).
+- **Агенти**: `agents/heartbeat.sh` (Linux: sysfs/dmidecode/machine-id) +
+  `agents/heartbeat.ps1` (Windows: WMI) — само env-конфиг, dry-run режим,
+  exit-кодови 0/1/2; cron/Task Scheduler упатство во `agents/README.md`.
+- **Race-поправка**: конкурентни heartbeat-и за ист сериски беа 500
+  (`UNIQUE constraint failed`) — сега губитникот паѓа на match-тек
+  (IntegrityError-fallback), докажано со 8-нишки тест.
+- **SNMP sweep**: `services/snmp_service.py` (read-only printer OIDs,
+  injectable factory, clean-skip без lib/мрежа, community никогаш во логови).
+- **Intune sync**: `services/intune_service.py` (MSAL client-credentials преку
+  env, paginated fetch, injectable client) + preview/confirm UI во `/import`
+  (re-reconcile при confirm, споделен preview-блок).
+- **Тестови**: heartbeat (5), agents (6), heartbeat-flow (2, вкл. concurrency),
+  snmp (4), intune (4), intune-ui (3); pg parity и понатаму skip без сервер.
+
 ## Стартување
 
 ```bash

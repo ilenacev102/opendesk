@@ -59,3 +59,14 @@
   (png, jpg, pdf, log, txt); лимит 25MB.
 - Дневните SQLite backups се конзистентни snapshots. Чувајте и надворешна копија
   од `backup/`, бидејќи локалното задржување е седум дена.
+- Heartbeat агентите се автентицираат со Bearer токен (magacioner опсег);
+  токенот е само во env на клиентот, никогаш во скриптите; серверот не верува
+  на клиентот — задолжените уреди и несовпаѓањата се прескокнуваат, а
+  конкурентните heartbeat-и се серијализираат (една нишка победува, другата
+  паѓа на match-тек).
+- SNMP sweep е read-only (само sysDescr/sysName/сериски); community string е
+  само во env (`SERVICEDESK_SNMP_COMMUNITY`) и никогаш не влегува во логови;
+  недостапните хостови се прескокнуваат без да го прекинат sweep-от.
+- Intune Graph sync е read-only со MSAL client-credentials; secret-от е само
+  во env (`SERVICEDESK_INTUNE_CLIENT_SECRET`); записите минуваат низ ист
+  reconcile/confirm со преглед пред запис како CSV-увозот.
