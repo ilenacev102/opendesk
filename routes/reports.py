@@ -235,6 +235,76 @@ def _discovery_import():
     for row in reconciled:
         counts[row["verdict"]] += 1
     preview = {
+        "title": "Преглед на discovery увоз",
+        "kind": "discovery",
+        "rows": reconciled,
+        "counts": counts,
+        "rows_json": _json.dumps(rows),
+    }
+    return preview, None
+
+
+def _intune_import():
+    """Intune Graph: fetch (dry-run) preview or confirm step.
+
+    Returns (preview, report). Preview writes nothing; confirm re-reconciles
+    against live devices so verdicts are never stale, then writes.
+    """
+    import json as _json
+
+    import config
+    from app import backup_all, devices, history, staging
+    from services.discovery_service import DISCOVERY_COLUMNS
+    from services.discovery_service import confirm as _confirm
+    from services.discovery_service import reconcile as _reconcile
+    from services.intune_service import IntuneError
+    from services.intune_service import fetch_devices as _fetch
+
+    if request.form.get("confirm") == "1":
+        try:
+            raw = _json.loads(request.form.get("rows", "[]"))
+            rows = [
+                {c: str(r.get(c, "")) for c in DISCOVERY_COLUMNS}
+                for r in raw
+                if isinstance(r, dict)
+            ]
+        except ValueError:
+            flash("ГРЕШКА: невалидни податоци за потврда.", "danger")
+            return None, {"ok": 0, "errors": ["Невалидни податоци за потврда."]}
+        if not rows:
+            flash("ГРЕШКА: нема редови за потврда.", "danger")
+            return None, {"ok": 0, "errors": ["Нема редови за потврда."]}
+        preview = _reconcile(rows, devices)
+        db_path = getattr(devices, "db_path", None)
+        counts = _confirm(
+            preview,
+            devices,
+            staging,
+            history,
+            performed_by=_who(),
+            db_path=db_path,
+        )
+        if config.BACKUP_ON_WRITE:
+            backup_all([devices, staging])
+        flash(
+            f"Внесени {counts['new']} нови, "
+            f"ажурирани {counts['updated']}, "
+            f"прескокнати {counts['skipped']}.",
+            "success",
+        )
+        return None, {"ok": counts["new"] + counts["updated"], "errors": []}
+    try:
+        rows = _fetch()
+    except IntuneError as exc:
+        flash(f"ГРЕШКА: {exc}", "danger")
+        return None, {"ok": 0, "errors": [str(exc)]}
+    reconciled = _reconcile(rows, devices)
+    counts = {"new": 0, "match": 0, "conflict": 0}
+    for row in reconciled:
+        counts[row["verdict"]] += 1
+    preview = {
+        "title": "Преглед на Intune sync",
+        "kind": "intune",
         "rows": reconciled,
         "counts": counts,
         "rows_json": _json.dumps(rows),
@@ -260,6 +330,8 @@ def import_bulk():
         kind = request.form.get("kind", "devices")
         if kind == "discovery":
             preview, report = _discovery_import()
+        elif kind == "intune":
+            preview, report = _intune_import()
         elif (
             request.files.get("file") is None or not request.files.get("file").filename
         ):

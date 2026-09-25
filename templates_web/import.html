@@ -15,13 +15,14 @@
 <option value="devices">Уреди (AssetID,Type,Manufacturer,Model,SerialNumber,Status,EmployeeID,Location,PurchaseDate,WarrantyUntil,Notes)</option>
 <option value="employees">Вработени (EmployeeID,FirstName,LastName,UserName,Email,Department,Organization,Location,Active)</option>
 <option value="discovery">Discovery (Hostname,SerialNumber,Manufacturer,Model,OS,LastSeen,Source) — преглед пред запис</option>
+<option value="intune">Intune (Graph sync со преглед пред запис)</option>
 </select></div>
 <div class="mb-3"><label>CSV фајл</label>
 <input class="form-control" type="file" name="file" accept=".csv" required></div>
 <button class="btn btn-primary" type="submit">Внеси</button>
 </form>
 {% if preview %}
-<h3 class="mt-4">Преглед на discovery увоз</h3>
+<h3 class="mt-4">{{ preview.title }}</h3>
 <p>нови: {{ preview.counts.new }}, совпаѓања: {{ preview.counts.match }}, конфликти: {{ preview.counts.conflict }}.</p>
 <table class="table table-sm">
 <thead><tr><th>Hostname</th><th>Сериски</th><th>Статус</th><th>Причина</th></tr></thead>
@@ -33,7 +34,7 @@
 {% endfor %}
 </tbody></table>
 <form method="post"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-<input type="hidden" name="kind" value="discovery">
+<input type="hidden" name="kind" value="{{ preview.kind }}">
 <input type="hidden" name="confirm" value="1">
 <input type="hidden" name="rows" value="{{ preview.rows_json }}">
 <button class="btn btn-success" type="submit">Потврди увоз</button>
