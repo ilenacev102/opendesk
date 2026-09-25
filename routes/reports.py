@@ -440,3 +440,46 @@ def import_bulk():
                 flash(f"ГРЕШКА при увоз: {exc}", "danger")
                 report = {"ok": 0, "errors": [str(exc)]}
     return render_template("import.html", report=report, preview=preview)
+
+
+@bp.route("/reports/monthly-summary", methods=["POST"])
+@require("admin", "magacioner")
+def monthly_summary():
+    import datetime
+    import os as _os
+
+    from app import devices, history, incidents
+    from services import analytics_service as analytics
+    from services.notify_service import send_email, summary_email
+
+    today = datetime.date.today()
+    devs = devices.records()
+    inc_records = incidents.records()
+    inc_status, _ = analytics.incidents_by(inc_records)
+    open_count = sum(v for k, v in inc_status.items() if k in ("open", "in-progress"))
+    escalated_ids = {
+        h.get("AssetID", "")
+        for h in history.store.records()
+        if h.get("Action") == "ESC_ESCALATE" and h.get("AssetID")
+    }
+    stats = {
+        "month": today.strftime("%Y-%m"),
+        "total_devices": len(devs),
+        "assigned": sum(1 for d in devs if d.get("Status") == "Assigned"),
+        "warranty_fc": analytics.warranty_buckets(devs, today),
+        "costs_total": round(sum(analytics.costs_by(devs, "Location").values()), 2),
+        "inc_open": open_count,
+        "breach_open": analytics.breach_counts(inc_records, today),
+        "escalated": len(escalated_ids),
+        "mttr": analytics.mttr_hours(inc_records),
+    }
+    admin_email = _os.environ.get("SERVICEDESK_ADMIN_EMAIL", "").strip()
+    if not admin_email:
+        flash("ГРЕШКА: поставете SERVICEDESK_ADMIN_EMAIL.", "danger")
+        return redirect(url_for("reports.reports"))
+    to, subject, body = summary_email(admin_email, stats)
+    if send_email(to, subject, body):
+        flash(f"Месечниот извештај е испратен на {admin_email}.", "success")
+    else:
+        flash("ГРЕШКА: mail не е испратен. Проверете SMTP-поставки.", "danger")
+    return redirect(url_for("reports.reports"))

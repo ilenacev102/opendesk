@@ -104,6 +104,32 @@ def breached_incidents(rows, today=None):
     return out
 
 
+def summary_email(admin_email, stats):
+    """Monthly summary: totals, warranty forecast, tickets, MTTR."""
+    stats = stats or {}
+    month = stats.get("month", "")
+    fc = stats.get("warranty_fc", {}) or {}
+    lines = [
+        f"Месечен извештај{f' за {month}' if month else ''}",
+        "",
+        f"Вкупно уреди: {stats.get('total_devices', 0)} "
+        f"(задолжени: {stats.get('assigned', 0)})",
+        f"Вкупни трошоци: {stats.get('costs_total', 0)} ден.",
+        "",
+        "Гарантна прогноза: истечени "
+        f"{fc.get('expired', 0)}, 30 дена {fc.get('d30', 0)}, "
+        f"60 дена {fc.get('d60', 0)}, 90 дена {fc.get('d90', 0)}.",
+        "",
+        f"Отворени инциденти: {stats.get('inc_open', 0)}, "
+        f"пробиени рокови: {stats.get('breach_open', 0)}, "
+        f"ескалирани: {stats.get('escalated', 0)}.",
+        f"MTTR: {stats.get('mttr', '—')} ч.",
+    ]
+    body = "\n".join(lines)
+    subject = f"Месечен извештај{f' {month}' if month else ''}"
+    return admin_email, subject, body
+
+
 def digest_email(admin_email, expiring_rows, breached_rows=None, escalated_rows=None):
     lines = [
         f"- {r.get('AssetID', '')} "
