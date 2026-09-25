@@ -215,6 +215,28 @@
   store-base, pg-option, ratelimit-shared, cmdb, migrate-check); pg parity
   се прескокнува чисто без жив сервер.
 
+## Фаза Ticketing Pro — длабочина на тикетинг
+
+- **SLA engine**: `services/sla_service.py` (работни часови Пон–Пет 08–16,
+  прескокнување викенди/празници, нивоа ok/warning/breached) + seed-политики
+  по приоритет.
+- **Ескалација**: `services/escalation_service.py` (priority-bump до urgent,
+  идемпотентен преку `ESC_ESCALATE` audit, без assignee-steal) + копче на
+  detail + ескалирани-секција во digest.
+- **Коментари**: `services/comment_service.py` + activity thread на detail
+  (автор/датум, XSS-escape) + `INC_COMMENT` audit.
+- **Прилози**: `documents/incidents/<id>/` со traversal-заштита
+  (`commonpath`), дозволени png/jpg/pdf/log/txt, лимит 25MB.
+- **База на знаење**: `routes/kb.py` CRUD + пребарување + `kb_links` врски +
+  „Реши од напис" (ClosedAt + `[KB:ID]` референца).
+- **Email-to-ticket**: `services/mail_ingest.py` (IMAP read-only, reply-
+  детекција `[I-XXXXXX]`, Message-ID dedupe преку history+batch, сè во
+  трансакција) + `/incidents/inbox` preview/confirm; само рачен trigger.
+- **Дупликати**: `LinkedTo` поле + link/unlink + приказ + `INC_LINK` audit.
+- **Тестови (260 passed, 3 skipped)**: ticketing-pro +39 (schemas, sla-engine,
+  escalation, comments, attachments, kb-ui, kb-links, mail-ingest,
+  duplicates); pg parity и понатаму skip без сервер.
+
 ## Стартување
 
 ```bash

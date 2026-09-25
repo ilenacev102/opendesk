@@ -57,6 +57,9 @@ Compose по default го објавува сервисот само на `127.0
 - Bulk offboarding, пакети опрема, попис со скенирање и записник
 - Discovery увоз (Intune/SCCM CSV) со преглед пред запис (`/import`)
 - Минимални инциденти со рокови и breach-ознаки (`/incidents`), CMDB-врски по уред (`/cmdb/<id>`)
+- SLA работни часови со авто-ескалација, коментари и прилози по инцидент, дупликати
+- База на знаење (`/kb`) со поврзување написи и решавање од напис
+- Email-to-ticket сандаче (`/incidents/inbox`) со преглед пред запис
 - PWA скенер за попис со телефон-камера и offline ред (скенер-страница `/popis/scan` со ID на попис, на пр. `/popis/P000001/scan`)
 - LDAP/AD read-only sync со dry-run (`/users/sync`, само admin), Postgres-опција преку `SERVICEDESK_DB_URL`
 - Трансакциска атомарност (`BEGIN IMMEDIATE`), WAL-режим, audit trail за секоја
@@ -71,7 +74,7 @@ python3 -m pytest tests/   # 151 теста: unit + integration + UI-guardови
 ```
 
 Структура: `app.py` (ядро: init, auth-гард, stores, services) · `routes/`
-(blueprints: admin, api, catalog, cmdb, files, incidents, inventory,
+(blueprints: admin, api, catalog, cmdb, files, incidents, inventory, kb,
 operations, popis, reports, system) · `services/` (бизнис-логика) · `utils/` (валидатори,
 помошни) · `templates_web/` (Jinja) · `static/` (CSS/JS) · `tests/`.
 Дизајн-токени: `DESIGN.md`. Детален дневник на измени: `CHANGELOG.md`.

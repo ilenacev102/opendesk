@@ -45,5 +45,12 @@
   partial unique индекси; SQLite останува default за offline LAN.
 - PWA скенерот (`/popis/<pid>/scan`) бара камера-дозвола во прелистувачот;
   скенираните кодови се праќаат само на истиот сервер (нема трета страна).
+- Email-to-ticket е read-only IMAP poll со рачен trigger (нема daemon);
+  лозинката е само во env (`SERVICEDESK_IMAP_PASSWORD`), прилозите од mail
+  не се преземаат (само наслов/текст), дупликатите се дедуплицираат по
+  Message-ID.
+- Прилозите на инциденти се чуваат под `documents/incidents/<id>/` со
+  traversal-заштита (`commonpath`) и дозволени екстензии
+  (png, jpg, pdf, log, txt); лимит 25MB.
 - Дневните SQLite backups се конзистентни snapshots. Чувајте и надворешна копија
   од `backup/`, бидејќи локалното задржување е седум дена.
