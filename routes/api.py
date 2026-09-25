@@ -275,3 +275,47 @@ def api_values():
         else:
             out[field] = sorted(seen)
     return out
+
+
+@bp.route("/api/v1/discovery/heartbeat", methods=["POST"])
+def api_v1_discovery_heartbeat():
+    import datetime
+
+    from app import _api_user, _require_api_roles, devices, history, staging
+    from flask import jsonify as _jsonify
+    from services.discovery_service import confirm, normalize_serial, reconcile
+
+    denied = _require_api_roles("magacioner")
+    if denied is not None:
+        return denied
+    data = request.get_json(silent=True) or {}
+    serial = normalize_serial(data.get("serial", ""))
+    hostname = str(data.get("hostname", "") or "").strip()
+    if not serial or not hostname:
+        return _jsonify({"error": "hostname and serial are required"}), 400
+    row = {
+        "Hostname": hostname,
+        "SerialNumber": serial,
+        "Manufacturer": str(data.get("manufacturer", "") or "").strip(),
+        "Model": str(data.get("model", "") or "").strip(),
+        "OS": str(data.get("os", "") or "").strip(),
+        "LastSeen": datetime.date.today().isoformat(),
+        "Source": "agent",
+    }
+    verdict = reconcile([row], devices)[0]
+    if verdict["verdict"] != "conflict":
+        db_path = getattr(devices, "db_path", None)
+        performer = getattr(_api_user(), "id", "agent") or "agent"
+        confirm(
+            [verdict],
+            devices,
+            staging,
+            history,
+            performed_by=performer,
+            db_path=db_path,
+        )
+    return {
+        "verdict": verdict["verdict"],
+        "reason": verdict["reason"],
+        "serial": serial,
+    }
