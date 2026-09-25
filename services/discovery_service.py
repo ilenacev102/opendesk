@@ -6,6 +6,7 @@ Assigned devices and mismatched identity fields are never auto-overwritten.
 """
 
 import io
+import sqlite3
 
 import pandas as pd
 
@@ -97,10 +98,47 @@ def _mint_asset_id(devices, con):
     return next_id_in(devices, "AssetID", "AST", con, width=3)
 
 
+def _find_by_serial(devices, serial):
+    for cand in devices.records():
+        if normalize_serial(cand.get("SerialNumber", "")) == serial:
+            return cand
+    return None
+
+
+def _apply_match(row, devices, staging, history, performed_by, con, counts):
+    """Match-update path shared by MATCH verdicts and race losers."""
+    dev = _find_by_serial(devices, row["SerialNumber"])
+    if dev is None:
+        counts["skipped"] += 1
+        return
+    note = (dev.get("Notes") or "").strip()
+    seen_mark = f"[seen {row['LastSeen']} {row['Source']}]".strip()
+    if row["LastSeen"] and seen_mark not in note:
+        note = f"{note} {seen_mark}".strip()
+        devices.update_where("AssetID", dev["AssetID"], {"Notes": note}, con=con)
+    _stage(row, staging, con)
+    history.log(
+        "DISCOVERY_UPDATE",
+        dev["AssetID"],
+        dev.get("Status", ""),
+        dev.get("Status", ""),
+        dev.get("EmployeeID", ""),
+        "",
+        f"Discovery {row['Source']} {row['LastSeen']}".strip(),
+        "",
+        performed_by,
+        "",
+        con=con,
+    )
+    counts["updated"] += 1
+
+
 def confirm(rows, devices, staging, history, performed_by="admin", db_path=None):
     """Write new devices + LastSeen notes for matches in one transaction.
 
     Returns {"new": n, "updated": n, "skipped": n}. Conflicts are skipped.
+    Concurrent losers of a serial race fall back to the match path instead
+    of failing with a unique-constraint error.
     """
     counts = {"new": 0, "updated": 0, "skipped": 0}
 
@@ -111,59 +149,34 @@ def confirm(rows, devices, staging, history, performed_by="admin", db_path=None)
                 counts["skipped"] += 1
                 continue
             if verdict == MATCH:
-                dev = None
-                for cand in devices.records():
-                    if (
-                        normalize_serial(cand.get("SerialNumber", ""))
-                        == row["SerialNumber"]
-                    ):
-                        dev = cand
-                        break
-                if dev is None:
-                    counts["skipped"] += 1
-                    continue
-                note = (dev.get("Notes") or "").strip()
-                seen_mark = f"[seen {row['LastSeen']} {row['Source']}]".strip()
-                if row["LastSeen"] and seen_mark not in note:
-                    note = f"{note} {seen_mark}".strip()
-                    devices.update_where(
-                        "AssetID", dev["AssetID"], {"Notes": note}, con=con
-                    )
-                _stage(row, staging, con)
-                history.log(
-                    "DISCOVERY_UPDATE",
-                    dev["AssetID"],
-                    dev.get("Status", ""),
-                    dev.get("Status", ""),
-                    dev.get("EmployeeID", ""),
-                    "",
-                    f"Discovery {row['Source']} {row['LastSeen']}".strip(),
-                    "",
-                    performed_by,
-                    "",
-                    con=con,
-                )
-                counts["updated"] += 1
+                _apply_match(row, devices, staging, history, performed_by, con, counts)
+                continue
             else:
                 aid = _mint_asset_id(devices, con)
-                devices.append_row(
-                    {
-                        "AssetID": aid,
-                        "Type": "Друго",
-                        "Manufacturer": row["Manufacturer"],
-                        "Model": row["Model"],
-                        "SerialNumber": row["SerialNumber"],
-                        "Status": "Available",
-                        "EmployeeID": "",
-                        "Location": "",
-                        "PurchaseDate": "",
-                        "WarrantyUntil": "",
-                        "PurchasePrice": "",
-                        "Supplier": "",
-                        "Notes": f"Discovery {row['Source']} {row['LastSeen']}".strip(),
-                    },
-                    con=con,
-                )
+                try:
+                    devices.append_row(
+                        {
+                            "AssetID": aid,
+                            "Type": "Друго",
+                            "Manufacturer": row["Manufacturer"],
+                            "Model": row["Model"],
+                            "SerialNumber": row["SerialNumber"],
+                            "Status": "Available",
+                            "EmployeeID": "",
+                            "Location": "",
+                            "PurchaseDate": "",
+                            "WarrantyUntil": "",
+                            "PurchasePrice": "",
+                            "Supplier": "",
+                            "Notes": f"Discovery {row['Source']} {row['LastSeen']}".strip(),
+                        },
+                        con=con,
+                    )
+                except sqlite3.IntegrityError:
+                    _apply_match(
+                        row, devices, staging, history, performed_by, con, counts
+                    )
+                    continue
                 _stage(row, staging, con)
                 history.log(
                     "DISCOVERY_NEW",
