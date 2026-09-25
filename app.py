@@ -240,7 +240,14 @@ except ImportError:  # Flask-Login недостапен: рутите остан
 
 
 def _open_paths():
-    return {"system.health", "static", "admin.login", "admin.setup"}
+    return {
+        "system.health",
+        "static",
+        "admin.login",
+        "admin.setup",
+        "admin.sso_login",
+        "admin.sso_callback",
+    }
 
 
 _RATE_LIMITS = (

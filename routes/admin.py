@@ -97,7 +97,13 @@ def login():
             log.info("Login user=%s", user.get("UserName", ""))
             nxt = request.args.get("next") or url_for("system.dashboard")
             return redirect(nxt)
-    return render_template("login.html")
+    from services import oidc_service as oidc
+
+    return render_template(
+        "login.html",
+        sso_enabled=oidc.configured(),
+        sso_name=oidc.provider_name(),
+    )
 
 
 @bp.route("/logout")
@@ -176,3 +182,81 @@ def users():
         except ValueError as exc:
             flash(f"ГРЕШКА: {exc}", "danger")
     return render_template("users.html", users=auth_svc.list_users())
+
+
+@bp.route("/login/sso")
+def sso_login():
+    import secrets
+
+    from flask import session
+    from services import oidc_service as oidc
+    from services.oidc_service import OidcError
+
+    if not oidc.configured():
+        flash("SSO не е конфигуриран.", "danger")
+        return redirect(url_for("admin.login"))
+    state = secrets.token_urlsafe(16)
+    session["sso_state"] = state
+    try:
+        target = oidc.authorize_url(
+            None, url_for("admin.sso_callback", _external=True), state
+        )
+    except OidcError as exc:
+        flash(f"ГРЕШКА: {exc}", "danger")
+        return redirect(url_for("admin.login"))
+    return redirect(target["url"])
+
+
+@bp.route("/login/sso/callback")
+def sso_callback():
+    from flask import session
+
+    from app import AppUser, auth_svc, login_user
+    from services import oidc_service as oidc
+    from services.auth_service import ROLES
+    from services.oidc_service import OidcError
+
+    if not oidc.configured():
+        return redirect(url_for("admin.login"))
+    code = request.args.get("code", "")
+    state = request.args.get("state", "")
+    session_state = session.pop("sso_state", "")
+    try:
+        claims = oidc.handle_callback(None, code, state, session_state)
+    except OidcError as exc:
+        flash(f"ГРЕШКА: {exc}", "danger")
+        return redirect(url_for("admin.login"))
+    subject = claims.get("subject", "")
+    email = (claims.get("email", "") or "").strip().lower()
+    username = (claims.get("username", "") or "").strip()
+    if not username:
+        flash("ГРЕШКА: SSO одговорот нема корисничко име.", "danger")
+        return redirect(url_for("admin.login"))
+    user = None
+    if subject:
+        for cand in auth_svc.list_users():
+            if (cand.get("OIDCSubject", "") or "") == subject:
+                user = cand
+                break
+    if user is None and email:
+        for cand in auth_svc.list_users():
+            if (cand.get("Email", "") or "").strip().lower() == email:
+                user = cand
+                auth_svc.store.update_where(
+                    "UserName", cand["UserName"], {"OIDCSubject": subject}
+                )
+                break
+    if user is None:
+        if auth_svc.get(username) is not None:
+            username = f"{username}-{subject[:6]}"
+        role = oidc.default_role()
+        if role not in ROLES:
+            role = "citac"
+        try:
+            user = auth_svc.create_sso_user(username, email, subject, role)
+        except ValueError as exc:
+            flash(f"ГРЕШКА: {exc}", "danger")
+            return redirect(url_for("admin.login"))
+    login_user(AppUser(user))
+    log.info("SSO login user=%s", user.get("UserName", ""))
+    return redirect(url_for("system.dashboard"))
