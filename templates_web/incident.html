@@ -85,4 +85,20 @@
 <input class="form-control" name="article_id" placeholder="KB000001" required></div>
 <button class="btn btn-outline-primary btn-sm" type="submit">Поврзи</button>
 </form>
+<h4 class="mt-4">Дупликат</h4>
+{% if duplicate %}
+<div class="alert alert-warning">Овој инцидент е дупликат на
+<b><a href="/incident/{{ duplicate.IncidentID }}">{{ duplicate.IncidentID }}</a></b> — {{ duplicate.Title }}.
+<form method="post" action="/incidents/unlink" class="d-inline"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<input type="hidden" name="incident_id" value="{{ inc.IncidentID }}">
+<button class="btn btn-sm btn-outline-secondary" type="submit">Отстрани врска</button>
+</form></div>
+{% else %}
+<form method="post" action="/incidents/link" class="mt-2"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<input type="hidden" name="incident_id" value="{{ inc.IncidentID }}">
+<div class="mb-2"><label>Означи како дупликат на (ID)</label>
+<input class="form-control" name="target_id" placeholder="I000002" required></div>
+<button class="btn btn-outline-primary btn-sm" type="submit">Поврзи дупликат</button>
+</form>
+{% endif %}
 {% endblock %}

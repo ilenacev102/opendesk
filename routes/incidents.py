@@ -423,3 +423,71 @@ def incident_inbox():
         preview={"rows": preview, "counts": counts, "rows_json": _json.dumps(mails)},
         hint=False,
     )
+
+
+@bp.route("/incidents/link", methods=["POST"])
+@require("admin", "magacioner")
+def incident_link():
+    from app import history, incidents
+
+    iid = request.form.get("incident_id", "").strip()
+    target = request.form.get("target_id", "").strip()
+    try:
+        if not iid or not target:
+            raise ValueError("Пополнете ги двете полиња.")
+        if iid == target:
+            raise ValueError("Инцидентот не може да биде дупликат на самиот себе.")
+        if incidents.find("IncidentID", iid) is None:
+            raise ValueError(f"Инцидентот {iid} не постои.")
+        if incidents.find("IncidentID", target) is None:
+            raise ValueError(f"Целта {target} не постои.")
+        incidents.update_where("IncidentID", iid, {"LinkedTo": target})
+        history.log(
+            "INC_LINK",
+            iid,
+            "",
+            target,
+            "",
+            "",
+            f"Дупликат на {target}",
+            "",
+            _who(),
+            "",
+        )
+        flash(f"Инцидентот {iid} е означен како дупликат на {target}.", "success")
+    except ValueError as exc:
+        flash(f"ГРЕШКА: {exc}", "danger")
+    return redirect(url_for("incidents.incident_detail", iid=iid))
+
+
+@bp.route("/incidents/unlink", methods=["POST"])
+@require("admin", "magacioner")
+def incident_unlink():
+    from app import history, incidents
+
+    iid = request.form.get("incident_id", "").strip()
+    try:
+        inc = incidents.find("IncidentID", iid)
+        if inc is None:
+            raise ValueError(f"Инцидентот {iid} не постои.")
+        old = (inc.get("LinkedTo", "") or "").strip()
+        if not old:
+            flash("Нема врска за отстранување.", "warning")
+        else:
+            incidents.update_where("IncidentID", iid, {"LinkedTo": ""})
+            history.log(
+                "INC_UNLINK",
+                iid,
+                old,
+                "",
+                "",
+                "",
+                f"Отстранет дупликат {old}",
+                "",
+                _who(),
+                "",
+            )
+            flash("Врската е отстранета.", "success")
+    except ValueError as exc:
+        flash(f"ГРЕШКА: {exc}", "danger")
+    return redirect(url_for("incidents.incident_detail", iid=iid))
