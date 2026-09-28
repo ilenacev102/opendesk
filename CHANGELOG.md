@@ -270,6 +270,18 @@
 - **Тестови**: heartbeat (5), agents (6), heartbeat-flow (2, вкл. concurrency),
   snmp (4), intune (4), intune-ui (3); pg parity и понатаму skip без сервер.
 
+## Фаза Analytics — контролна табла со бројки
+
+- **Метрики**: `services/analytics_service.py` (8 чисти функции без I/O:
+  devices_by, warranty_buckets 30/60/90, costs_by, incidents_by, breach_counts,
+  mttr_hours, aging_buckets, license_expiry; празни/невалидни влезови → нули).
+- **Dashboard**: incident-doughnut + warranty-прогноза + трошоци-табела +
+  MTTR/breach бројачи врз постоечката страница (вендоран Chart.js + tojson,
+  старите картички недопрени).
+- **Месечен извештај**: `summary_email()` + `POST /reports/monthly-summary`
+  (рачен trigger, citac-403, friendly flash без admin-email).
+- **Тестови**: analytics (8), dashboard-ext (2), monthly (4).
+
 ## Стартување
 
 ```bash

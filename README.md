@@ -66,6 +66,10 @@ Compose по default го објавува сервисот само на `127.0
 - База на знаење (`/kb`) со поврзување написи и решавање од напис
 - Email-to-ticket сандаче (`/incidents/inbox`) со преглед пред запис
 - PWA скенер за попис со телефон-камера и offline ред (скенер-страница `/popis/scan` со ID на попис, на пр. `/popis/P000001/scan`)
+- Аналитика на контролна табла (`/` преку `analytics_service`): инциденти по
+  статус, гарантна прогноза (30/60/90 дена), трошоци по локација, MTTR и
+  пробиени рокови; месечен
+  mail-извештај на копче (`/reports/monthly-summary`)
 - LDAP/AD read-only sync со dry-run (`/users/sync`, само admin), Postgres-опција преку `SERVICEDESK_DB_URL`
 - Трансакциска атомарност (`BEGIN IMMEDIATE`), WAL-режим, audit trail за секоја
   мутација, import со rollback при грешка
