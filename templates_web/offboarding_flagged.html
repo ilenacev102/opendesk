@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+<li class="breadcrumb-item"><a href="/">Почетна</a></li>
+<li class="breadcrumb-item active" aria-current="page">Заминати со опрема</li>
+</ol></nav>
+<h2>Заминати со опрема</h2>
+<p class="text-muted">Уреди задолжени кај вработени што повеќе не се активни. Само преглед — без записи.</p>
+<div class="table-responsive"><table class="table table-striped">
+<thead><tr><th>Инвентарен бр.</th><th>Сериски бр.</th><th>Производител</th><th>Модел</th><th>Носител</th><th>Локација</th><th>Последна промена</th><th>Акција</th></tr></thead>
+<tbody>
+{% for d in flagged %}
+<tr>
+<td><b>{{ d.AssetID }}</b></td>
+<td>{{ d.SerialNumber }}</td>
+<td>{{ d.Manufacturer }}</td>
+<td>{{ d.Model }}</td>
+<td>{{ d.EmployeeID }}</td>
+<td>{{ d.Location or "—" }}</td>
+<td>{{ since.get(d.AssetID, "—") }}</td>
+<td>
+{% if d.AssetID in escalated %}<span class="badge-st">Ескалирано</span>
+{% else %}<form method="post" action="/offboarding/escalate"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<input type="hidden" name="asset_id" value="{{ d.AssetID }}">
+<button class="btn btn-sm btn-outline-primary" type="submit">Ескалирај</button>
+</form>{% endif %}
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table></div>
+{% if not flagged %}
+<div class="empty-state">Нема уреди кај заминати вработени.</div>
+{% endif %}
+{% endblock %}

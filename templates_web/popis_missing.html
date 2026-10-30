@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+<li class="breadcrumb-item"><a href="/">Почетна</a></li>
+<li class="breadcrumb-item"><a href="/popis">Попис</a></li>
+<li class="breadcrumb-item active" aria-current="page">Неаудитирани</li>
+</ol></nav>
+<h2>Неаудитирани уреди</h2>
+<p class="text-muted">Уреди со истечен NextAuditDate. Секој скен го поместува рокот за +30 дена.</p>
+<div class="table-responsive"><table class="table table-striped">
+<thead><tr><th>Инвентарен бр.</th><th>Сериски бр.</th><th>Модел</th><th>Носител</th><th>Локација</th><th>Рокот истекол</th></tr></thead>
+<tbody>
+{% for d in rows %}
+<tr>
+<td><b>{{ d.AssetID }}</b></td>
+<td>{{ d.SerialNumber }}</td>
+<td>{{ d.Manufacturer }} {{ d.Model }}</td>
+<td>{{ d.EmployeeID or "—" }}</td>
+<td>{{ d.Location or "—" }}</td>
+<td>{{ d.NextAuditDate }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table></div>
+{% if not rows %}
+<div class="empty-state">Сè е скенирано во рок.</div>
+{% endif %}
+{% endblock %}
