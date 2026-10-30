@@ -2,9 +2,12 @@
 
 import os
 import re
+import sys
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, BASE)
 TPL = os.path.join(BASE, "templates_web")
+
 
 EMOJI_RE = re.compile(
     "[\U000026a1\U0001f527\U0001f5d1\U0001f4e6\U0001f4e7\U00002705"
@@ -96,3 +99,16 @@ def test_sortable_tables_wired():
         html = client.get(url).get_data(as_text=True)
         assert "sortable" in html, url
         assert marker in html, url
+
+
+def test_hotkeys_and_palette_wired():
+    """Given base / When rendered / Then shortcuts modal and Linear-speed scripts wired."""
+    import app as app_mod
+
+    client = app_mod.app.test_client()
+    html = client.get("/").get_data(as_text=True)
+    assert "shortcutsModal" in html
+    assert "hotkeys.js" in html
+    assert "instant-filter.js" in html
+    assert "palette.js" in html
+

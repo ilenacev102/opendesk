@@ -88,6 +88,9 @@
 <svg class="ic icon-moon" aria-hidden="true"><use href="#i-moon"/></svg>
 <svg class="ic icon-sun d-none" aria-hidden="true"><use href="#i-sun"/></svg>
 </button>
+<button type="button" class="btn btn-outline-light ms-2" data-bs-toggle="modal" data-bs-target="#shortcutsModal" title="Кратенки на тастатура (?)" aria-label="Кратенки на тастатура">
+<svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg>
+</button>
 </div>
 </div>
 </nav>
@@ -100,24 +103,69 @@
 {% endwith %}
 {% block content %}{% endblock %}
 </main>
+<div class="modal fade" id="shortcutsModal" tabindex="-1" aria-labelledby="shortcutsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content sd-card shadow-lg">
+      <div class="modal-header border-bottom py-2">
+        <h5 class="modal-title fs-6 fw-bold" id="shortcutsModalLabel">
+          <svg class="ic me-2" aria-hidden="true"><use href="#i-bolt"/></svg>Кратенки на тастатура
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Затвори"></button>
+      </div>
+      <div class="modal-body py-3">
+        <div class="row g-2 small">
+          <div class="col-6"><strong>Акции</strong></div>
+          <div class="col-6 text-end"><strong>Кратенка</strong></div>
+
+          <div class="col-8 text-muted">Нов инцидент / тикет</div>
+          <div class="col-4 text-end"><kbd>c</kbd></div>
+
+          <div class="col-8 text-muted">Spotlight пребарување</div>
+          <div class="col-4 text-end"><kbd>Ctrl</kbd>+<kbd>K</kbd></div>
+
+          <div class="col-8 text-muted">Инстантен филтер на табела</div>
+          <div class="col-4 text-end"><kbd>/</kbd></div>
+
+          <div class="col-8 text-muted">Овој прозорец за помош</div>
+          <div class="col-4 text-end"><kbd>?</kbd></div>
+
+          <div class="col-12 mt-3 mb-1"><strong>Брза навигација</strong></div>
+
+          <div class="col-8 text-muted">Оди во Инциденти</div>
+          <div class="col-4 text-end"><kbd>g</kbd> <kbd>i</kbd></div>
+
+          <div class="col-8 text-muted">Оди во Уреди / Инвентар</div>
+          <div class="col-4 text-end"><kbd>g</kbd> <kbd>d</kbd></div>
+
+          <div class="col-8 text-muted">Оди на Канбан табла</div>
+          <div class="col-4 text-end"><kbd>g</kbd> <kbd>b</kbd></div>
+
+          <div class="col-8 text-muted">Оди во Моја работа</div>
+          <div class="col-4 text-end"><kbd>g</kbd> <kbd>w</kbd></div>
+
+          <div class="col-8 text-muted">Оди во Проекти</div>
+          <div class="col-4 text-end"><kbd>g</kbd> <kbd>p</kbd></div>
+
+          <div class="col-8 text-muted">Оди во База на знаење</div>
+          <div class="col-4 text-end"><kbd>g</kbd> <kbd>k</kbd></div>
+
+          <div class="col-8 text-muted">Оди во Историја / Ревизија</div>
+          <div class="col-4 text-end"><kbd>g</kbd> <kbd>h</kbd></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="footer-sd">IT ServiceDesk • локален сервер</div>
 <script src="/static/js/bootstrap.bundle.min.js"></script>
 <script src="/static/js/palette.js"></script>
+<script src="/static/js/hotkeys.js"></script>
+<script src="/static/js/instant-filter.js"></script>
 <script src="/static/js/smart-defaults.js"></script>
 <script src="/static/js/scan-mode.js"></script>
 <script src="/static/js/form-keys.js"></script>
 <script src="/static/js/powersort.js"></script>
 <script src="/static/js/sort.js"></script>
-<script nonce="{{ csp_nonce }}">
-document.addEventListener("keydown", (e) => {
-  const tag = (document.activeElement || {}).tagName || "";
-  if (e.key === "/" && !e.ctrlKey && !e.metaKey && !/INPUT|TEXTAREA|SELECT/.test(tag)) {
-    e.preventDefault();
-    const box = document.querySelector(".nav-search input[type=search]");
-    if (box) box.focus();
-  }
-});
-</script>
 <script nonce="{{ csp_nonce }}">
 function mailDoc(pdfUrl, email, subject, body) {
   const a = document.createElement("a");
