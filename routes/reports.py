@@ -28,16 +28,22 @@ log = __import__("logging").getLogger("servicedesk")
 def notify_digest():
     import os as _os
 
-    from app import devices, history, incidents
+    from app import contracts, devices, history, incidents, licenses
     from services.notify_service import (
         breached_incidents,
+        contracts_expiring,
         digest_email,
+        licenses_expiring,
         send_email,
         warranty_expiring,
     )
+    from services.sla_service import forecast as _forecast
 
     expiring = warranty_expiring(devices.records(), days=30)
     breached = breached_incidents(incidents.records())
+    upcoming = _forecast(incidents.records(), days=2)
+    exp_contracts = contracts_expiring(contracts.records(), days=30)
+    exp_licenses = licenses_expiring(licenses.records(), days=30)
     escalated_ids = {
         h.get("AssetID", "")
         for h in history.store.records()
@@ -47,22 +53,39 @@ def notify_digest():
         inc for inc in incidents.records() if inc.get("IncidentID") in escalated_ids
     ]
     admin_email = _os.environ.get("SERVICEDESK_ADMIN_EMAIL", "").strip()
-    if not expiring and not breached and not escalated:
+    if (
+        not expiring
+        and not breached
+        and not escalated
+        and not upcoming
+        and not exp_contracts
+        and not exp_licenses
+    ):
         flash("Нема гаранции што истекуваат во следните 30 дена.", "success")
     elif not admin_email:
         flash(
             f"ГРЕШКА: поставете SERVICEDESK_ADMIN_EMAIL. "
             f"(гаранции {len(expiring)}, пробиени рокови {len(breached)}, "
-            f"ескалирани {len(escalated)})",
+            f"ескалирани {len(escalated)}, ќе пробијат {len(upcoming)}, "
+            f"договори {len(exp_contracts)}, лиценци {len(exp_licenses)})",
             "danger",
         )
     else:
-        to, subject, body = digest_email(admin_email, expiring, breached, escalated)
+        to, subject, body = digest_email(
+            admin_email,
+            expiring,
+            breached,
+            escalated,
+            upcoming,
+            exp_contracts,
+            exp_licenses,
+        )
         if send_email(to, subject, body):
             flash(
                 f"Digest испратен на {admin_email} ({len(expiring)} уреди, "
                 f"пробиени рокови {len(breached)}, "
-                f"ескалирани {len(escalated)}).",
+                f"ескалирани {len(escalated)}, ќе пробијат {len(upcoming)}, "
+                f"договори {len(exp_contracts)}, лиценци {len(exp_licenses)}).",
                 "success",
             )
         else:
@@ -72,8 +95,7 @@ def notify_digest():
 
 @bp.route("/reports")
 def reports():
-    import config
-    from app import backup_all, devices, employees, history
+    from app import devices, employees, history
     from services.schemas import EMP_COLS
 
     devs = devices.records()
@@ -321,7 +343,8 @@ def import_bulk():
     import config
     from app import backup_all, devices, employees, history
     from services.db_service import db_transaction
-    from services.schemas import DEV_COLS as _DC, EMP_COLS as _EC
+    from services.schemas import DEV_COLS as _DC
+    from services.schemas import EMP_COLS as _EC
     from services.schemas import OPTIONAL_DEV_COLS as _OPT
 
     report = None
@@ -448,9 +471,10 @@ def monthly_summary():
     import datetime
     import os as _os
 
-    from app import devices, history, incidents
+    from app import contracts, devices, history, incidents
     from services import analytics_service as analytics
-    from services.notify_service import send_email, summary_email
+    from services.incident_service import csat_average
+    from services.notify_service import contracts_expiring, send_email, summary_email
 
     today = datetime.date.today()
     devs = devices.records()
@@ -472,6 +496,8 @@ def monthly_summary():
         "breach_open": analytics.breach_counts(inc_records, today),
         "escalated": len(escalated_ids),
         "mttr": analytics.mttr_hours(inc_records),
+        "csat": csat_average(inc_records),
+        "contracts_30": len(contracts_expiring(contracts.records())),
     }
     admin_email = _os.environ.get("SERVICEDESK_ADMIN_EMAIL", "").strip()
     if not admin_email:
@@ -483,3 +509,42 @@ def monthly_summary():
     else:
         flash("ГРЕШКА: mail не е испратен. Проверете SMTP-поставки.", "danger")
     return redirect(url_for("reports.reports"))
+
+
+@bp.route("/reports/audit-export")
+@require("admin", "magacioner")
+def audit_export():
+    """MS-6: one-click audit evidence (CSV for a date range)."""
+    import csv
+    import io
+
+    from flask import abort as _abort
+
+    from app import history
+    from services.audit_export import export_changes
+
+    frm = request.args.get("from", "").strip()
+    to = request.args.get("to", "").strip()
+
+    def _safe(v):
+        s = str(v or "")
+        if s[:1] in ("=", "+", "-", "@", "\t", "\r"):
+            s = "'" + s
+        return s
+
+    try:
+        rows = export_changes(history.store.records(), frm, to)
+    except ValueError:
+        return _abort(400)
+    buf = io.StringIO()
+    w = csv.writer(buf, quoting=csv.QUOTE_MINIMAL)
+    w.writerow(["when", "who", "what", "why"])
+    for r in rows:
+        w.writerow(
+            [_safe(r["when"]), _safe(r["who"]), _safe(r["what"]), _safe(r["why"])]
+        )
+    return Response(
+        buf.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment;filename=audit-export.csv"},
+    )

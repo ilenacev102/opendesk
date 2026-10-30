@@ -123,3 +123,49 @@ def seed_defaults(store) -> int:
             }
         )
     return len(DEFAULT_POLICIES)
+
+
+PAUSE_REASONS = (
+    "Чекање корисник",
+    "Чекање добавувач",
+    "Чекање надворешен сервис",
+)
+
+
+def pause_allowed(reason: str) -> bool:
+    """True only for the 3 audited pause reasons (anti SLA-gaming gate)."""
+    return (reason or "").strip() in PAUSE_REASONS
+
+
+def will_breach(due, within_days: int = 2, today=None) -> bool:
+    """True when DueDate falls in [today, today + within_days]."""
+    import datetime as _dt
+
+    try:
+        day = _dt.date.fromisoformat(str(due or "").strip()[:10])
+    except ValueError:
+        return False
+    if today is None:
+        today = _dt.date.today()
+    if isinstance(today, str):
+        try:
+            today = _dt.date.fromisoformat(today[:10])
+        except ValueError:
+            return False
+    try:
+        delta = (day - today).days
+    except TypeError:
+        return False
+    return 0 <= delta <= int(within_days)
+
+
+def forecast(incidents, days: int = 2, today=None):
+    """Open incidents breaching within `days`, sorted by DueDate."""
+    out = [
+        i
+        for i in incidents or []
+        if (i.get("Status", "") or "") != "resolved"
+        and will_breach(i.get("DueDate", ""), days, today)
+    ]
+    out.sort(key=lambda i: str(i.get("DueDate", "")))
+    return out

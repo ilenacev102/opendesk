@@ -70,8 +70,8 @@ class HistoryService:
     def for_asset(self, asset_id) -> list[dict[str, Any]]:
         f = getattr(self.store, "filter_eq", None)
         if callable(f):
-            from typing import Any, cast
             from collections.abc import Callable
+            from typing import Any, cast
 
             res: Any = cast(Callable[..., Any], f)("AssetID", asset_id)
             return cast(list[dict[str, Any]], res)
@@ -80,8 +80,8 @@ class HistoryService:
     def for_employee(self, emp_id) -> list[dict[str, Any]]:
         f = getattr(self.store, "filter_eq", None)
         if callable(f):
-            from typing import Any, cast
             from collections.abc import Callable
+            from typing import Any, cast
 
             res: Any = cast(Callable[..., Any], f)("EmployeeID", emp_id)
             return cast(list[dict[str, Any]], res)
@@ -90,8 +90,8 @@ class HistoryService:
     def recent(self, limit=20) -> list[dict[str, Any]]:
         f = getattr(self.store, "recent", None)
         if callable(f):
-            from typing import Any, cast
             from collections.abc import Callable
+            from typing import Any, cast
 
             res: Any = cast(Callable[..., Any], f)(limit)
             return cast(list[dict[str, Any]], res)

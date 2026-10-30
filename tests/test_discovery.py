@@ -6,8 +6,8 @@ import tempfile
 import pytest
 
 from services.db_service import DbStore
-from services.schemas import DEV_COLS, STAGING_COLS
 from services.history_service import HISTORY_COLS, HistoryService
+from services.schemas import DEV_COLS, STAGING_COLS
 
 CSV_VALID = """Hostname,SerialNumber,Manufacturer,Model,OS,LastSeen,Source
 PC-01,abc123,Dell,Latitude 5440,Win11,2026-09-01,Intune
@@ -95,13 +95,13 @@ def test_reconcile_verdicts(stores):
         }
     )
     rows = parse_discovery_csv(
-        (
-            "Hostname,SerialNumber,Manufacturer,Model,OS,LastSeen,Source\n"
-            "PC-01,abc123,Dell,Latitude 5440,Win11,2026-09-01,Intune\n"
-            "PC-02,def456,Lenovo,T14,Win11,2026-09-02,Intune\n"
-            "PC-03,taken1,Dell,XPS,Win11,2026-09-02,Intune\n"
-            "PC-04,diff1,Dell,Latitude 5440,Win11,2026-09-02,Intune\n"
-        ).encode("utf-8")
+        
+            b"Hostname,SerialNumber,Manufacturer,Model,OS,LastSeen,Source\n"
+            b"PC-01,abc123,Dell,Latitude 5440,Win11,2026-09-01,Intune\n"
+            b"PC-02,def456,Lenovo,T14,Win11,2026-09-02,Intune\n"
+            b"PC-03,taken1,Dell,XPS,Win11,2026-09-02,Intune\n"
+            b"PC-04,diff1,Dell,Latitude 5440,Win11,2026-09-02,Intune\n"
+        
     )
     out = {r["SerialNumber"]: r["verdict"] for r in reconcile(rows, devices)}
     assert out == {
@@ -169,10 +169,10 @@ def test_confirm_never_touches_assigned(stores):
     )
     rows = reconcile(
         parse_discovery_csv(
-            (
-                "Hostname,SerialNumber,Manufacturer,Model,OS,LastSeen,Source\n"
-                "PC-03,taken1,Dell,XPS,Win11,2026-09-02,Intune\n"
-            ).encode("utf-8")
+            
+                b"Hostname,SerialNumber,Manufacturer,Model,OS,LastSeen,Source\n"
+                b"PC-03,taken1,Dell,XPS,Win11,2026-09-02,Intune\n"
+            
         ),
         devices,
     )

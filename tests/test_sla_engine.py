@@ -41,8 +41,9 @@ def test_due_garbage_created_raises():
 
 
 def test_level_boundaries():
-    from services.sla_service import level
     from datetime import date
+
+    from services.sla_service import level
 
     assert level("2026-10-01", "2026-09-30", today=date(2026, 9, 29)) == "ok"
     assert level("2026-10-01", "2026-09-30", today=date(2026, 9, 30)) == "warning"

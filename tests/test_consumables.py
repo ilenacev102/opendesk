@@ -1,6 +1,5 @@
 """Phase B.3b: consumables (TDD). Add + issue via routes on isolated stores."""
 
-import io
 import os
 import sys
 import tempfile
@@ -11,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 def _cons_env(monkeypatch):
     import app as app_mod
     from services.db_service import DbStore
-    from services.history_service import HistoryService, HISTORY_COLS
+    from services.history_service import HISTORY_COLS, HistoryService
     from services.schemas import CONS_COLS, DEV_COLS, EMP_COLS
 
     tmp = tempfile.mkdtemp()

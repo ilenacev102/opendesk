@@ -19,7 +19,7 @@ DISC_CSV = (
 def _ui_env(monkeypatch):
     import app as app_mod
     from services.db_service import DbStore
-    from services.history_service import HistoryService, HISTORY_COLS
+    from services.history_service import HISTORY_COLS, HistoryService
     from services.schemas import DEV_COLS, EMP_COLS, STAGING_COLS
 
     tmp = tempfile.mkdtemp()

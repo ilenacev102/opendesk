@@ -26,9 +26,8 @@ def employee_list():
 
 @bp.route("/employees/new", methods=["GET", "POST"])
 def employee_new():
-    from app import backup_all, employees
-
     import config
+    from app import backup_all, employees
 
     if request.method == "POST":
         data = {c: request.form.get(c, "").strip() for c in EMP_COLS}
@@ -84,9 +83,8 @@ def employee_detail(emp_id):
 
 @bp.route("/devices/new", methods=["GET", "POST"])
 def device_new():
-    from app import backup_all, devices, history
-
     import config
+    from app import backup_all, devices, history
 
     if request.method == "POST":
         data = {c: request.form.get(c, "").strip() for c in DEV_COLS}
@@ -144,9 +142,8 @@ def device_new():
 
 @bp.route("/devices/bulk", methods=["GET", "POST"])
 def device_bulk():
-    from app import ID_PREFIX, backup_all, devices, history
-
     import config
+    from app import ID_PREFIX, backup_all, devices, history
 
     if request.method == "POST":
         dtype = request.form.get("Type", "Друго").strip() or "Друго"
@@ -272,8 +269,7 @@ def device_list():
         per = 50
     total = len(filtered)
     total_pages = max(1, (total + per - 1) // per)
-    if page > total_pages:
-        page = total_pages
+    page = min(page, total_pages)
     start = (page - 1) * per
     return render_template(
         "devices.html",

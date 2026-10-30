@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 def _env(monkeypatch):
     import app as app_mod
     from services.db_service import DbStore
-    from services.history_service import HistoryService, HISTORY_COLS
+    from services.history_service import HISTORY_COLS, HistoryService
     from services.schemas import COMMENT_COLS, INCIDENT_COLS
 
     tmp = tempfile.mkdtemp()

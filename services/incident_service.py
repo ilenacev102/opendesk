@@ -15,12 +15,13 @@ STATUSES = ("open", "in-progress", "resolved")
 _TRANSITIONS = {
     "open": ("in-progress",),
     "in-progress": ("resolved",),
-    "resolved": (),
+    "resolved": ("open",),
 }
 
 _ACTION = {
     ("open", "in-progress"): "INC_START",
     ("in-progress", "resolved"): "INC_RESOLVE",
+    ("resolved", "open"): "INC_REOPEN",
 }
 
 
@@ -118,6 +119,8 @@ class IncidentService:
             updates = {"Status": to_status}
             if to_status == "resolved":
                 updates["ClosedAt"] = stamp()
+            if to_status == "open":
+                updates["ClosedAt"] = ""
             self.store.update_where("IncidentID", incident_id, updates, con=con)
             self.history.log(
                 _ACTION[(inc.get("Status", ""), to_status)],
@@ -138,3 +141,66 @@ class IncidentService:
         if (incident.get("Status", "") or "") == "resolved":
             return False
         return breach(incident.get("DueDate", ""), today)
+
+    def reopen_count(self, incident_id: str) -> int:
+        """How many times an incident was reopened (anti-gaming counter)."""
+        return sum(
+            1
+            for h in self.history.store.records()
+            if h.get("Action") == "INC_REOPEN" and h.get("AssetID") == incident_id
+        )
+
+    def first_response_at(self, incident_id: str) -> str:
+        """First INC_START stamp (respond SLA), or empty when never started."""
+        stamps = [
+            h.get("DateTime", "")
+            for h in self.history.store.records()
+            if h.get("Action") == "INC_START" and h.get("AssetID") == incident_id
+        ]
+        stamps = [s for s in stamps if s]
+        return min(stamps) if stamps else ""
+
+    def rate(self, incident_id: str, value, performed_by: str = "admin"):
+        """Rate a resolved incident 1-5 (CSAT), audited as INC_RATE."""
+        try:
+            score = int(str(value or "").strip())
+        except (ValueError, TypeError):
+            raise ValueError("Оцената мора да е број 1–5.")
+        if score < 1 or score > 5:
+            raise ValueError("Оцената мора да е број 1–5.")
+        with self._tx() as con:
+            inc = self.store.find("IncidentID", incident_id)
+            if inc is None:
+                raise ValueError(f"Инцидентот {incident_id} не постои.")
+            if (inc.get("Status", "") or "") != "resolved":
+                raise ValueError("Се оценува само затворен инцидент.")
+            self.store.update_where(
+                "IncidentID", incident_id, {"Satisfaction": str(score)}, con=con
+            )
+            self.history.log(
+                "INC_RATE",
+                incident_id,
+                inc.get("Satisfaction", ""),
+                str(score),
+                inc.get("EmployeeID", ""),
+                "",
+                inc.get("Title", ""),
+                "",
+                performed_by,
+                "",
+                con=con,
+            )
+        return self.store.find("IncidentID", incident_id)
+
+
+def csat_average(incidents) -> float | None:
+    """Mean of set Satisfaction scores, or None when no ratings."""
+    scores = []
+    for inc in incidents or []:
+        try:
+            scores.append(int(str(inc.get("Satisfaction", "")).strip()))
+        except (ValueError, TypeError):
+            continue
+    if not scores:
+        return None
+    return round(sum(scores) / len(scores), 2)

@@ -12,6 +12,7 @@ import uuid
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 
+from routes._roles import require
 from utils.validators import ValidationError
 
 bp = Blueprint("operations", __name__)
@@ -21,9 +22,8 @@ log = __import__("logging").getLogger("servicedesk")
 
 def _save_signature(data_url):
     """Decode canvas dataURL into documents/signatures. Never raises."""
-    from services.signature import decode_signature
-
     import config
+    from services.signature import decode_signature
 
     try:
         raw = decode_signature(data_url or "")
@@ -356,3 +356,108 @@ def package_assign(pkg_id):
         available=pool,
         suggested=suggested,
     )
+
+
+@bp.route("/offboarding/flagged")
+def offboarding_flagged():
+    """MS-1/MS-2: read-only list of devices still held by departed employees."""
+    from app import devices, employees, history
+    from services.offboarding_service import (
+        OFF_ESC_ACTION,
+        departed_ids,
+        flagged_devices,
+    )
+
+    gone = departed_ids(employees.records())
+    flagged = flagged_devices(devices.records(), gone)
+    since: dict[str, str] = {}
+    for dev in flagged:
+        aid = str(dev.get("AssetID", ""))
+        stamps = [h.get("DateTime", "") for h in history.for_asset(aid)]
+        stamps = [s for s in stamps if s]
+        if stamps:
+            since[aid] = max(stamps)
+    escalated = {
+        h.get("AssetID", "")
+        for h in history.store.records()
+        if h.get("Action") == OFF_ESC_ACTION and h.get("AssetID")
+    }
+    return render_template(
+        "offboarding_flagged.html", flagged=flagged, since=since, escalated=escalated
+    )
+
+
+@bp.route("/offboarding/escalate", methods=["POST"])
+@require("admin", "magacioner")
+def offboarding_escalate():
+    """MS-2: audit-flag one unreturned device (idempotent)."""
+    from flask_login import current_user as _cu
+
+    from app import devices, history
+    from services.offboarding_service import escalate
+
+    asset_id = request.form.get("asset_id", "").strip()
+    if devices.find("AssetID", asset_id) is None:
+        abort(404)
+    who = str(getattr(_cu, "id", "admin")) if _cu else "admin"
+    result = escalate(history, asset_id, performed_by=who)
+    if result["escalated"]:
+        flash(f"Уредот {asset_id} е ескалиран.", "success")
+    else:
+        flash(f"Уредот {asset_id} е веќе ескалиран.", "warning")
+    return redirect(url_for("operations.offboarding_flagged"))
+
+
+def _transit_service():
+    from app import devices, history
+    from services.transit_service import TransitService
+
+    db_path = getattr(devices, "db_path", None) or getattr(devices, "path", None)
+    return TransitService(devices, history, db_path=db_path)
+
+
+def _who():
+    from flask_login import current_user as _cu
+
+    return str(getattr(_cu, "id", "admin")) if _cu else "admin"
+
+
+@bp.route("/transit/ship", methods=["POST"])
+@require("admin", "magacioner")
+def transit_ship():
+    """MS-4: send a device into transit."""
+    svc = _transit_service()
+    asset_id = request.form.get("asset_id", "").strip()
+    to_loc = request.form.get("to_loc", "").strip()
+    try:
+        svc.ship(asset_id, to_loc, by=_who())
+        flash(f"Уредот {asset_id} е испратен кон {to_loc}.", "success")
+        from app import devices as _devs
+        from app import notifications as _notif
+        from services.notify_center import push as _push
+
+        _dev = _devs.find("AssetID", asset_id)
+        _push(
+            _notif,
+            (_dev.get("EmployeeID", "") if _dev else ""),
+            "transit",
+            asset_id,
+            f"Уредот {asset_id} е испратен кон {to_loc}.",
+        )
+    except ValidationError as exc:
+        flash(f"ГРЕШКА: {exc}", "danger")
+    return redirect(url_for("inventory.device_detail", asset_id=asset_id))
+
+
+@bp.route("/transit/receive", methods=["POST"])
+@require("admin", "magacioner")
+def transit_receive():
+    """MS-4: complete transit (receive a device)."""
+    svc = _transit_service()
+    asset_id = request.form.get("asset_id", "").strip()
+    try:
+        svc.receive(asset_id, by=_who())
+        flash(f"Уредот {asset_id} е примен.", "success")
+    except ValidationError as exc:
+        flash(f"ГРЕШКА: {exc}", "danger")
+    return redirect(url_for("inventory.device_detail", asset_id=asset_id))

@@ -9,8 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def test_new_cols_defined():
-    from services.schemas import COMMENT_COLS, KB_COLS, KB_LINK_COLS
-    from services.schemas import SLA_POLICY_COLS
+    from services.schemas import COMMENT_COLS, KB_COLS, KB_LINK_COLS, SLA_POLICY_COLS
 
     assert "PolicyID" in SLA_POLICY_COLS and "BreachHours" in SLA_POLICY_COLS
     assert "ArticleID" in KB_COLS and "Title" in KB_COLS
@@ -26,8 +25,7 @@ def test_linkedto_in_incident_cols():
 
 def test_stores_wired():
     import app as app_mod
-    from services.schemas import COMMENT_COLS, KB_COLS, KB_LINK_COLS
-    from services.schemas import SLA_POLICY_COLS
+    from services.schemas import COMMENT_COLS, KB_COLS, KB_LINK_COLS, SLA_POLICY_COLS
 
     assert app_mod.sla_policies.columns == SLA_POLICY_COLS
     assert app_mod.kb_articles.columns == KB_COLS

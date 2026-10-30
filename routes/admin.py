@@ -123,10 +123,9 @@ def _who():
 @bp.route("/users/sync", methods=["GET", "POST"])
 @_admin_only
 def users_sync():
+    import config
     from app import backup_all, employees, history, ldapmap
     from services.ldap_service import LdapError, LdapService, configured
-
-    import config
 
     db_path = getattr(ldapmap, "db_path", None)
     svc = LdapService(employees, ldapmap, history, db_path=db_path)
@@ -189,6 +188,7 @@ def sso_login():
     import secrets
 
     from flask import session
+
     from services import oidc_service as oidc
     from services.oidc_service import OidcError
 

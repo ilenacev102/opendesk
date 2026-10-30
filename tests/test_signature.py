@@ -45,7 +45,7 @@ def _sig_env(monkeypatch):
     import config as config_mod
     from services.assignment_service import AssignmentService
     from services.db_service import DbStore
-    from services.history_service import HistoryService, HISTORY_COLS
+    from services.history_service import HISTORY_COLS, HistoryService
     from services.schemas import DEV_COLS, EMP_COLS
 
     tmp = tempfile.mkdtemp()

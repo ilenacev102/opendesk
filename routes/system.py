@@ -22,8 +22,15 @@ def health():
 def dashboard():
     import datetime
 
-    from app import devices, employees, history, incidents, licenses
-    from app import warranty_days, warranty_level
+    from app import (
+        devices,
+        employees,
+        history,
+        incidents,
+        licenses,
+        warranty_days,
+        warranty_level,
+    )
     from services import analytics_service as analytics
 
     devs = devices.records()
@@ -131,8 +138,7 @@ def history_view():
     all_rows = history.recent(5000)
     total = len(all_rows)
     total_pages = max(1, (total + per - 1) // per)
-    if page > total_pages:
-        page = total_pages
+    page = min(page, total_pages)
     start = (page - 1) * per
     rows = all_rows[start : start + per]
     emails = {}
@@ -150,3 +156,44 @@ def history_view():
         total=total,
         total_pages=total_pages,
     )
+
+
+@bp.route("/my-work")
+def my_work():
+    """F1: personal burning-items page (read-only)."""
+    from flask_login import current_user as _cu
+
+    from app import devices, history, incidents
+    from services.mywork_service import collect
+
+    who = str(getattr(_cu, "id", "")) if _cu else ""
+    data = collect(who, incidents.records(), devices.records(), history.store.records())
+    return render_template("mywork.html", who=who, **data)
+
+
+@bp.route("/notifications")
+def notifications_list():
+    """F2: unread notifications for the current user."""
+    from flask_login import current_user as _cu
+
+    from app import notifications
+    from services.notify_center import unread
+
+    who = str(getattr(_cu, "id", "")) if _cu else ""
+    return render_template("notifications.html", rows=unread(notifications, who))
+
+
+@bp.route("/notifications/read", methods=["POST"])
+def notifications_read():
+    """F2: mark one (or all) notifications as read."""
+    from flask import redirect as _redirect
+    from flask import request as _request
+    from flask import url_for as _url_for
+    from flask_login import current_user as _cu
+
+    from app import notifications
+    from services.notify_center import mark_read
+
+    who = str(getattr(_cu, "id", "")) if _cu else ""
+    mark_read(notifications, who, _request.form.get("notif_id", ""))
+    return _redirect(_url_for("system.notifications_list"))

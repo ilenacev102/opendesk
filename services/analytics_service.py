@@ -5,6 +5,7 @@ never exceptions.
 """
 
 import datetime
+from typing import TypedDict
 
 _STAMP_FMT = "%Y-%m-%d %H:%M"
 
@@ -62,6 +63,19 @@ def costs_by(records, field) -> dict[str, float]:
     for r in records or []:
         key = (r.get(field, "") or "").strip() or "—"
         out[key] = out.get(key, 0.0) + _to_float(r.get("PurchasePrice", ""))
+    return {k: round(v, 2) for k, v in out.items()}
+
+
+def costs_by_dept(devices, employees) -> dict[str, float]:
+    """PurchasePrice totals per employee Department (F6)."""
+    dept_of = {
+        str(e.get("EmployeeID", "")): (e.get("Department", "") or "").strip() or "—"
+        for e in employees or []
+    }
+    out: dict[str, float] = {}
+    for d in devices or []:
+        key = dept_of.get(str(d.get("EmployeeID", "")), "—")
+        out[key] = out.get(key, 0.0) + _to_float(d.get("PurchasePrice", ""))
     return {k: round(v, 2) for k, v in out.items()}
 
 
@@ -136,4 +150,36 @@ def license_expiry(records, today=None, days: int = 30) -> list[dict[str, str]]:
         if 0 <= delta <= days:
             out.append(r)
     out.sort(key=lambda r: str(r.get("ExpiryDate", "")))
+    return out
+
+
+class ProjectStats(TypedDict):
+    total: int
+    open: int
+    closed: int
+    breached: int
+    oldest_open: str
+
+
+def by_project(records, today=None) -> dict[str, ProjectStats]:
+    """Per-project ticket stats for the projects dashboard (Phase 5.2)."""
+    today = today or datetime.date.today()
+    out: dict[str, ProjectStats] = {}
+    for r in records or []:
+        pid = r.get("ProjectID", "") or "—"
+        bucket = out.setdefault(
+            pid,
+            {"total": 0, "open": 0, "closed": 0, "breached": 0, "oldest_open": ""},
+        )
+        bucket["total"] += 1
+        if (r.get("Status", "") or "") == "resolved":
+            bucket["closed"] += 1
+            continue
+        bucket["open"] += 1
+        due = _parse_day(r.get("DueDate", ""))
+        if due is not None and today > due:
+            bucket["breached"] += 1
+        created = r.get("Created", "") or ""
+        if created and (not bucket["oldest_open"] or created < bucket["oldest_open"]):
+            bucket["oldest_open"] = created
     return out

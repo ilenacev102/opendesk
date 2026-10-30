@@ -46,6 +46,29 @@ def send_email(to: str, subject: str, body: str) -> bool:
         return False
 
 
+_mail_pool = None
+
+
+def _get_mail_pool():
+    global _mail_pool
+    if _mail_pool is None:
+        from concurrent.futures import ThreadPoolExecutor
+
+        _mail_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="sd-mail")
+    return _mail_pool
+
+
+def send_email_async(to: str, subject: str, body: str):
+    """Dispatch email via background thread without blocking the HTTP request."""
+    try:
+        pool = _get_mail_pool()
+        return pool.submit(send_email, to, subject, body)
+    except Exception:
+        log.exception("Failed to submit async email to=%s", to)
+        return None
+
+
+
 def assignment_email(emp_email, emp_name, asset_id, device_desc, tid):
     if not (emp_email or "").strip():
         return None
@@ -87,6 +110,31 @@ def warranty_expiring(rows, days=30):
     return out
 
 
+def _expiring_on(rows, field, days=30):
+    today = datetime.date.today()
+    limit = today + datetime.timedelta(days=days)
+    out = []
+    for r in rows or []:
+        raw = (r.get(field, "") or "").strip()
+        try:
+            until = datetime.date.fromisoformat(raw[:10])
+        except ValueError:
+            continue
+        if today <= until <= limit:
+            out.append(r)
+    return out
+
+
+def contracts_expiring(rows, days=30):
+    """Contracts with ValidUntil in [today, today + days]; garbage skipped."""
+    return _expiring_on(rows, "ValidUntil", days)
+
+
+def licenses_expiring(rows, days=30):
+    """Licenses with ExpiryDate in [today, today + days]; garbage skipped."""
+    return _expiring_on(rows, "ExpiryDate", days)
+
+
 def breached_incidents(rows, today=None):
     """Incidents with passed DueDate, excluding resolved ones.
 
@@ -125,12 +173,24 @@ def summary_email(admin_email, stats):
         f"ескалирани: {stats.get('escalated', 0)}.",
         f"MTTR: {stats.get('mttr', '—')} ч.",
     ]
+    if stats.get("csat") is not None:
+        lines.append(f"CSAT: {stats.get('csat')}/5.")
+    if stats.get("contracts_30") is not None:
+        lines.append(f"Договори што истекуваат (30д): {stats.get('contracts_30')}.")
     body = "\n".join(lines)
     subject = f"Месечен извештај{f' {month}' if month else ''}"
     return admin_email, subject, body
 
 
-def digest_email(admin_email, expiring_rows, breached_rows=None, escalated_rows=None):
+def digest_email(
+    admin_email,
+    expiring_rows,
+    breached_rows=None,
+    escalated_rows=None,
+    forecast_rows=None,
+    contract_rows=None,
+    license_rows=None,
+):
     lines = [
         f"- {r.get('AssetID', '')} "
         f"({r.get('Manufacturer', '')} {r.get('Model', '')}): "
@@ -158,4 +218,34 @@ def digest_email(admin_email, expiring_rows, breached_rows=None, escalated_rows=
         ]
         subject += f", ескалирани ({len(escalated_rows)})"
         body += "\n\nЕскалирани инциденти:\n\n" + "\n".join(elines)
+    forecast_rows = forecast_rows or []
+    if forecast_rows:
+        flines = [
+            f"- {r.get('IncidentID', '')} "
+            f"({r.get('Title', '')}, {r.get('Assignee', '')}): "
+            f"{r.get('DueDate', '')}"
+            for r in forecast_rows
+        ]
+        subject += f", ќе пробијат ({len(forecast_rows)})"
+        body += "\n\nЌе пробијат наскоро:\n\n" + "\n".join(flines)
+    contract_rows = contract_rows or []
+    if contract_rows:
+        clines = [
+            f"- {r.get('ContractID', '')} "
+            f"({r.get('Title', '')}, {r.get('Supplier', '')}): "
+            f"{r.get('ValidUntil', '')}"
+            for r in contract_rows
+        ]
+        subject += f", договори ({len(contract_rows)})"
+        body += "\n\nДоговори што истекуваат:\n\n" + "\n".join(clines)
+    license_rows = license_rows or []
+    if license_rows:
+        llines = [
+            f"- {r.get('LicenseID', '')} "
+            f"({r.get('Software', '')}): "
+            f"{r.get('ExpiryDate', '')}"
+            for r in license_rows
+        ]
+        subject += f", лиценци ({len(license_rows)})"
+        body += "\n\nЛиценци што истекуваат:\n\n" + "\n".join(llines)
     return admin_email, subject, body

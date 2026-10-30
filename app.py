@@ -51,6 +51,7 @@ app.config["CSRF_ENABLED"] = os.environ.get("SERVICEDESK_CSRF", "1") == "1"
 def set_security_headers(resp):
     resp.headers["X-Content-Type-Options"] = "nosniff"
     resp.headers["X-Frame-Options"] = "DENY"
+    resp.headers["X-Request-ID"] = g.get("request_id", "")
     resp.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     resp.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
     resp.headers["Content-Security-Policy"] = (
@@ -76,6 +77,20 @@ def inject_csrf_token():
     return {"csrf_token": ensure_token(session)}
 
 
+@app.context_processor
+def inject_unread_count():
+    from flask_login import current_user as _cu
+
+    from services.notify_center import unread
+
+    try:
+        who = str(getattr(_cu, "id", "")) if _cu else ""
+        count = len(unread(notifications, who)) if who else 0
+    except Exception:
+        count = 0
+    return {"unread_count": count}
+
+
 from services.schemas import (  # noqa: E402
     COMMENT_COLS,
     CONS_COLS,
@@ -85,14 +100,22 @@ from services.schemas import (  # noqa: E402
     FIELD_DEF_COLS,
     FIELD_VAL_COLS,
     INCIDENT_COLS,
+    ISSUE_TYPE_COLS,
     KB_COLS,
     KB_LINK_COLS,
+    KB_RATING_COLS,
     LDAPMAP_COLS,
     LIC_COLS,
+    NOTIF_COLS,
+    PROJECT_COLS,
     REQUEST_COLS,
     RESERV_COLS,
+    SPRINT_COLS,
     SLA_POLICY_COLS,
     STAGING_COLS,
+    VERSION_COLS,
+    WATCHER_COLS,
+    WORKLOG_COLS,
 )
 
 USE_DB = True
@@ -118,6 +141,14 @@ sla_policies = open_store(DB_PATH, "sla_policies", None, SLA_POLICY_COLS)
 kb_articles = open_store(DB_PATH, "kb_articles", None, KB_COLS)
 comments = open_store(DB_PATH, "comments", None, COMMENT_COLS)
 kb_links = open_store(DB_PATH, "kb_links", None, KB_LINK_COLS)
+kb_ratings = open_store(DB_PATH, "kb_ratings", None, KB_RATING_COLS)
+notifications = open_store(DB_PATH, "notifications", None, NOTIF_COLS)
+projects = open_store(DB_PATH, "projects", None, PROJECT_COLS)
+project_types = open_store(DB_PATH, "issue_types", None, ISSUE_TYPE_COLS)
+watchers = open_store(DB_PATH, "watchers", None, WATCHER_COLS)
+worklogs = open_store(DB_PATH, "worklogs", None, WORKLOG_COLS)
+versions = open_store(DB_PATH, "versions", None, VERSION_COLS)
+sprints = open_store(DB_PATH, "sprints", None, SPRINT_COLS)
 
 PATHS = {
     "db": DB_PATH,
@@ -139,6 +170,7 @@ from services.notify_service import (  # noqa: E402
     digest_email,
     return_email,
     send_email,
+    send_email_async,
     warranty_expiring,
 )
 from services.popis_service import PopisService  # noqa: E402
@@ -260,6 +292,15 @@ _RATE_LIMITS = (
 @app.before_request
 def security_checks():
     g.csp_nonce = secrets.token_urlsafe(16)
+    incoming = (request.headers.get("X-Request-ID") or "").strip()
+    if (
+        incoming
+        and len(incoming) <= 64
+        and all(ch.isalnum() or ch in "-_" for ch in incoming)
+    ):
+        g.request_id = incoming
+    else:
+        g.request_id = uuid.uuid4().hex[:16]
     if request.method == "POST":
         origin = request.headers.get("Origin") or request.headers.get("Referer")
         if origin:
@@ -354,7 +395,7 @@ def _notify_assignment(emp_id, asset_ids, tid):
                 tid,
             )
         if built is not None:
-            send_email(*built)
+            send_email_async(*built)
     except Exception:
         log.exception("Notify assignment failed emp=%s", emp_id)
 
@@ -368,7 +409,7 @@ def _notify_return(emp_id, asset_ids, tid):
         label = asset_ids[0] if len(asset_ids) == 1 else f"{len(asset_ids)} уреди"
         built = return_email(emp.get("Email", ""), name, label, tid)
         if built is not None:
-            send_email(*built)
+            send_email_async(*built)
     except Exception:
         log.exception("Notify return failed emp=%s", emp_id)
 
@@ -455,6 +496,7 @@ def internal_error(exc):
 
 from routes.admin import bp as admin_bp
 from routes.api import bp as api_bp
+from routes.boards import bp as boards_bp
 from routes.catalog import bp as catalog_bp
 from routes.cmdb import bp as cmdb_bp
 from routes.files import bp as files_bp
@@ -463,11 +505,14 @@ from routes.incidents import bp as incidents_bp
 from routes.kb import bp as kb_bp
 from routes.operations import bp as operations_bp
 from routes.popis import bp as popis_bp
+from routes.projects import bp as projects_bp
 from routes.reports import bp as reports_bp
+from routes.sprints import bp as sprints_bp
 from routes.system import bp as system_bp
 
 app.register_blueprint(admin_bp)
 app.register_blueprint(api_bp)
+app.register_blueprint(boards_bp)
 app.register_blueprint(catalog_bp)
 app.register_blueprint(cmdb_bp)
 app.register_blueprint(files_bp)
@@ -476,7 +521,9 @@ app.register_blueprint(incidents_bp)
 app.register_blueprint(kb_bp)
 app.register_blueprint(operations_bp)
 app.register_blueprint(popis_bp)
+app.register_blueprint(projects_bp)
 app.register_blueprint(reports_bp)
+app.register_blueprint(sprints_bp)
 app.register_blueprint(system_bp)
 
 

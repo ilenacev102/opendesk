@@ -18,7 +18,7 @@ DISC_CSV = (
 def _env(monkeypatch):
     import app as app_mod
     from services.db_service import DbStore
-    from services.history_service import HistoryService, HISTORY_COLS
+    from services.history_service import HISTORY_COLS, HistoryService
     from services.schemas import DEV_COLS, EMP_COLS, INCIDENT_COLS, STAGING_COLS
 
     tmp = tempfile.mkdtemp()
@@ -106,7 +106,7 @@ def test_rolled_back_confirm_writes_no_history(monkeypatch):
         real_append = app_mod.devices.append_row
 
         def flaky(row, con=None):
-            raise IOError("simulated disk failure")
+            raise OSError("simulated disk failure")
 
         monkeypatch.setattr(app_mod.devices, "append_row", flaky)
         c = app_mod.app.test_client()

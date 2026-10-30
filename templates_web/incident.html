@@ -14,6 +14,22 @@
 <dt class="col-sm-3">Статус</dt><dd class="col-sm-9">{% if inc.Status == "open" %}<span class="badge badge-st st-Assigned">open</span>{% elif inc.Status == "in-progress" %}<span class="badge badge-st st-Repair">in-progress</span>{% else %}<span class="badge badge-st st-Repaired">resolved</span>{% endif %}</dd>
 <dt class="col-sm-3">Одговорен</dt><dd class="col-sm-9">{{ inc.Assignee or "—" }}</dd>
 <dt class="col-sm-3">Рок</dt><dd class="col-sm-9">{{ inc.DueDate or "—" }}</dd>
+<dt class="col-sm-3">Прв одговор</dt><dd class="col-sm-9">{{ respond_at or "—" }}</dd>
+<dt class="col-sm-3">Реотворен</dt><dd class="col-sm-9">{{ reopened or 0 }} пати</dd>
+<dt class="col-sm-3">Оцена</dt><dd class="col-sm-9">{{ inc.Satisfaction or "—" }}</dd>
+<dt class="col-sm-3">Поени</dt><dd class="col-sm-9">{{ inc.StoryPoints or "—" }}</dd>
+<dt class="col-sm-3">FixVersion</dt><dd class="col-sm-9">
+{% if can_act %}
+<form method="post" action="/incidents/{{ inc.IncidentID }}/fixversion" class="d-flex gap-1">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<select class="form-control form-control-sm" name="fix_version">
+<option value="">—</option>
+{% for v in versions %}<option value="{{ v.VersionID }}" {% if inc.FixVersion == v.VersionID %}selected{% endif %}>{{ v.Name }}</option>{% endfor %}
+</select>
+<button class="btn btn-sm btn-outline-primary" type="submit">Зачувај</button>
+</form>
+{% else %}{{ fixversion_name or "—" }}{% endif %}
+</dd>
 <dt class="col-sm-3">Креиран</dt><dd class="col-sm-9">{{ inc.Created }}</dd>
 <dt class="col-sm-3">Затворен</dt><dd class="col-sm-9">{{ inc.ClosedAt or "—" }}</dd>
 <dt class="col-sm-3">Забелешка</dt><dd class="col-sm-9">{{ inc.Notes or "—" }}</dd>
@@ -36,7 +52,32 @@
 </form>
 {% else %}
 <p class="text-muted">Инцидентот е затворен.</p>
+<form method="post" action="/incidents/{{ inc.IncidentID }}/rate" class="d-inline"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<select class="form-control d-inline" style="max-width:6rem" name="score">
+<option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option>
+</select>
+<button class="btn btn-sm btn-outline-primary" type="submit">Оцени</button>
+</form>
+<form method="post" action="/incidents/transition" class="d-inline"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<input type="hidden" name="incident_id" value="{{ inc.IncidentID }}">
+<input type="hidden" name="to_status" value="open">
+<button class="btn btn-sm btn-outline-warning" type="submit">Реотвори</button>
+</form>
 {% endif %}
+<div class="mt-3 d-flex align-items-center gap-2 flex-wrap">
+{% if can_act %}
+{% if is_watching %}
+<form method="post" action="/incidents/{{ inc.IncidentID }}/unwatch" class="d-inline"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<button class="btn btn-sm btn-outline-secondary" type="submit">Престани да следиш</button>
+</form>
+{% else %}
+<form method="post" action="/incidents/{{ inc.IncidentID }}/watch" class="d-inline"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<button class="btn btn-sm btn-outline-primary" type="submit">Следи го тикетот</button>
+</form>
+{% endif %}
+{% endif %}
+<span class="text-muted small">Ве следат: {% if watchers %}{{ watchers | join(", ") }}{% else %}никој{% endif %}</span>
+</div>
 <h4 class="mt-4">Активност</h4>
 {% if thread %}
 <ul class="list-group">{% for c in thread %}
@@ -48,10 +89,74 @@
 {% endif %}
 <form method="post" action="/incidents/comment" class="mt-2"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="incident_id" value="{{ inc.IncidentID }}">
-<div class="mb-2"><label>Нов коментар</label>
-<textarea class="form-control" name="body" rows="2" maxlength="2000" required></textarea></div>
+<div class="mb-2"><label for="cmtBody">Нов коментар</label>
+<div class="position-relative">
+<textarea class="form-control" id="cmtBody" name="body" rows="2" maxlength="2000" required></textarea>
+<div id="mentionBox" class="list-group position-absolute d-none" style="z-index:1050;max-height:12rem;overflow:auto;left:0;right:0;width:100%"></div>
+</div>
+<div class="form-text">Користете @име за споменување на колега.</div>
+</div>
 <button class="btn btn-primary btn-sm" type="submit">Додај коментар</button>
 </form>
+<h4 class="mt-4">Работно време</h4>
+{% if worklog_rows %}
+<ul class="list-group">{% for w in worklog_rows %}
+<li class="list-group-item"><b>{{ w.UserName }}</b>
+<span class="text-muted small">{{ w.WorkedDate }}</span> — {{ w.Minutes }} мин{% if w.Note %}<br><span class="text-muted">{{ w.Note }}</span>{% endif %}</li>
+{% endfor %}</ul>
+<p class="mt-2 mb-0"><b>Вкупно: {{ worklog_total }} мин</b></p>
+{% else %}
+<p class="text-muted">Нема запишано време.</p>
+{% endif %}
+{% if can_act %}
+<form method="post" action="/incidents/{{ inc.IncidentID }}/log" class="mt-2"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<div class="row g-2 align-items-end">
+<div class="col-auto"><label for="wlMinutes">Минути</label>
+<input class="form-control" type="number" id="wlMinutes" name="minutes" min="1" max="1440" required style="width:7rem"></div>
+<div class="col-auto"><label for="wlDate">Датум</label>
+<input class="form-control" type="date" id="wlDate" name="worked_date" value="{{ today }}" max="{{ today }}" required></div>
+<div class="col"><label for="wlNote">Забелешка</label>
+<input class="form-control" id="wlNote" name="note" maxlength="200"></div>
+</div>
+<button class="btn btn-outline-primary btn-sm mt-2" type="submit">Запиши време</button>
+</form>
+{% endif %}
+<script nonce="{{ csp_nonce }}">
+(function () {
+  var users = {{ usernames | tojson }};
+  var ta = document.getElementById("cmtBody");
+  var box = document.getElementById("mentionBox");
+  function closeBox() { box.classList.add("d-none"); box.innerHTML = ""; }
+  ta.addEventListener("input", function () {
+    var pos = ta.selectionStart;
+    var before = ta.value.slice(0, pos);
+    var m = before.match(/@([A-Za-z0-9_.-]*)$/);
+    if (!m) { closeBox(); return; }
+    var q = m[1].toLowerCase();
+    var hits = users.filter(function (u) { return u.toLowerCase().indexOf(q) !== -1; }).slice(0, 8);
+    if (!hits.length) { closeBox(); return; }
+    box.innerHTML = "";
+    hits.forEach(function (u) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "list-group-item list-group-item-action py-1";
+      b.textContent = "@" + u;
+      b.addEventListener("mousedown", function (e) {
+        e.preventDefault();
+        var start = pos - m[0].length;
+        ta.value = ta.value.slice(0, start) + "@" + u + " " + ta.value.slice(pos);
+        closeBox();
+        ta.focus();
+      });
+      box.appendChild(b);
+    });
+    box.classList.remove("d-none");
+  });
+  document.addEventListener("click", function (e) {
+    if (!box.contains(e.target) && e.target !== ta) closeBox();
+  });
+})();
+</script>
 <h4 class="mt-4">Прилози</h4>
 {% if attachments %}
 <ul class="list-group">{% for a in attachments %}

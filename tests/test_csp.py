@@ -11,12 +11,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 def test_nonce_matches_header_and_body():
     import app as app_mod
     from services.db_service import DbStore
-    from services.history_service import HistoryService, HISTORY_COLS
+    from services.history_service import HISTORY_COLS, HistoryService
     from services.schemas import DEV_COLS, EMP_COLS
 
     tmp = tempfile.mkdtemp()
     db = os.path.join(tmp, "n.db")
-    import unittest.mock as mock
+    from unittest import mock
 
     with (
         mock.patch.object(app_mod, "devices", DbStore(db, "devices", DEV_COLS)),

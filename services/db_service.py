@@ -2,7 +2,6 @@
 
 import os
 import sqlite3
-from typing import Any
 
 
 class DbStore:
@@ -45,6 +44,8 @@ class DbStore:
                 "history": ("HistoryID",),
                 "popis": ("PopisID",),
                 "incidents": ("IncidentID",),
+                "projects": ("ProjectID",),
+                "issue_types": ("TypeID",),
             }.get(table, ("TransactionID",))
             for unique_col in identity_columns:
                 if unique_col in columns:

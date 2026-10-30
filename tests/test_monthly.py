@@ -40,7 +40,7 @@ def test_summary_email_empty_stats():
 def _env(monkeypatch):
     import app as app_mod
     from services.db_service import DbStore
-    from services.history_service import HistoryService, HISTORY_COLS
+    from services.history_service import HISTORY_COLS, HistoryService
     from services.schemas import DEV_COLS
 
     tmp = tempfile.mkdtemp()

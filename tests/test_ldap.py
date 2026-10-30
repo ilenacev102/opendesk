@@ -60,7 +60,7 @@ class FakeConnection:
 def _svc(monkeypatch=None):
     import app as app_mod
     from services.db_service import DbStore
-    from services.history_service import HistoryService, HISTORY_COLS
+    from services.history_service import HISTORY_COLS, HistoryService
     from services.schemas import EMP_COLS, LDAPMAP_COLS
 
     tmp = tempfile.mkdtemp()
@@ -171,7 +171,7 @@ def test_unreachable_server_zero_writes():
 
 
 def test_missing_env_clean_message(monkeypatch):
-    from services.ldap_service import LdapService, configured
+    from services.ldap_service import configured
 
     monkeypatch.delenv("SERVICEDESK_LDAP_URL", raising=False)
     monkeypatch.delenv("SERVICEDESK_LDAP_BASE", raising=False)

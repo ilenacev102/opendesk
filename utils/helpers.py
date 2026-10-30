@@ -13,8 +13,8 @@ def next_id(store, col, prefix, width=6):
     fn = getattr(store, "max_suffix", None)
     if callable(fn):
         try:
-            from typing import Any, cast
             from collections.abc import Callable
+            from typing import Any, cast
 
             raw: Any = cast(Callable[..., Any], fn)(col, prefix)
             best_val: int = int(raw)

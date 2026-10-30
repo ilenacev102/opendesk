@@ -1,6 +1,5 @@
 """Popis scan/finish must be atomic under concurrent access."""
 
-import json
 import os
 import sys
 import threading

@@ -25,9 +25,38 @@ DEV_COLS = [
     "PurchasePrice",
     "Supplier",
     "Notes",
+    "NextAuditDate",
 ]
 
 OPTIONAL_DEV_COLS = {"PurchasePrice", "Supplier"}
+
+TRANSIT_COLS = [
+    "TransitID",
+    "DateTime",
+    "AssetID",
+    "FromLoc",
+    "ToLoc",
+    "ByUser",
+]
+
+ONBOARD_COLS = [
+    "RequestID",
+    "FullName",
+    "Position",
+    "StartDate",
+    "Package",
+    "RequestedBy",
+]
+
+NOTIF_COLS = [
+    "NotifID",
+    "UserName",
+    "Kind",
+    "RefID",
+    "Text",
+    "Created",
+    "ReadAt",
+]
 
 CONS_COLS = [
     "ConsumableID",
@@ -102,6 +131,14 @@ INCIDENT_COLS = [
     "ClosedAt",
     "Notes",
     "LinkedTo",
+    "Satisfaction",
+    "ProjectID",
+    "TypeID",
+    "EpicLink",
+    "StoryPoints",
+    "SprintID",
+    "Rank",
+    "FixVersion",
 ]
 
 STAGING_COLS = [
@@ -148,4 +185,52 @@ COMMENT_COLS = [
 KB_LINK_COLS = [
     "ArticleID",
     "IncidentID",
+]
+
+PROJECT_COLS = [
+    "ProjectID",
+    "Name",
+    "Key",
+    "Lead",
+    "Description",
+    "Status",
+    "Created",
+    "Updated",
+]
+
+ISSUE_TYPE_COLS = [
+    "TypeID",
+    "ProjectID",
+    "Name",
+    "Icon",
+    "DefaultPriority",
+    "Workflow",
+    "Active",
+]
+
+
+KB_RATING_COLS = ["ArticleID", "UserName", "Score"]
+
+WATCHER_COLS = ["IncidentID", "UserName", "AddedAt"]
+
+WORKLOG_COLS = [
+    "WorklogID",
+    "IncidentID",
+    "UserName",
+    "Minutes",
+    "WorkedDate",
+    "Note",
+]
+
+VERSION_COLS = ["VersionID", "ProjectID", "Name", "ReleasedAt", "Status"]
+
+SPRINT_COLS = [
+    "SprintID",
+    "ProjectID",
+    "Name",
+    "Goal",
+    "StartDate",
+    "EndDate",
+    "Status",
+    "Created",
 ]

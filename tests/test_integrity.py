@@ -11,7 +11,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import services.assignment_service as _am
-from services.assignment_service import ASSIGN_COLS, AssignmentService
+from services.assignment_service import AssignmentService
 from services.db_service import DbStore
 from services.history_service import HISTORY_COLS, HistoryService
 from services.schemas import DEV_COLS, EMP_COLS
@@ -283,7 +283,7 @@ def test_import_rolls_back_on_mid_loop_failure(monkeypatch):
     def flaky(row, con=None):
         calls.append(row.get("AssetID"))
         if len(calls) == 2:
-            raise IOError("simulated disk failure")
+            raise OSError("simulated disk failure")
         return real_append(row, con=con)
 
     monkeypatch.setattr(app_mod.devices, "append_row", flaky)

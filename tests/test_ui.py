@@ -3,8 +3,6 @@
 import os
 import re
 
-import pytest
-
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TPL = os.path.join(BASE, "templates_web")
 

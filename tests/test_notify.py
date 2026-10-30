@@ -121,3 +121,13 @@ def test_digest_email_lists_devices():
     )
     assert to == "admin@example.mk"
     assert "A1" in body
+
+
+def test_send_email_async(smtp_env):
+    fut = notify.send_email_async("async@example.mk", "Асинхрон", "Тело")
+    assert fut is not None
+    assert fut.result(timeout=3) is True
+    assert len(FakeSMTP.instances) == 1
+    msg = FakeSMTP.instances[0].sent[0]
+    assert msg["To"] == "async@example.mk"
+

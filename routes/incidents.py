@@ -28,6 +28,73 @@ def _who():
     return str(getattr(_cu, "id", "admin")) if _cu else "admin"
 
 
+def _can_act():
+    from flask_login import current_user as _cu
+
+    return bool(_cu and getattr(_cu, "role", "") in ("admin", "magacioner"))
+
+
+def _collab_ctx(inc):
+    """Collab context for incident.html: watchers, worklog, versions, mentions."""
+    import datetime as _dt
+
+    from app import auth_svc, versions, watchers, worklogs
+    from services import watcher_service, worklog_service
+
+    iid = inc.get("IncidentID", "")
+    watch_list = watcher_service.list_watchers(watchers, iid)
+    wl_rows = [r for r in worklogs.records() if r.get("IncidentID") == iid]
+    wl_rows.sort(key=lambda r: r.get("WorkedDate", ""))
+    pid = (inc.get("ProjectID", "") or "").strip()
+    ver_rows = [
+        v for v in versions.records() if not pid or v.get("ProjectID", "") == pid
+    ]
+    fix_ver = (inc.get("FixVersion", "") or "").strip()
+    fix_name = ""
+    if fix_ver:
+        for v in ver_rows:
+            if v.get("VersionID") == fix_ver:
+                fix_name = v.get("Name", "")
+                break
+    return {
+        "watchers": watch_list,
+        "is_watching": _who() in watch_list,
+        "worklog_rows": wl_rows,
+        "worklog_total": worklog_service.total_minutes(worklogs, iid),
+        "versions": ver_rows,
+        "fixversion_name": fix_name or fix_ver,
+        "usernames": sorted(
+            {u.get("UserName", "") for u in auth_svc.list_users() if u.get("UserName")}
+        ),
+        "today": _dt.date.today().isoformat(),
+        "can_act": _can_act(),
+    }
+
+
+def _notify_collab(iid, text, body=""):
+    """Notify mentions (Kind=mention), then assignee+watchers (Kind=incident)."""
+    from app import auth_svc, incidents, notifications, watchers
+    from services import mention_service, notify_center, watcher_service
+
+    inc = incidents.find("IncidentID", iid) or {}
+    notified = set()
+    if body:
+        for name in mention_service.extract(body):
+            mention_service.notify(notifications, auth_svc.store, [name], iid, body)
+            notified.add(name)
+
+    def _push(username, msg):
+        username = (username or "").strip()
+        if not username or username in notified:
+            return
+        if notify_center.push(notifications, username, "incident", iid, msg):
+            notified.add(username)
+
+    _push(inc.get("Assignee", ""), text)
+    for username in watcher_service.list_watchers(watchers, iid):
+        _push(username, text)
+
+
 @bp.route("/incidents")
 def incident_list():
     from app import incidents
@@ -73,8 +140,7 @@ def incident_list():
         per = 50
     total = len(filtered)
     total_pages = max(1, (total + per - 1) // per)
-    if page > total_pages:
-        page = total_pages
+    page = min(page, total_pages)
     start = (page - 1) * per
     return render_template(
         "incidents.html",
@@ -108,6 +174,7 @@ def incident_detail(iid):
         db_path=getattr(comments, "db_path", None),
     ).for_incident(iid)
     linked_articles = _kb_link_service().for_incident(iid)
+    svc = _service()
     return render_template(
         "incident.html",
         inc=inc,
@@ -116,6 +183,9 @@ def incident_detail(iid):
         thread=thread,
         attachments=_attachments(iid),
         linked_articles=linked_articles,
+        respond_at=svc.first_response_at(iid),
+        reopened=svc.reopen_count(iid),
+        **_collab_ctx(inc),
     )
 
 
@@ -146,9 +216,8 @@ def _attachments(iid):
 def incident_attach():
     import os
 
-    from app import backup_all, history, incidents
-
     import config
+    from app import backup_all, history, incidents
 
     iid = request.form.get("incident_id", "").strip()
     if incidents.find("IncidentID", iid) is None:
@@ -161,13 +230,17 @@ def incident_attach():
     ext = (name.rsplit(".", 1)[-1] if "." in name else "").lower()
     if not name or f".{ext}" not in ALLOWED_ATTACH_EXTS:
         flash("ГРЕШКА: дозволени се само png, jpg, pdf, log, txt фајлови.", "danger")
+        inc = incidents.find("IncidentID", iid)
         return render_template(
             "incident.html",
-            inc=incidents.find("IncidentID", iid),
+            inc=inc,
             statuses=list(STATUSES),
             priorities=list(PRIORITIES),
             thread=[],
             attachments=_attachments(iid),
+            respond_at=_service().first_response_at(iid),
+            reopened=_service().reopen_count(iid),
+            **_collab_ctx(inc),
         )
     target_dir = _attach_dir(iid)
     os.makedirs(target_dir, exist_ok=True)
@@ -190,7 +263,6 @@ def incident_attachment(iid, name):
     from flask import send_file
 
     import config
-
     from app import incidents
 
     if incidents.find("IncidentID", iid) is None:
@@ -208,9 +280,8 @@ def incident_attachment(iid, name):
 @bp.route("/incidents/new", methods=["POST"])
 @require("admin", "magacioner")
 def incident_new():
-    from app import backup_all, incidents
-
     import config
+    from app import backup_all, incidents
 
     svc = _service()
     try:
@@ -236,30 +307,145 @@ def incident_new():
 @bp.route("/incidents/transition", methods=["POST"])
 @require("admin", "magacioner")
 def incident_transition():
-    from app import backup_all, incidents
+    from flask import jsonify
 
     import config
+    from app import backup_all, incidents
 
+    is_ajax = (
+        request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        or request.is_json
+        or request.form.get("ajax") == "1"
+    )
     svc = _service()
-    iid = request.form.get("incident_id", "").strip()
-    to_status = request.form.get("to_status", "").strip()
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+        iid = str(data.get("incident_id", "")).strip()
+        to_status = str(data.get("to_status", "")).strip()
+    else:
+        iid = request.form.get("incident_id", "").strip()
+        to_status = request.form.get("to_status", "").strip()
     try:
         svc.transition(iid, to_status, performed_by=_who())
         if config.BACKUP_ON_WRITE:
             backup_all([incidents])
+        _notify_collab(iid, f"Статус на {iid}: {to_status}.")
+        if is_ajax:
+            return jsonify({"ok": True, "incident_id": iid, "status": to_status})
         flash(f"Инцидентот {iid}: {to_status}.", "success")
     except ValueError as exc:
+        if is_ajax:
+            return jsonify({"ok": False, "error": str(exc)}), 400
         flash(f"ГРЕШКА: {exc}", "danger")
+    return redirect(url_for("incidents.incident_detail", iid=iid))
+
+
+
+@bp.route("/incidents/<iid>/rate", methods=["POST"])
+@require("admin", "magacioner")
+def incident_rate(iid):
+    """MS-8: CSAT rating 1-5 for resolved incidents."""
+    svc = _service()
+    try:
+        svc.rate(iid, request.form.get("score", ""), performed_by=_who())
+        flash("Оцената е запишана.", "success")
+    except ValueError as exc:
+        flash(f"ГРЕШКА: {exc}", "danger")
+    return redirect(url_for("incidents.incident_detail", iid=iid))
+
+
+@bp.route("/incidents/<iid>/watch", methods=["POST"])
+@require("admin", "magacioner")
+def incident_watch(iid):
+    import config
+    from app import backup_all, incidents, watchers
+    from services import watcher_service
+
+    if incidents.find("IncidentID", iid) is None:
+        abort(404)
+    if watcher_service.watch(watchers, iid, _who()):
+        if config.BACKUP_ON_WRITE:
+            backup_all([watchers])
+        flash(f"Го следите {iid}.", "success")
+    else:
+        flash(f"Веќе го следите {iid}.", "info")
+    return redirect(url_for("incidents.incident_detail", iid=iid))
+
+
+@bp.route("/incidents/<iid>/unwatch", methods=["POST"])
+@require("admin", "magacioner")
+def incident_unwatch(iid):
+    import config
+    from app import backup_all, incidents, watchers
+    from services import watcher_service
+
+    if incidents.find("IncidentID", iid) is None:
+        abort(404)
+    if watcher_service.unwatch(watchers, iid, _who()):
+        if config.BACKUP_ON_WRITE:
+            backup_all([watchers])
+        flash(f"Веќе не го следите {iid}.", "success")
+    else:
+        flash(f"Не го следите {iid}.", "info")
+    return redirect(url_for("incidents.incident_detail", iid=iid))
+
+
+@bp.route("/incidents/<iid>/log", methods=["POST"])
+@require("admin", "magacioner")
+def incident_log(iid):
+    import config
+    from app import backup_all, incidents, worklogs
+    from services import worklog_service
+    from utils.validators import ValidationError
+
+    if incidents.find("IncidentID", iid) is None:
+        abort(404)
+    try:
+        row = worklog_service.log(
+            worklogs,
+            iid,
+            _who(),
+            request.form.get("minutes", ""),
+            request.form.get("worked_date", ""),
+            request.form.get("note", ""),
+        )
+        if config.BACKUP_ON_WRITE:
+            backup_all([worklogs])
+        flash(f"Запишани {row['Minutes']} минути на {iid}.", "success")
+    except ValidationError as exc:
+        flash(f"ГРЕШКА: {exc}", "danger")
+    return redirect(url_for("incidents.incident_detail", iid=iid))
+
+
+@bp.route("/incidents/<iid>/fixversion", methods=["POST"])
+@require("admin", "magacioner")
+def incident_fixversion(iid):
+    import config
+    from app import backup_all, incidents, versions
+
+    inc = incidents.find("IncidentID", iid)
+    if inc is None:
+        abort(404)
+    value = request.form.get("fix_version", "").strip()
+    if value:
+        ver = versions.find("VersionID", value)
+        pid = (inc.get("ProjectID", "") or "").strip()
+        if ver is None or (pid and ver.get("ProjectID", "") != pid):
+            flash("ГРЕШКА: невалидна верзија за овој проект.", "danger")
+            return redirect(url_for("incidents.incident_detail", iid=iid))
+    incidents.update_where("IncidentID", iid, {"FixVersion": value})
+    if config.BACKUP_ON_WRITE:
+        backup_all([incidents])
+    flash("FixVersion е зачуван.", "success")
     return redirect(url_for("incidents.incident_detail", iid=iid))
 
 
 @bp.route("/incidents/escalate", methods=["POST"])
 @require("admin", "magacioner")
 def incident_escalate():
+    import config
     from app import backup_all, history, incidents
     from services.escalation_service import EscalationService
-
-    import config
 
     db_path = getattr(incidents, "db_path", None)
     svc = EscalationService(incidents, history, db_path=db_path)
@@ -269,6 +455,17 @@ def incident_escalate():
             result = svc.escalate(iid, performed_by=_who())
             if result["escalated"]:
                 flash(f"Инцидентот {iid} е ескалиран.", "success")
+                from app import notifications as _notif
+                from services.notify_center import push as _push
+
+                _inc = incidents.find("IncidentID", iid)
+                _push(
+                    _notif,
+                    (_inc.get("Assignee", "") if _inc else ""),
+                    "incident",
+                    iid,
+                    f"Ескалиран тикет {iid}.",
+                )
             else:
                 flash(f"Инцидентот {iid} не е за ескалација.", "warning")
         else:
@@ -289,23 +486,24 @@ def incident_escalate():
 @bp.route("/incidents/comment", methods=["POST"])
 @require("admin", "magacioner")
 def incident_comment():
+    import config
     from app import backup_all, comments, history, incidents
     from services.comment_service import CommentService
-
-    import config
 
     db_path = getattr(comments, "db_path", None)
     svc = CommentService(comments, incidents, history, db_path=db_path)
     iid = request.form.get("incident_id", "").strip()
+    body = request.form.get("body", "")
     try:
         svc.add(
             iid,
             _who(),
-            request.form.get("body", ""),
+            body,
             performed_by=_who(),
         )
         if config.BACKUP_ON_WRITE:
             backup_all([comments])
+        _notify_collab(iid, f"Нов коментар на {iid}.", body)
         flash("Коментарот е додаден.", "success")
     except ValueError as exc:
         flash(f"ГРЕШКА: {exc}", "danger")
@@ -328,9 +526,8 @@ def _kb_link_service():
 @bp.route("/incidents/link-kb", methods=["POST"])
 @require("admin", "magacioner")
 def incident_link_kb():
-    from app import backup_all, kb_links
-
     import config
+    from app import backup_all, kb_links
 
     iid = request.form.get("incident_id", "").strip()
     aid = request.form.get("article_id", "").strip()
@@ -347,9 +544,8 @@ def incident_link_kb():
 @bp.route("/incidents/resolve-kb", methods=["POST"])
 @require("admin", "magacioner")
 def incident_resolve_kb():
-    from app import backup_all, incidents, kb_links
-
     import config
+    from app import backup_all, incidents, kb_links
 
     iid = request.form.get("incident_id", "").strip()
     aid = request.form.get("article_id", "").strip()
@@ -368,16 +564,17 @@ def incident_resolve_kb():
 def incident_inbox():
     import json as _json
 
+    import config
     from app import backup_all, comments, history, incidents
     from services.mail_ingest import (
         MailError,
         configured,
+    )
+    from services.mail_ingest import (
         confirm as _confirm,
     )
     from services.mail_ingest import fetch_unseen as _fetch
     from services.mail_ingest import reconcile as _reconcile
-
-    import config
 
     if not configured():
         return render_template("inbox.html", preview=None, hint=True)

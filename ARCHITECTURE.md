@@ -79,6 +79,7 @@ Broken → Unrepairable → Disposed
 
 ## 9. Проверка (како се докажува)
 
-- `python3 -m pytest tests/` — 440 теста (437 passed, 3 skipped).
+- `python3 -m pytest tests/` — 441 тест (438 passed, 3 skipped).
 - Auth-матрица: `tests/test_auth_matrix.py`. CSP: `tests/test_csp.py`. Конкуренција: integrity + heartbeat-flow + popis-concurrency.
 - Дизајн-гарда: `tests/test_ui.py` (без emoji, sprite-покриеност).
+

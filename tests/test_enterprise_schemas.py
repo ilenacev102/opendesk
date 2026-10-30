@@ -20,6 +20,14 @@ def test_incident_cols_defined():
         "ClosedAt",
         "Notes",
         "LinkedTo",
+        "Satisfaction",
+        "ProjectID",
+        "TypeID",
+        "EpicLink",
+        "StoryPoints",
+        "SprintID",
+        "Rank",
+        "FixVersion",
     ]
 
 

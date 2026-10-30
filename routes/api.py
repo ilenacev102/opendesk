@@ -14,7 +14,7 @@ bp = Blueprint("api", __name__)
 
 @bp.route("/api/v1/devices")
 def api_v1_devices():
-    from app import _api_user, _require_api_roles, devices
+    from app import _require_api_roles, devices
 
     denied = _require_api_roles("magacioner", "citac")
     if denied is not None:
@@ -51,8 +51,9 @@ def api_v1_devices():
 
 @bp.route("/api/v1/devices/<asset_id>")
 def api_v1_device_detail(asset_id):
-    from app import _require_api_roles, devices
     from flask import jsonify as _jsonify
+
+    from app import _require_api_roles, devices
 
     denied = _require_api_roles("magacioner", "citac")
     if denied is not None:
@@ -75,9 +76,9 @@ def api_v1_employees():
 
 @bp.route("/api/v1/checkout", methods=["POST"])
 def api_v1_checkout():
-    from app import _api_user, _require_api_roles, assign_svc
     from flask import jsonify as _jsonify
 
+    from app import _api_user, _require_api_roles, assign_svc
     from utils.validators import ValidationError
 
     denied = _require_api_roles("magacioner")
@@ -99,9 +100,9 @@ def api_v1_checkout():
 
 @bp.route("/api/v1/checkin", methods=["POST"])
 def api_v1_checkin():
-    from app import _api_user, _require_api_roles, return_svc
     from flask import jsonify as _jsonify
 
+    from app import _api_user, _require_api_roles, return_svc
     from utils.validators import ValidationError
 
     denied = _require_api_roles("magacioner")
@@ -281,8 +282,9 @@ def api_values():
 def api_v1_discovery_heartbeat():
     import datetime
 
-    from app import _api_user, _require_api_roles, devices, history, staging
     from flask import jsonify as _jsonify
+
+    from app import _api_user, _require_api_roles, devices, history, staging
     from services.discovery_service import confirm, normalize_serial, reconcile
 
     denied = _require_api_roles("magacioner")

@@ -27,9 +27,8 @@ def _parse_seats(raw):
 
 
 def _license_seat_change(lid, delta, emp_id, action):
-    from app import backup_all, history, licenses
-
     import config
+    from app import backup_all, history, licenses
 
     row = licenses.find("LicenseID", lid)
     if row is None:
@@ -57,9 +56,8 @@ def _parse_day(raw, label):
 
 @bp.route("/consumables", methods=["GET", "POST"])
 def consumables_view():
-    from app import _parse_qty, backup_all, consumables, history
-
     import config
+    from app import _parse_qty, backup_all, consumables
 
     if request.method == "POST":
         cid = request.form.get("ConsumableID", "").strip()
@@ -98,9 +96,8 @@ def consumables_view():
 
 @bp.route("/consumables/issue", methods=["POST"])
 def consumables_issue():
-    from app import _parse_qty, backup_all, consumables, history
-
     import config
+    from app import _parse_qty, backup_all, consumables, history
 
     cid = request.form.get("consumable_id", "").strip()
     try:
@@ -137,9 +134,8 @@ def consumables_issue():
 
 @bp.route("/licenses", methods=["GET", "POST"])
 def licenses_view():
-    from app import backup_all, licenses
-
     import config
+    from app import backup_all, licenses
 
     if request.method == "POST":
         lid = request.form.get("LicenseID", "").strip()
@@ -213,9 +209,8 @@ def licenses_revoke():
 
 @bp.route("/contracts", methods=["GET", "POST"])
 def contracts_view():
-    from app import backup_all, contracts
-
     import config
+    from app import backup_all, contracts
 
     if request.method == "POST":
         cid = request.form.get("ContractID", "").strip()
@@ -257,9 +252,8 @@ def contracts_view():
 
 @bp.route("/reservations", methods=["GET", "POST"])
 def reservations_view():
-    from app import backup_all, devices, reservations
-
     import config
+    from app import backup_all, devices, reservations
 
     if request.method == "POST":
         try:
@@ -268,36 +262,15 @@ def reservations_view():
                 raise ValidationError(f"Уредот {asset_id} не постои.")
             start = _parse_day(request.form.get("FromDate", ""), "од")
             end = _parse_day(request.form.get("ToDate", ""), "до")
-            if end < start:
-                raise ValidationError("Крајот е пред почетокот.")
-            for r in reservations.records():
-                if r.get("AssetID") != asset_id or r.get("Status") != "active":
-                    continue
-                try:
-                    import datetime as _dt
+            from services.reservation_service import create as _reserv_create
 
-                    rs = _dt.date.fromisoformat(r.get("FromDate", "")[:10])
-                    re_ = _dt.date.fromisoformat(r.get("ToDate", "")[:10])
-                except ValueError:
-                    continue
-                if start <= re_ and rs <= end:
-                    raise ValidationError(
-                        f"Преклопување со {r.get('ReservationID')} "
-                        f"({r.get('FromDate')}–{r.get('ToDate')})."
-                    )
-            from utils.helpers import next_id as _next_id
-
-            rid = _next_id(reservations, "ReservationID", "R")
-            reservations.append_row(
-                {
-                    "ReservationID": rid,
-                    "AssetID": asset_id,
-                    "EmployeeID": request.form.get("EmployeeID", "").strip(),
-                    "FromDate": start.isoformat(),
-                    "ToDate": end.isoformat(),
-                    "Status": "active",
-                    "Notes": request.form.get("Notes", "").strip(),
-                }
+            rid = _reserv_create(
+                reservations,
+                asset_id,
+                start.isoformat(),
+                end.isoformat(),
+                employee_id=request.form.get("EmployeeID", ""),
+                notes=request.form.get("Notes", ""),
             )
             if config.BACKUP_ON_WRITE:
                 backup_all([reservations])
@@ -311,9 +284,8 @@ def reservations_view():
 
 @bp.route("/reservations/cancel", methods=["POST"])
 def reservations_cancel():
-    from app import backup_all, reservations
-
     import config
+    from app import backup_all, reservations
 
     rid = request.form.get("reservation_id", "").strip()
     if reservations.find("ReservationID", rid) is None:
@@ -326,12 +298,45 @@ def reservations_cancel():
     return redirect(url_for("catalog.reservations_view"))
 
 
+@bp.route("/reservations/calendar")
+def reservations_calendar():
+    import datetime as _dt
+
+    from app import reservations
+
+    raw = request.args.get("week", "")
+    try:
+        anchor = _dt.date.fromisoformat((raw or "")[:10])
+    except ValueError:
+        anchor = _dt.date.today()
+    monday = anchor - _dt.timedelta(days=anchor.weekday())
+    days = [monday + _dt.timedelta(days=i) for i in range(7)]
+    week_start, week_end = days[0], days[-1]
+    grid = {}
+    for r in reservations.records():
+        if r.get("Status") != "active":
+            continue
+        try:
+            rs = _dt.date.fromisoformat(r.get("FromDate", "")[:10])
+            re_ = _dt.date.fromisoformat(r.get("ToDate", "")[:10])
+        except ValueError:
+            continue
+        if rs <= week_end and week_start <= re_:
+            grid.setdefault(r.get("AssetID", ""), []).append(r)
+    return render_template(
+        "reservations_calendar.html",
+        days=days,
+        grid=grid,
+        today=_dt.date.today().isoformat(),
+        week_start=week_start.isoformat(),
+    )
+
+
 @bp.route("/requests", methods=["GET", "POST"])
 def requests_view():
+    import config
     from app import backup_all, requests
     from utils.helpers import stamp
-
-    import config
 
     if request.method == "POST":
         try:
@@ -364,9 +369,8 @@ def requests_view():
 @bp.route("/requests/decide", methods=["POST"])
 @require("admin", "magacioner")
 def requests_decide():
-    from app import backup_all, requests
-
     import config
+    from app import backup_all, requests
 
     qid = request.form.get("request_id", "").strip()
     decision = request.form.get("decision", "").strip()
@@ -392,9 +396,8 @@ def requests_decide():
 @bp.route("/fields", methods=["GET", "POST"])
 @require("admin", "magacioner")
 def field_defs_view():
-    from app import backup_all, field_defs, field_values
-
     import config
+    from app import backup_all, field_defs, field_values
 
     if request.method == "POST":
         action = request.form.get("action", "add")
@@ -432,9 +435,8 @@ def field_defs_view():
 @bp.route("/device/<asset_id>/fields", methods=["POST"])
 @require("admin", "magacioner")
 def device_fields_save(asset_id):
-    from app import backup_all, devices, field_defs, field_values
-
     import config
+    from app import backup_all, devices, field_defs, field_values
 
     dev = devices.find("AssetID", asset_id)
     if dev is None:
@@ -454,3 +456,83 @@ def device_fields_save(asset_id):
         backup_all([field_values])
     flash("Дополнителните полиња се зачувани.", "success")
     return redirect(url_for("inventory.device_detail", asset_id=asset_id))
+
+
+def _load_packages():
+    import json
+    import os
+
+    import config
+
+    path = os.path.join(config.DATA_DIR, "Packages.json")
+    if not os.path.exists(path):
+        return []
+    with open(path, encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def _onboard_service():
+    from app import DB_PATH, history
+    from services.db_service import open_store
+    from services.onboard_service import OnboardService
+    from services.schemas import ONBOARD_COLS
+
+    store = open_store(DB_PATH, "onboard", None, ONBOARD_COLS)
+    return OnboardService(store, _load_packages(), history)
+
+
+@bp.route("/onboard", methods=["GET", "POST"])
+def onboard_view():
+    """MS-5: HR intake with preview before write."""
+    from flask_login import current_user as _cu
+
+    svc = _onboard_service()
+    if request.method == "POST":
+        action = request.form.get("action", "preview")
+        req = {
+            "FullName": request.form.get("FullName", ""),
+            "Position": request.form.get("Position", ""),
+            "StartDate": request.form.get("StartDate", ""),
+            "Package": request.form.get("Package", ""),
+            "RequestedBy": request.form.get("RequestedBy", ""),
+        }
+        try:
+            if action == "confirm":
+                who = str(getattr(_cu, "id", "admin")) if _cu else "admin"
+                row = svc.submit(req, requested_by=who)
+                flash(f"Пријавата {row['RequestID']} е запишана.", "success")
+                from app import notifications as _notif
+                from services.notify_center import push as _push
+
+                _push(
+                    _notif,
+                    row.get("RequestedBy", "") or who,
+                    "onboard",
+                    row["RequestID"],
+                    f"Нова HR-пријава {row['RequestID']} ({row['FullName']}).",
+                )
+                return redirect(url_for("catalog.onboard_view"))
+            preview = svc.validate(req)
+            return render_template(
+                "onboard.html",
+                packages=_load_packages(),
+                rows=svc.store.records(),
+                preview=preview,
+                form=req,
+            )
+        except ValidationError as exc:
+            flash(f"ГРЕШКА: {exc}", "danger")
+            return render_template(
+                "onboard.html",
+                packages=_load_packages(),
+                rows=svc.store.records(),
+                preview=None,
+                form=req,
+            )
+    return render_template(
+        "onboard.html",
+        packages=_load_packages(),
+        rows=svc.store.records(),
+        preview=None,
+        form={},
+    )

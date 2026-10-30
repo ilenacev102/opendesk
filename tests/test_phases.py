@@ -8,25 +8,19 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from services import document_service as doc_mod
+from services import disposal_service as disp_mod
+from services import repair_service as rep_mod
 from services import replacement_service as repl_mod
 from services import return_service as ret_mod
-from services import repair_service as rep_mod
-from services import disposal_service as disp_mod
-from services.db_service import DbStore
-from services.schemas import DEV_COLS, EMP_COLS
-from services.assignment_service import ASSIGN_COLS
-from services.return_service import RETURN_COLS
-from services.replacement_service import REPLACE_COLS
-from services.repair_service import REPAIR_COLS
-from services.disposal_service import DISPOSAL_COLS
-from services.history_service import HISTORY_COLS, HistoryService
 from services.assignment_service import AssignmentService
+from services.db_service import DbStore
+from services.disposal_service import DisposalService
+from services.history_service import HISTORY_COLS, HistoryService
+from services.repair_closure import RepairClosureService
+from services.repair_service import RepairService
 from services.replacement_service import ReplacementService
 from services.return_service import ReturnService
-from services.repair_service import RepairService
-from services.repair_closure import RepairClosureService
-from services.disposal_service import DisposalService
+from services.schemas import DEV_COLS, EMP_COLS
 from utils import helpers as helpers_mod
 from utils.validators import ValidationError
 

@@ -66,11 +66,20 @@ def popis_start():
     return render_template("popis.html", locs=locs, deps=deps, popisi=popisi)
 
 
+@bp.route("/popis/missing")
+def popis_missing():
+    """MS-9: devices with expired NextAuditDate (quarterly discipline)."""
+    from app import devices
+    from services.popis_service import missing as _missing
+
+    rows = _missing(devices)
+    return render_template("popis_missing.html", rows=rows)
+
+
 @bp.route("/popis/<pid>", methods=["GET", "POST"])
 def popis_detail(pid):
-    from services.document_service import fill_template, mk_date
-
     from app import devices, history, popis_svc
+    from services.document_service import fill_template, mk_date
 
     rec = popis_svc.get(pid)
     if rec is None:
@@ -167,7 +176,8 @@ def popis_scan(pid):
 
 @bp.route("/popis/<pid>/found", methods=["POST"])
 def popis_found(pid):
-    from app import popis_svc
+    from app import devices, popis_svc
+    from services.popis_service import mark_scanned
 
     rec = popis_svc.get(pid)
     if rec is None or rec.get("Status") != "OPEN":
@@ -184,6 +194,8 @@ def popis_found(pid):
     rec2 = popis_svc.get(pid)
     if rec2 is None:
         return jsonify(ok=False, error="Пописот е затворен."), 404
+    if devices.find("AssetID", code) is not None:
+        mark_scanned(devices, code)
     return jsonify(
         ok=True,
         asset_id=code,

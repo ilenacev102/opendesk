@@ -281,10 +281,294 @@
 - **Месечен извештај**: `summary_email()` + `POST /reports/monthly-summary`
   (рачен trigger, citac-403, friendly flash без admin-email).
 - **Тестови**: analytics (8), dashboard-ext (2), monthly (4).
+- **Вкупно во suite**: 323 теста (67 фајлови).
+
+## Документациска усогласеност (2026-09-28)
+
+- `README.md`: бројка 151 → 323, env-табела проширена со DB/LDAP/OIDC/IMAP/
+  SMTP/RATELIMIT/ADMIN/TEMPLATES (целосен список: `.env.example`), scan-патека
+  исправена на `/popis/<pid>/scan`, rate-limit напомената усогласена со
+  `SECURITY.md` (memory per-process + file за workers).
+- `requirements.txt`: отстранет дупликат `qrcode>=7.0`, `msal` пиниран на
+  `==1.39.0` (опционален, само за жив Intune sync).
+- Познато WIP (завршено): `tests/test_pg_mover.py` (5 теста) + нов `services/pg_mover.py`
+  (`MoverError`, `move_table`, `move_all`, `verify_all`, dry-run, без парцијални
+  записи при грешка) — suite зелен: 320 passed, 3 skipped (вкупно 323).
+
+## MS-1 — Offboarding листа (read-only)
+
+- `services/offboarding_service.py`: чисти `departed_ids` + `flagged_devices`
+  (без I/O); `GET /offboarding/flagged` во `routes/operations.py` со
+  `offboarding_flagged.html` (breadcrumb + табела, без записи).
+- Тестови: `tests/test_offboarding_flag.py` (3 service + 1 route).
+  Suite: 324 passed, 3 skipped.
+
+## MS-2 — Невратено: ескалација (идемпотентна)
+
+- `services/offboarding_service.py`: `days_since` + `overdue` (чисти) +
+  `escalate` (еден `OFF_ESC` audit, втор повик не дуплира).
+- `POST /offboarding/escalate` (`@require admin/magacioner`, citac → 403) +
+  колона „Последна промена" и копче „Ескалирај" на flagged-страницата.
+- Научено: новите логини го прелија shared `/login` rate-limit (30/мин) и го
+  срушија `test_sso_ui` во полн suite — route-тестовите сега викаат
+  `ratelimit.reset()` (конвенција од `test_hardening`).
+- Тестови: `tests/test_offboarding_overdue.py` (3 + 1).
+  Suite: 328 passed, 3 skipped.
+
+## MS-3 — Транзит-валидација (чиста, без рути)
+
+- `services/transit_service.py`: `TRANSITIONS` + `can_move` + `allowed`,
+  втемелени во validators/repair-FLOW (`Assigned→Disposed` и
+  `Repair→Available` забранети, `InTransit` round-trip дозволен).
+- Не е врзан за рути — rollback е бришење на фајлот.
+- Тестови: `tests/test_transit.py` (4).
+
+## MS-4 — Транзит со историја (chain-of-custody)
+
+- `services/schemas.py`: `TRANSIT_COLS` (TransitID/DateTime/AssetID/FromLoc/ToLoc/ByUser).
+- `services/transit_service.py`: `TransitService.ship` (→ InTransit + локација,
+  валидирано преку `can_move`) + `receive` (→ Assigned ако има носител, инаку
+  Available); секое движење = transit-запис + history во една трансакција.
+- `POST /transit/ship` + `POST /transit/receive` (`@require admin/magacioner`) +
+  транзит-картичка на device-страница („Испрати"/„Прими").
+- Тестови: `tests/test_transit_flow.py` (3 + 1).
+  Suite: 336 passed, 3 skipped.
+
+## MS-5 — HR-intake за onboarding
+
+- `services/schemas.py`: `ONBOARD_COLS` (RequestID/FullName/Position/StartDate/
+  Package/RequestedBy).
+- `services/onboard_service.py`: `validate` (старт ≥ +2 дена, пакет мора да
+  постои) + `submit` (RequestID `OB…`, дупликат одбиен, `ONBOARD_CREATE` audit).
+- `GET+POST /onboard` во `routes/catalog.py` со преглед пред запис
+  (preview → confirm) + `onboard.html`.
+- Тестови: `tests/test_onboard.py` (4 + 1 route).
+  Suite: 341 passed, 3 skipped.
+
+## MS-6 — Ревизор-извоз на еден клик
+
+- `services/audit_export.py`: чист `export_changes` (филтер [од, до] +
+  мапирање when/who/what/why, сортиран).
+- `GET /reports/audit-export?from=&to=` (`@require admin/magacioner`,
+  CSV со injection-guard, лош опсег → 400).
+- Поправен мој bug: `history.records()` → `history.store.records()`
+  (докажан од route-тестот пред merge).
+- Тестови: `tests/test_audit_export.py` (3 + 1 route).
+  Suite: 345 passed, 3 skipped.
+
+## MS-7 — SLA без гејминг (reopen + pause-гејт)
+
+- Наод: немаше reopen-тек ни `INC_REOPEN` — MS-7 го додаде, не само броење.
+- `services/sla_service.py`: `PAUSE_REASONS` (3) + `pause_allowed`.
+- `services/incident_service.py`: `resolved→open` со `INC_REOPEN` audit,
+  `ClosedAt` се брише; `reopen_count` + `first_response_at`.
+- Detail-страница: „Прв одговор" (respond) одвоено од „Рок" (resolve) +
+  „Реотворен N пати" + копче „Реотвори" (постоечки transition-endpoint).
+- Тестови: `tests/test_sla_pause.py` (4).
+  Suite: 349 passed, 3 skipped.
+
+## MS-8 — CSAT оцена 1–5
+
+- `services/schemas.py`: колона `Satisfaction` (auto-migrate).
+- `services/incident_service.py`: `rate` (само resolved, 1–5, `INC_RATE`
+  audit) + чист `csat_average`.
+- `POST /incidents/<iid>/rate` (`@require`) + оцена и форма на detail-страница.
+- Месечниот извештај доби CSAT-линија (само кога има оценки; старите
+  тестови недопрени). Schema-тестот ажуриран со новата колона.
+- Тестови: `tests/test_csat.py` (3).
+  Suite: 352 passed, 3 skipped.
+
+## MS-9 — Audit-датум и кампања недостасувачи
+
+- `services/schemas.py`: колона `NextAuditDate` (auto-migrate).
+- `services/popis_service.py`: `mark_scanned` (+30 дена) + `missing`
+  (само докажани истечени; без датум никогаш не е missing).
+- `GET /popis/missing` + `popis_missing.html`; скенерот
+  (`/popis/<pid>/found`) автоматски ја поместува штампата.
+- Тестови: `tests/test_audit_date.py` (3 + 1 route).
+  Suite: 356 passed, 3 skipped.
+
+## S1/S2 — Тврдост: CI, RUNBOOK, workers-профил
+
+- `.github/workflows/tests.yml`: проширен со `ruff check` и secret-scan job
+  (без `.env`/клучеви во repo).
+- `RUNBOOK.md` (нов): deploy, rollback <15 мин, restore SQLite (WAL-безбеден
+  backup API + 7 дена ретенција) и Postgres (`pg_dump`), secret-ротација,
+  табела за дијагностика.
+- `docker-compose.yml`: `servicedesk-workers` профил (gunicorn `-w 4`,
+  порт 5001, `SERVICEDESK_RATELIMIT=file` врз споделен `data/` volume).
+
+## Backlog — LDAP preview, observability, QR bulk-print
+
+- `scripts/ldap_preview.py` (нов): fetch + reconcile, никогаш `sync()`;
+  exit 2 без конфигурација; cron-пример во docstring. Наод: dry-run
+  неповредливоста веќе ја покрива `test_dry_run_writes_nothing`.
+- Observability: `X-Request-ID` на секој одговор (валиден влезен се ехува,
+  ѓубре се заменува); `uuid` веќе беше импортиран.
+- QR bulk-print: верификувано како готово — `/labels` со филтри
+  (статус/тип/локација) + print-копче, покриено со `test_qr.py` и
+  `test_auth_matrix.py` (13 passed).
+- Тестови: `tests/test_request_id.py` (3) + `tests/test_ldap_preview.py` (3).
+  Suite: 362 passed, 3 skipped (вкупно 365, 78 фајлови).
+
+## F1 — Моја работа табла
+
+- `services/mywork_service.py` (нов, чист): `collect` + `days_left`.
+  Пронајден bug при интеграција: `breach()` бара date-објект — нормализирано.
+- `GET /my-work` + `mywork.html` (4 картички).
+- Тестови: `tests/test_mywork.py` (3 + 1 route).
+
+## F2 — In-app известувања (ѕвонче)
+
+- `services/schemas.py`: `NOTIF_COLS`; `services/notify_center.py` (нов):
+  `push`/`unread`/`mark_read`/`validate_kind`.
+- `app.py`: `notifications` store + `unread_count` context-processor;
+  `base.html` ѕвонче; `GET /notifications` + `POST /notifications/read`.
+- Емитери (3): incident-escalate → assignee, transit-ship → носител,
+  onboard-confirm → RequestedBy (празен username = без запис, никогаш грешка).
+- Тестови: `tests/test_notify_center.py` (4 + 1 route со badge).
+
+## F3 — Breach-прогноза
+
+- `services/sla_service.py`: `will_breach` (garbage → False) + `forecast`
+  (не-resolved во прозорец, сортирани по DueDate).
+- `digest_email(..., forecast_rows=None)` — опциона секција „Ќе пробијат
+  наскоро:"; стари повици недопрени.
+- `notify_digest` пресметува `forecast(…, 2)` и го проследува.
+- Тестови: `tests/test_forecast.py` (4).
+
+## SPEC-FEATURES-2 — план за 6 нови функционалности
+
+- `SPEC-FEATURES-2.md` (нов, неимплементиран): F1 Моја работа табла,
+  F2 In-app известувања (ѕвонче), F3 Breach-прогноза, F4 Резервации
+  календар + конфликти, F5 KB оценки + рангирање, F6 Договорни опомени +
+  трошоци. Редослед: F1 → F2 → F3 → F6 → F4 → F5 (F3 пред F6 — заеднички
+  digest; F5 последен — најголем). Секој со точни фајлови/функции/тестови/
+  прифаќање/rollback + заеднички DoD.
+
+## Jira Lite Phase 1 — Проекти и типови тикети
+
+- `services/project_service.py` (нов): `create_project` (нормализација на
+  клуч 2–6 ASCII, дупликат-заштита, аудит `PRJ_CREATE`), `default_project`
+  (автоматски „IT ServiceDesk" со клуч `IT`), `ensure_defaults` (4
+  стандартни типови, идемпотентен backfill на стари тикети без проект),
+  `validate_type`, `workflow_columns` (сите текови →
+  `open/in-progress/resolved` — 1:1 со постојните статуси, без миграција).
+- `routes/projects.py` (нов): листа со бројачи, детали со статистика и
+  типови, креирај/архивирај/додај тип — записи под `@require("admin")`;
+  `app.py` store `projects` + `issue_types`; навигациски линк „Проекти".
+- `services/schemas.py`: `PROJECT_COLS`, `ISSUE_TYPE_COLS`, проширен
+  `INCIDENT_COLS` (`ProjectID`, `TypeID`, `EpicLink`, `StoryPoints`,
+  `SprintID`, `Rank`) + ажуриран schema-lock; `db_service.py`: unique
+  индекси за двата нови клуча.
+- Тестови: `tests/test_projects.py` (7 unit + 3 route).
+
+## F4 — Резервации: календар + сервис за конфликти
+
+- `services/reservation_service.py` (нов): чисти `overlaps` (допир на
+  граници = конфликт, garbage → `ValueError`), `conflicts` (само `active`),
+  `create` (одбива преклоп со `ValidationError`); POST `/reservations`
+  сега минува низ `create()` наместо инлајн-проверката.
+- `GET /reservations/calendar?week=` — неделен grid (7 дена × уреди, денес
+  означен, невалиден `week` → тековна недела), `reservations_calendar.html`
+  (нов) и копче „Неделен календар" од листата.
+- Тестови: `tests/test_reserv_calendar.py` (6).
+
+## F5 — KB оценки и рангирање
+
+- `services/schemas.py`: `KB_RATING_COLS`; `services/kb_rating.py` (нов):
+  `vote` (1–5, upsert по напис+корисник), `average`, `ranked` (оценети
+  прво по просек, неоценети после, стабилно).
+- `routes/kb.py`: `POST /kb/<id>/rate` (`@require("admin","magacioner")`),
+  деталот прикажува просек + форма, листата сортирана преку `ranked`;
+  `app.py` store `kb_ratings`.
+- Тестови: `tests/test_kb_rating.py` (4 unit + 2 route).
+- Suite: 397 passed, 0 failed, 3 skipped (вкупно 400).
+
+## Jira Lite Phase 2 — Kanban табла
+
+- `services/board_service.py` (нов): чисти `columns_for`, `group_issues`
+  (непознат статус паѓа во првата колона, без губење), `apply_filters`
+  (assignee/тип/приоритет), `board_payload` (JSON-ready за шаблон).
+- `routes/boards.py` (нов): `GET /projects/<pid>/board` (филтери, `mine=1`,
+  `sprint=active` — само тикети од активниот спринт), `GET /my-board`
+  (сите проекти, assignee=јас); blueprint-от е регистриран во `app.py`.
+- `templates_web/board.html` (нов): read-only CSS-grid по колони со
+  бројачи и empty-state; картичката води на `/incidents/<id>`.
+- Тестови: `tests/test_board.py` (8).
+
+## Jira Lite Phase 3 — Backlog и спринтови
+
+- `services/schemas.py`: `SPRINT_COLS` (`planned|active|completed`);
+  `app.py` store `sprints` + blueprint `routes/sprints.py`.
+- `services/sprint_service.py` (нов): `create` (end > start, еден active
+  спринт по проект), `start`, `complete` (останатите назад во Backlog, без
+  губење), `move_to_sprint` (само open тикети), `backlog` (SprintID NULL
+  по `Rank`), `burndown` (remaining vs ideal по ден).
+- `routes/sprints.py` (нов): 8 рути — backlog листа, reorder, points
+  (Fibonacci dropdown), креирај/започни/заврши спринт, тикет → спринт,
+  детал со burndown.
+- `templates_web/backlog.html` и `templates_web/sprint.html` (нови;
+  burndown преку Chart.js); таблата филтрира по активен спринт.
+- Тестови: `tests/test_sprints.py` (8).
+
+## Jira Lite Phase 4a — Сервиси за соработка
+
+- `services/mention_service.py` (нов): `extract` (граници на интерпункција,
+  без дупликати, невалидни usernames игнорирани), `notify`
+  (`Kind="mention"`).
+- `services/watcher_service.py` (нов): `watch`/`unwatch` (toggle, еден ред
+  при дупликат), `list_watchers`, `notify_watchers`.
+- `services/worklog_service.py` (нов): `log` (мин ≥ 1, WorkedDate ≤ денес,
+  `ValidationError` при прекршување), `total_minutes`,
+  `minutes_by_assignee`.
+- `services/schemas.py`: `WATCHER_COLS`, `WORKLOG_COLS`, `VERSION_COLS`;
+  `app.py` store-ови `notifications`, `watchers`, `worklogs`, `versions`.
+- Тестови: `tests/test_collab.py` (8).
+
+## Jira Lite Phase 4b — Рути и UI за соработка
+
+- `routes/incidents.py`: `_can_act` (admin/magacioner), `_collab_ctx`
+  (watchers, збир работно време, верзии на проектот, корисници за
+  @mention), `_notify_collab` (прво mention-и `Kind="mention"`, потоа
+  assignee+watchers `Kind="incident"`, без дупликати); POST
+  `/incidents/<id>/watch`, `/unwatch`, `/log`, `/fixversion` (верзија мора
+  да припаѓа на истиот проект); емитери во коментар и транзиција на статус.
+- `templates_web/incident.html`: редови „Поени" и „FixVersion" (dropdown
+  за admin/magacioner), toggle за следење, „Работно време" (збир по
+  тикет + форма), @mention автокомплет (nonce-скрипта).
+- `services/project_service.py`: `WORKFLOWS["epic"]`
+  (`Backlog/In Progress/Done`) + тип `Epic` во default типови;
+  `INCIDENT_COLS` += `FixVersion` (авто-ALTER, без миграција).
+- Тестови: `tests/test_collab_routes.py` (8).
+
+## Jira Lite Phase 5 — Администрација и извештаи
+
+- `routes/projects.py`: `GET/POST /projects/<pid>/settings` (име, lead,
+  архивирање, типови), `POST .../types/<tid>/toggle`, `GET .../export`
+  (JSON шаблон), `POST /projects/import` (клонирање проект од JSON);
+  `templates_web/project_settings.html` (нов).
+- `/projects` листа прикажува бројки по проект преку
+  `analytics_service.by_project`.
+- Тестови: `tests/test_project_admin.py` (8).
+- Suite: 437 passed, 0 failed, 3 skipped (вкупно 440).
+
+## Jira Lite Подобрувања и Оптимизации (2026-10-30)
+
+- **Асинхрон SMTP dispatch (`services/notify_service.py`)**: `send_email_async`
+  преку `ThreadPoolExecutor(max_workers=2)` за моментален HTTP одговор при
+  задолжување, враќање и нотификации без блокирање на корисничкиот интерфејс.
+- **Интерактивен Drag & Drop (`templates_web/board.html`)**: Нативен HTML5
+  Drag & Drop на Канбан таблата со автоматска AJAX транзиција кон
+  `/incidents/transition` и зачувување на строг CSP nonce.
+- **Развојна околина**: Додаден `requirements-dev.txt` (`pytest`, `ruff`),
+  а `start.sh` сега автоматски ја користи локалната `.venv` виртуелна околина.
+- **Тест верификација**: 438 passed, 0 failed, 3 skipped (вкупно 441).
 
 ## Стартување
 
 ```bash
-python3 app.py            # http://127.0.0.1:5000 (или SERVICEDESK_PORT)
-python3 -m pytest tests/  # целосен suite
+bash start.sh             # стартува со .venv и отвора порта 5000
+python3 -m pytest tests/  # целосен suite (438 passed)
 ```
+
