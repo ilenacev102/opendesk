@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+<li class="breadcrumb-item"><a href="/">Почетна</a></li>
+<li class="breadcrumb-item active" aria-current="page">Известувања</li>
+</ol></nav>
+<h2>Известувања</h2>
+{% if rows %}
+<form method="post" action="/notifications/read" class="mb-3"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<button class="btn btn-sm btn-outline-primary" type="submit">Прочитај ги сите</button>
+</form>
+<div class="table-responsive"><table class="table table-striped">
+<thead><tr><th>Кога</th><th>Вид</th><th>Текст</th><th></th></tr></thead>
+<tbody>
+{% for n in rows %}
+<tr>
+<td>{{ n.Created }}</td>
+<td>{{ n.Kind }}</td>
+<td>{{ n.Text }}</td>
+<td>
+<form method="post" action="/notifications/read"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<input type="hidden" name="notif_id" value="{{ n.NotifID }}">
+<button class="btn btn-sm btn-outline-primary" type="submit">Прочитано</button>
+</form>
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table></div>
+{% else %}
+<div class="empty-state">Нема непрочитани известувања.</div>
+{% endif %}
+{% endblock %}

@@ -8,6 +8,19 @@
 <h2>{{ art.Title }}</h2>
 <p class="text-muted small">{{ art.ArticleID }}{% if art.Tags %} | {{ art.Tags }}{% endif %} | {{ art.Updated }}</p>
 <div class="card sd-card mb-3"><div class="card-body">{{ art.Body }}</div></div>
+<div class="card sd-card mb-3"><div class="card-body">
+<h5>Оценка</h5>
+<p class="mb-2">Просек: {% if avg is not none %}{{ avg }}/5{% else %}нема оценки{% endif %}</p>
+{% if current_user and current_user.is_authenticated and current_user.role in ('admin', 'magacioner') %}
+<form method="post" action="/kb/{{ art.ArticleID }}/rate" class="d-flex gap-2 align-items-center">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<select class="form-select form-select-sm" name="score" style="max-width: 100px">
+{% for s in [1, 2, 3, 4, 5] %}<option value="{{ s }}" {% if my_score == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+</select>
+<button class="btn btn-sm btn-primary" type="submit">Оцени</button>
+</form>
+{% endif %}
+</div></div>
 <h4>Измени</h4>
 <form method="post" action="/kb/{{ art.ArticleID }}/edit"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <div class="mb-2"><label>Наслов *</label><input class="form-control" name="Title" value="{{ art.Title }}" required></div>

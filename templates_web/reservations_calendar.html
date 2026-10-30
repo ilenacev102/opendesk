@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+<li class="breadcrumb-item"><a href="/">Почетна</a></li>
+<li class="breadcrumb-item"><a href="/reservations">Резервации</a></li>
+<li class="breadcrumb-item active" aria-current="page">Календар</li>
+</ol></nav>
+<h2>Календар на резервации</h2>
+<p class="text-muted">Недела од {{ week_start }} · <a href="/reservations">Список</a></p>
+<div class="table-responsive">
+<table class="table table-bordered">
+<thead><tr><th>Уред</th>
+{% for d in days %}
+<th{% if d.isoformat() == today %} class="table-primary"{% endif %}>{{ d.strftime("%d.%m") }}<br><span class="small">{{ d.isoformat() }}</span></th>
+{% endfor %}
+</tr></thead>
+<tbody>
+{% for aid, rs in grid.items() %}
+<tr><th>{{ aid }}</th>
+{% for d in days %}
+<td data-day="{{ d.isoformat() }}">
+{% for r in rs %}{% if r.FromDate[:10] <= d.isoformat() <= r.ToDate[:10] %}
+<span class="badge bg-secondary">{{ r.ReservationID }}</span> <span class="small">{{ r.EmployeeID }}</span>
+{% endif %}{% endfor %}
+</td>
+{% endfor %}
+</tr>
+{% else %}
+<tr><td colspan="8" class="text-center text-muted">Нема резервации оваа недела.</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% endblock %}

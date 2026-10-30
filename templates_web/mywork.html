@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+<li class="breadcrumb-item"><a href="/">Почетна</a></li>
+<li class="breadcrumb-item active" aria-current="page">Моја работа</li>
+</ol></nav>
+<h2>Моја работа</h2>
+<p class="text-muted">Сè што гори кај {{ who }} — тикети, рокови, транзит.</p>
+<div class="row g-3 mb-3">
+<div class="col-6 col-md-3"><div class="card sd-card"><div class="card-body"><div class="text-muted small">Отворени мои</div><div class="fs-4">{{ my_open|length }}</div></div></div></div>
+<div class="col-6 col-md-3"><div class="card sd-card"><div class="card-body"><div class="text-muted small">Пробиени</div><div class="fs-4">{{ breached|length }}</div></div></div></div>
+<div class="col-6 col-md-3"><div class="card sd-card"><div class="card-body"><div class="text-muted small">Рок до 2 дена</div><div class="fs-4">{{ due_soon|length }}</div></div></div></div>
+<div class="col-6 col-md-3"><div class="card sd-card"><div class="card-body"><div class="text-muted small">Транзит чека</div><div class="fs-4">{{ pending_receives|length }}</div></div></div></div>
+</div>
+<h4>Мои тикети</h4>
+<div class="table-responsive"><table class="table table-striped">
+<thead><tr><th>ID</th><th>Наслов</th><th>Статус</th><th>Рок</th></tr></thead>
+<tbody>
+{% for i in my_open %}
+<tr><td><a href="/incidents/{{ i.IncidentID }}">{{ i.IncidentID }}</a></td><td>{{ i.Title }}</td><td>{{ i.Status }}</td><td>{{ i.DueDate or "—" }}</td></tr>
+{% endfor %}
+</tbody>
+</table></div>
+{% if not my_open %}
+<div class="empty-state">Нема отворени тикети.</div>
+{% endif %}
+{% endblock %}
