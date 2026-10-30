@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+<li class="breadcrumb-item"><a href="/">Почетна</a></li>
+<li class="breadcrumb-item"><a href="/projects">Проекти</a></li>
+<li class="breadcrumb-item"><a href="/projects/{{ project.ProjectID }}">{{ project.Name }}</a></li>
+<li class="breadcrumb-item active" aria-current="page">Поставки</li>
+</ol></nav>
+<h2>Поставки — {{ project.Name }}</h2>
+<div class="row g-3">
+<div class="col-lg-6">
+<div class="card sd-card mb-3">
+<div class="card-body">
+<h5>Податоци</h5>
+<form method="post" action="/projects/{{ project.ProjectID }}/settings">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<div class="mb-2"><label class="form-label">Име</label>
+<input class="form-control" name="name" required maxlength="120" value="{{ project.Name }}"></div>
+<div class="mb-2"><label class="form-label">Лидер</label>
+<input class="form-control" name="lead" maxlength="64" value="{{ project.Lead }}"></div>
+<div class="mb-2"><label class="form-label">Опис</label>
+<textarea class="form-control" name="description" maxlength="240" rows="3">{{ project.Description }}</textarea></div>
+<button class="btn btn-primary" type="submit">Зачувај</button>
+</form>
+</div>
+</div>
+<div class="card sd-card mb-3">
+<div class="card-body">
+<h5>Типови тикети</h5>
+<div class="table-responsive">
+<table class="table table-striped">
+<thead><tr><th>Име</th><th>Workflow</th><th>Приоритет</th><th>Активен</th><th></th></tr></thead>
+<tbody>
+{% for t in types %}
+<tr>
+<td>{{ t.Name }}</td>
+<td>{{ t.Workflow }}</td>
+<td>{{ t.DefaultPriority }}</td>
+<td>{% if t.Active == 'YES' %}да{% else %}не{% endif %}</td>
+<td class="text-end">
+<form method="post" action="/projects/{{ project.ProjectID }}/types/{{ t.TypeID }}/toggle" class="d-inline">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<button class="btn btn-outline-secondary btn-sm" type="submit">
+{% if t.Active == 'YES' %}Деактивирај{% else %}Активирај{% endif %}
+</button>
+</form>
+</td>
+</tr>
+{% else %}
+<tr><td colspan="5" class="text-center text-muted">Нема типови.</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+<div class="col-lg-6">
+<div class="card sd-card mb-3">
+<div class="card-body">
+<h5>Колони на табла</h5>
+{% for name, cols in workflows.items() %}
+<p class="mb-1"><strong>{{ name }}:</strong> {{ cols | join(' → ') }}</p>
+{% endfor %}
+</div>
+</div>
+<div class="card sd-card mb-3">
+<div class="card-body">
+<h5>Шаблон</h5>
+<p class="text-muted small">Извези го проектот како JSON или увези шаблон за нов сличен проект (клучот се уникатизира при увоз).</p>
+<a class="btn btn-outline-primary btn-sm" href="/projects/{{ project.ProjectID }}/export">Извези JSON</a>
+<form method="post" action="/projects/import" enctype="multipart/form-data" class="mt-2">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<div class="row g-2">
+<div class="col-md-8"><input class="form-control" type="file" name="file" accept="application/json" required></div>
+<div class="col-md-4"><button class="btn btn-primary" type="submit">Увези</button></div>
+</div>
+</form>
+</div>
+</div>
+{% if project.Status == 'active' %}
+<div class="card sd-card mb-3">
+<div class="card-body">
+<h5>Архивирање</h5>
+<form method="post" action="/projects/{{ project.ProjectID }}/archive">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<button class="btn btn-outline-danger" type="submit">Архивирај го проектот</button>
+</form>
+</div>
+</div>
+{% endif %}
+</div>
+</div>
+<a class="btn btn-link" href="/projects/{{ project.ProjectID }}">Назад кон проектот</a>
+{% endblock %}

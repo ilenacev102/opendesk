@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+<li class="breadcrumb-item"><a href="/">Почетна</a></li>
+<li class="breadcrumb-item"><a href="/projects">Проекти</a></li>
+{% if project %}<li class="breadcrumb-item"><a href="/projects/{{ project.ProjectID }}">{{ project.Name }}</a></li>
+<li class="breadcrumb-item"><a href="/projects/{{ project.ProjectID }}/backlog">Backlog</a></li>{% endif %}
+<li class="breadcrumb-item active" aria-current="page">{{ sprint.Name }}</li>
+</ol></nav>
+<h2>{{ sprint.Name }}
+{% if sprint.Status == 'active' %}<span class="badge badge-st st-Assigned">active</span>
+{% elif sprint.Status == 'completed' %}<span class="badge badge-st st-Repaired">completed</span>
+{% else %}<span class="badge badge-st st-Repair">planned</span>{% endif %}
+</h2>
+<p class="text-muted">{{ sprint.Goal or 'Без цел.' }}</p>
+<p class="small">Период: {{ sprint.StartDate }} → {{ sprint.EndDate }}</p>
+{% if can_plan %}
+<div class="mb-3 d-flex gap-2">
+{% if sprint.Status == 'planned' %}
+<form method="post" action="/sprints/{{ sprint.SprintID }}/start">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<button class="btn btn-primary" type="submit">Започни</button>
+</form>
+{% elif sprint.Status == 'active' %}
+<form method="post" action="/sprints/{{ sprint.SprintID }}/complete">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<button class="btn btn-outline-danger" type="submit">Заврши</button>
+</form>
+{% endif %}
+</div>
+{% endif %}
+<div class="row g-3 mb-3">
+<div class="col-6 col-md-3"><div class="card sd-card"><div class="card-body"><div class="text-muted small">Тикети</div><div class="fs-4">{{ tickets|length }}</div></div></div></div>
+<div class="col-6 col-md-3"><div class="card sd-card"><div class="card-body"><div class="text-muted small">Вкупно поени</div><div class="fs-4">{{ total_points }}</div></div></div></div>
+<div class="col-6 col-md-3"><div class="card sd-card"><div class="card-body"><div class="text-muted small">Остаток поени</div><div class="fs-4">{{ chart.remaining[-1] if chart.remaining else 0 }}</div></div></div></div>
+<div class="col-6 col-md-3"><div class="card sd-card"><div class="card-body"><div class="text-muted small">Идеално</div><div class="fs-4">{{ chart.ideal[-1] if chart.ideal else 0 }}</div></div></div></div>
+</div>
+<div class="card sd-card mb-3">
+<div class="card-body">
+<h5>Burndown</h5>
+<div class="chart-box"><canvas id="chBurndown"></canvas></div>
+</div>
+</div>
+<div class="card sd-card mb-3">
+<div class="card-body">
+<h5>Тикети спринта</h5>
+<div class="table-responsive">
+<table class="table table-striped">
+<thead><tr><th>Тикет</th><th>Наслов</th><th>Статус</th><th>Носител</th><th>Приоритет</th><th>Поени</th></tr></thead>
+<tbody>
+{% for t in tickets %}
+<tr>
+<td><a href="/incidents/{{ t.IncidentID }}">{{ t.IncidentID }}</a></td>
+<td>{{ t.Title }}</td>
+<td>{{ t.Status }}</td>
+<td>{{ t.Assignee or '—' }}</td>
+<td>{{ t.Priority }}</td>
+<td>{% if t.StoryPoints %}<span class="badge badge-st st-Assigned">{{ t.StoryPoints }}</span>{% else %}—{% endif %}</td>
+</tr>
+{% else %}
+<tr><td colspan="6" class="text-center text-muted">Нема тикети во спринтот.</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<script src="/static/js/chart.umd.min.js"></script>
+<script nonce="{{ csp_nonce }}">
+const sdChart = {{ chart | tojson }};
+const sdThemeDark = document.documentElement.getAttribute("data-bs-theme") === "dark";
+const sdCol = sdThemeDark
+  ? { text: "#e6edf5", grid: "rgba(230,237,245,0.12)", accent: "#60a5fa" }
+  : { text: "#1c2733", grid: "rgba(28,39,51,0.08)", accent: "#2563eb" };
+Chart.defaults.color = sdCol.text;
+Chart.defaults.borderColor = sdCol.grid;
+new Chart(document.getElementById("chBurndown"), {
+  type: "line",
+  data: {
+    labels: sdChart.days,
+    datasets: [
+      {
+        label: "Остаток",
+        data: sdChart.remaining,
+        borderColor: sdCol.accent,
+        backgroundColor: sdCol.accent,
+        tension: 0.25,
+        fill: false
+      },
+      {
+        label: "Идеално",
+        data: sdChart.ideal,
+        borderColor: "#84cc16",
+        borderDash: [6, 4],
+        tension: 0,
+        fill: false
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+    plugins: { legend: { position: "bottom" } }
+  }
+});
+</script>
+{% endblock %}

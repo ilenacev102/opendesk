@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+<li class="breadcrumb-item"><a href="/">Почетна</a></li>
+<li class="breadcrumb-item"><a href="/projects">Проекти</a></li>
+<li class="breadcrumb-item active" aria-current="page">{{ project.Name }}</li>
+</ol></nav>
+<h2>{{ project.Name }} <small class="text-muted fs-6">({{ project.Key }})</small></h2>
+{% if current_user and current_user.role == 'admin' %}
+<a class="btn btn-sm btn-outline-secondary mb-2" href="/projects/{{ project.ProjectID }}/settings">Поставки</a>
+{% endif %}
+<div class="row g-3 mb-3">
+<div class="col-6 col-md-3"><div class="card sd-card"><div class="card-body"><div class="text-muted small">Вкупно</div><div class="fs-4">{{ stats.total }}</div></div></div></div>
+<div class="col-6 col-md-3"><div class="card sd-card"><div class="card-body"><div class="text-muted small">Отворени</div><div class="fs-4">{{ stats['open'] }}</div></div></div></div>
+<div class="col-6 col-md-3"><div class="card sd-card"><div class="card-body"><div class="text-muted small">In Progress</div><div class="fs-4">{{ stats['in-progress'] }}</div></div></div></div>
+<div class="col-6 col-md-3"><div class="card sd-card"><div class="card-body"><div class="text-muted small">Resolved</div><div class="fs-4">{{ stats['resolved'] }}</div></div></div></div>
+</div>
+<div class="card sd-card mb-3">
+<div class="card-body">
+<h5>Податоци</h5>
+<p class="mb-1"><strong>Лидер:</strong> {{ project.Lead or '—' }}</p>
+<p class="mb-1"><strong>Статус:</strong> {{ project.Status }}</p>
+<p class="mb-1"><strong>Опис:</strong> {{ project.Description or '—' }}</p>
+<p class="mb-0"><strong>Креиран:</strong> {{ project.Created }}</p>
+{% if current_user and current_user.role == 'admin' and project.Status == 'active' %}
+<form method="post" action="/projects/{{ project.ProjectID }}/archive" class="mt-2 d-inline">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<button class="btn btn-outline-danger btn-sm" type="submit">Архивирај</button>
+</form>
+{% endif %}
+</div>
+</div>
+<div class="card sd-card mb-3">
+<div class="card-body">
+<h5>Типови тикети</h5>
+<div class="table-responsive">
+<table class="table table-striped">
+<thead><tr><th>Име</th><th>Workflow</th><th>Приоритет</th></tr></thead>
+<tbody>
+{% for t in types %}
+<tr><td>{{ t.Name }}</td><td>{{ t.Workflow }}</td><td>{{ t.DefaultPriority }}</td></tr>
+{% else %}
+<tr><td colspan="3" class="text-center text-muted">Нема типови.</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% if current_user and current_user.role == 'admin' %}
+<form method="post" action="/projects/{{ project.ProjectID }}/types">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<div class="row g-2">
+<div class="col-md-4"><label class="form-label">Име</label>
+<input class="form-control" name="name" required maxlength="80"></div>
+<div class="col-md-4"><label class="form-label">Workflow</label>
+<select class="form-select" name="workflow">
+<option value="incident">incident</option>
+<option value="request">request</option>
+<option value="task">task</option>
+<option value="change">change</option>
+</select></div>
+<div class="col-md-4"><label class="form-label">Приоритет</label>
+<select class="form-select" name="default_priority">
+<option value="low">low</option>
+<option value="medium" selected>medium</option>
+<option value="high">high</option>
+</select></div>
+</div>
+<button class="btn btn-primary mt-2" type="submit">Додај тип</button>
+</form>
+{% endif %}
+</div>
+</div>
+{% endblock %}

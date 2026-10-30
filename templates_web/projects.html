@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+<li class="breadcrumb-item"><a href="/">Почетна</a></li>
+<li class="breadcrumb-item active" aria-current="page">Проекти</li>
+</ol></nav>
+<h2>Проекти</h2>
+<div class="table-responsive">
+<table class="table table-striped sortable">
+<thead><tr><th data-sort>Име</th><th data-sort>Клуч</th><th data-sort>Лидер</th><th data-sort>Статус</th><th data-sort>Тикети</th><th data-sort>Отворени</th><th data-sort>Затворени</th><th data-sort>Пробиени</th><th data-sort>Најстари отворен</th></tr></thead>
+<tbody>
+{% for p in projects %}
+<tr>
+<td><a href="/projects/{{ p.ProjectID }}">{{ p.Name }}</a></td>
+<td>{{ p.Key }}</td>
+<td>{{ p.Lead }}</td>
+<td>{{ p.Status }}</td>
+<td>{{ counts.get(p.ProjectID, {}).get('total', 0) }}</td>
+<td>{{ counts.get(p.ProjectID, {}).get('open', 0) }}</td>
+<td>{{ counts.get(p.ProjectID, {}).get('closed', 0) }}</td>
+<td>{{ counts.get(p.ProjectID, {}).get('breached', 0) }}</td>
+<td>{{ counts.get(p.ProjectID, {}).get('oldest_open') or '—' }}</td>
+</tr>
+{% else %}
+<tr><td colspan="9" class="text-center text-muted">Нема проекти.</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% if current_user and current_user.role == 'admin' %}
+<div class="card sd-card mt-3">
+<div class="card-body">
+<h5>Нов проект</h5>
+<form method="post" action="/projects">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<div class="row g-2">
+<div class="col-md-4"><label class="form-label">Име</label>
+<input class="form-control" name="name" required maxlength="120"></div>
+<div class="col-md-2"><label class="form-label">Клуч</label>
+<input class="form-control" name="key" required minlength="2" maxlength="6" placeholder="PRJ"></div>
+<div class="col-md-3"><label class="form-label">Лидер</label>
+<input class="form-control" name="lead" maxlength="64"></div>
+<div class="col-md-3"><label class="form-label">Опис</label>
+<input class="form-control" name="description" maxlength="240"></div>
+</div>
+<button class="btn btn-primary mt-2" type="submit">Креирај</button>
+</form>
+</div>
+</div>
+{% endif %}
+{% endblock %}

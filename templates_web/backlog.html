@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+<li class="breadcrumb-item"><a href="/">Почетна</a></li>
+<li class="breadcrumb-item"><a href="/projects">Проекти</a></li>
+<li class="breadcrumb-item"><a href="/projects/{{ project.ProjectID }}">{{ project.Name }}</a></li>
+<li class="breadcrumb-item active" aria-current="page">Backlog</li>
+</ol></nav>
+<h2>Backlog — {{ project.Name }}</h2>
+{% if can_plan %}
+<div class="card sd-card mb-3">
+<div class="card-body">
+<h5>Нов спринт</h5>
+<form method="post" action="/projects/{{ project.ProjectID }}/sprints">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<div class="row g-2">
+<div class="col-md-3"><label class="form-label">Име</label>
+<input class="form-control" name="name" required maxlength="80"></div>
+<div class="col-md-3"><label class="form-label">Цел</label>
+<input class="form-control" name="goal" maxlength="200"></div>
+<div class="col-md-3"><label class="form-label">Почеток</label>
+<input class="form-control" type="date" name="start_date" required></div>
+<div class="col-md-3"><label class="form-label">Крај</label>
+<input class="form-control" type="date" name="end_date" required></div>
+</div>
+<button class="btn btn-primary mt-2" type="submit">Креирај спринт</button>
+</form>
+</div>
+</div>
+{% endif %}
+<div class="card sd-card mb-3">
+<div class="card-body">
+<h5>Спринтови</h5>
+<div class="table-responsive">
+<table class="table table-striped">
+<thead><tr><th>Име</th><th>Период</th><th>Статус</th><th>Цел</th></tr></thead>
+<tbody>
+{% for s in sprints %}
+<tr>
+<td><a href="/sprints/{{ s.SprintID }}">{{ s.Name }}</a></td>
+<td>{{ s.StartDate }} → {{ s.EndDate }}</td>
+<td>{{ s.Status }}</td>
+<td>{{ s.Goal or '—' }}</td>
+</tr>
+{% else %}
+<tr><td colspan="4" class="text-center text-muted">Нема спринтови.</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div class="card sd-card mb-3">
+<div class="card-body">
+<h5>Тикети во backlog ({{ rows|length }})</h5>
+<div class="table-responsive">
+<table class="table table-striped">
+<thead><tr><th>Тикет</th><th>Наслов</th><th>Статус</th><th>Приоритет</th><th>Поени</th>{% if can_plan %}<th>Ранг</th><th>Спринт</th>{% endif %}</tr></thead>
+<tbody>
+{% for i in rows %}
+<tr>
+<td><a href="/incidents/{{ i.IncidentID }}">{{ i.IncidentID }}</a></td>
+<td>{{ i.Title }}</td>
+<td>{{ i.Status }}</td>
+<td>{{ i.Priority }}</td>
+<td>
+{% if can_plan %}
+<form method="post" action="/projects/{{ project.ProjectID }}/backlog/points" class="d-flex gap-1">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<input type="hidden" name="incident" value="{{ i.IncidentID }}">
+<select class="form-select form-select-sm" name="story_points" aria-label="Поени">
+{% for p in points_choices %}<option value="{{ p }}" {% if i.StoryPoints == p %}selected{% endif %}>{{ p }}</option>{% endfor %}
+</select>
+<button class="btn btn-outline-secondary btn-sm" type="submit">Зачувај</button>
+</form>
+{% else %}
+{{ i.StoryPoints or '—' }}
+{% endif %}
+</td>
+{% if can_plan %}
+<td>
+<form method="post" action="/projects/{{ project.ProjectID }}/backlog/reorder" class="d-flex gap-1">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<input type="hidden" name="incident" value="{{ i.IncidentID }}">
+<input class="form-control form-control-sm" name="rank" style="width:5rem" value="{{ i.Rank or 0 }}" aria-label="Ранг">
+<button class="btn btn-outline-secondary btn-sm" type="submit">Помести</button>
+</form>
+</td>
+<td>
+{% if openable %}
+<form method="post" action="/sprints/{{ openable[0].SprintID }}/move" class="d-flex gap-1">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<input type="hidden" name="incident" value="{{ i.IncidentID }}">
+<select class="form-select form-select-sm" name="sprint_pick" data-move aria-label="Спринт">
+{% for s in openable %}<option value="{{ s.SprintID }}">{{ s.Name }}</option>{% endfor %}
+</select>
+<button class="btn btn-outline-primary btn-sm" type="submit">Додај во спринт</button>
+</form>
+{% endif %}
+</td>
+{% endif %}
+</tr>
+{% else %}
+<tr><td colspan="7" class="text-center text-muted">Backlog-от е празен.</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+</div>
+{% if can_plan and openable %}
+<script nonce="{{ csp_nonce }}">
+document.querySelectorAll("select[data-move]").forEach(function (sel) {
+  function sync() {
+    if (sel.value) sel.form.action = "/sprints/" + sel.value + "/move";
+  }
+  sel.addEventListener("change", sync);
+  sync();
+});
+</script>
+{% endif %}
+{% endblock %}
