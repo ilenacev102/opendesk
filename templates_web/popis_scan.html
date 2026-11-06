@@ -6,7 +6,7 @@
 <li class="breadcrumb-item active" aria-current="page">Скенер</li>
 </ol></nav>
 <h2>Скенер — попис {{ pid }}</h2>
-<p>Најдени: <b id="scan-count">{{ found }}/{{ total }}</b>{% if status != "OPEN" %} <span class="badge badge-st st-Repair">затворен</span>{% endif %}</p>
+<p>Најдени: <b id="scan-count">{{ found }}/{{ total }}</b> <span id="scan-net-badge" class="badge bg-success ms-2"><svg class="ic me-1" aria-hidden="true"><use href="#i-check"/></svg>Онлајн</span>{% if status != "OPEN" %} <span class="badge badge-st st-Repair">затворен</span>{% endif %}</p>
 <div id="scan-app" data-pid="{{ pid }}" data-csrf="{{ csrf_token }}" data-total="{{ total }}">
 <div class="card sd-card mb-3"><div class="card-body">
 <video id="scan-video" class="w-100" playsinline muted></video>

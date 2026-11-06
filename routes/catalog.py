@@ -26,9 +26,11 @@ def _parse_seats(raw):
     return val
 
 
-def _license_seat_change(lid, delta, emp_id, action):
+def _license_seat_change(lid, delta, emp_id, action, assigned_to_type="employee", notes=""):
+    import app as app_mod
     import config
     from app import backup_all, history, licenses
+    from utils.helpers import next_id, stamp
 
     row = licenses.find("LicenseID", lid)
     if row is None:
@@ -39,8 +41,37 @@ def _license_seat_change(lid, delta, emp_id, action):
     if new_used < 0 or new_used > seats:
         raise ValidationError(f"Недозволено: зафатени {used} од {seats} седишта.")
     licenses.update_where("LicenseID", lid, {"SeatsUsed": str(new_used)})
-    if config.BACKUP_ON_WRITE:
-        backup_all([licenses])
+
+    seats_store = getattr(app_mod, "license_seats", None)
+    if seats_store is not None:
+        if delta > 0:
+            sid = next_id(seats_store, "SeatID", "SEAT")
+            seats_store.append_row(
+                {
+                    "SeatID": sid,
+                    "LicenseID": lid,
+                    "AssignedToType": assigned_to_type or "employee",
+                    "AssignedToID": emp_id or "Unassigned",
+                    "AssignedDate": stamp().split(" ")[0],
+                    "Notes": notes or "",
+                }
+            )
+            if config.BACKUP_ON_WRITE:
+                backup_all([licenses, seats_store])
+        elif delta < 0:
+            matching = [
+                s for s in seats_store.records()
+                if s.get("LicenseID") == lid and (not emp_id or s.get("AssignedToID") == emp_id)
+            ]
+            if matching:
+                target_sid = matching[-1].get("SeatID")
+                seats_store.delete_where("SeatID", target_sid)
+            if config.BACKUP_ON_WRITE:
+                backup_all([licenses, seats_store])
+    else:
+        if config.BACKUP_ON_WRITE:
+            backup_all([licenses])
+
     history.log(action, lid, str(used), str(new_used), emp_id, "", "", "", "admin", "")
     return new_used
 
@@ -164,6 +195,8 @@ def licenses_view():
         return redirect(url_for("catalog.licenses_view"))
     import datetime as _dt
 
+    import app as app_mod
+
     rows = licenses.records()
     today = _dt.date.today()
     expiring_ids = set()
@@ -174,17 +207,42 @@ def licenses_view():
             continue
         if today <= exp <= today + _dt.timedelta(days=30):
             expiring_ids.add(r.get("LicenseID", ""))
-    return render_template("licenses.html", rows=rows, expiring_ids=expiring_ids)
+
+    seats_store = getattr(app_mod, "license_seats", None)
+    seats_by_license = {}
+    if seats_store is not None:
+        for s in seats_store.records():
+            seats_by_license.setdefault(s.get("LicenseID", ""), []).append(s)
+
+    emp_list = app_mod.employees.records() if hasattr(app_mod, "employees") else []
+    dev_list = app_mod.devices.records() if hasattr(app_mod, "devices") else []
+
+    return render_template(
+        "licenses.html",
+        rows=rows,
+        expiring_ids=expiring_ids,
+        seats_by_license=seats_by_license,
+        emp_list=emp_list,
+        dev_list=dev_list,
+    )
 
 
 @bp.route("/licenses/assign", methods=["POST"])
 def licenses_assign():
     try:
+        target_id = (
+            request.form.get("emp_id", "").strip()
+            or request.form.get("assigned_to_id", "").strip()
+        )
+        assigned_to_type = request.form.get("assigned_to_type", "employee").strip()
+        notes = request.form.get("notes", "").strip()
         new_used = _license_seat_change(
             request.form.get("license_id", "").strip(),
             1,
-            request.form.get("emp_id", "").strip(),
+            target_id,
             "LIC_ASSIGN",
+            assigned_to_type=assigned_to_type,
+            notes=notes,
         )
         flash(f"Седиште доделено. Зафатени: {new_used}.", "success")
     except ValidationError as exc:
@@ -202,6 +260,47 @@ def licenses_revoke():
             "LIC_REVOKE",
         )
         flash(f"Седиште ослободено. Зафатени: {new_used}.", "success")
+    except ValidationError as exc:
+        flash(f"ГРЕШКА: {exc}", "danger")
+    return redirect(url_for("catalog.licenses_view"))
+
+
+@bp.route("/licenses/seat/revoke", methods=["POST"])
+def licenses_seat_revoke():
+    import app as app_mod
+    import config
+    from app import backup_all, history, licenses
+
+    seat_id = request.form.get("seat_id", "").strip()
+    try:
+        seats_store = getattr(app_mod, "license_seats", None)
+        if seats_store is None:
+            raise ValidationError("Складиштето за седишта не е активно.")
+        seat = seats_store.find("SeatID", seat_id)
+        if not seat:
+            raise ValidationError(f"Седиштето {seat_id} не постои.")
+        lid = seat.get("LicenseID", "")
+        lic_row = licenses.find("LicenseID", lid)
+        if lic_row:
+            used = _parse_seats(lic_row.get("SeatsUsed", "0"))
+            new_used = max(0, used - 1)
+            licenses.update_where("LicenseID", lid, {"SeatsUsed": str(new_used)})
+            history.log(
+                "LIC_REVOKE",
+                lid,
+                str(used),
+                str(new_used),
+                seat.get("AssignedToID", ""),
+                "",
+                f"Seat {seat_id} revoked",
+                "",
+                "admin",
+                "",
+            )
+        seats_store.delete_where("SeatID", seat_id)
+        if config.BACKUP_ON_WRITE:
+            backup_all([licenses, seats_store])
+        flash(f"Седиштето {seat_id} е успешно ослободено.", "success")
     except ValidationError as exc:
         flash(f"ГРЕШКА: {exc}", "danger")
     return redirect(url_for("catalog.licenses_view"))

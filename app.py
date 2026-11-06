@@ -1,26 +1,18 @@
 """IT ServiceDesk - Flask app (phased build, runnable after every phase)."""
 
-import json
 import logging
 import logging.handlers
 import os
 import secrets
-import sqlite3
-import time
 import uuid
-from collections import Counter
 
 from flask import (
     Flask,
     abort,
-    flash,
     g,
-    redirect,
     render_template,
     request,
-    send_file,
     session,
-    url_for,
 )
 
 import config
@@ -91,7 +83,7 @@ def inject_unread_count():
     return {"unread_count": count}
 
 
-from services.schemas import (  # noqa: E402
+from services.schemas import (
     COMMENT_COLS,
     CONS_COLS,
     CONTRACT_COLS,
@@ -106,12 +98,16 @@ from services.schemas import (  # noqa: E402
     KB_RATING_COLS,
     LDAPMAP_COLS,
     LIC_COLS,
+    LIC_SEAT_COLS,
+    MAINT_SCHEDULE_COLS,
     NOTIF_COLS,
     PROJECT_COLS,
+    RACK_COLS,
+    RACK_ITEM_COLS,
     REQUEST_COLS,
     RESERV_COLS,
-    SPRINT_COLS,
     SLA_POLICY_COLS,
+    SPRINT_COLS,
     STAGING_COLS,
     VERSION_COLS,
     WATCHER_COLS,
@@ -123,12 +119,13 @@ DB_PATH = os.environ.get(
     "SERVICEDESK_DB", os.path.join(config.DATA_DIR, "servicedesk.db")
 )
 
-from services.db_service import open_store  # noqa: E402
+from services.db_service import open_store
 
 employees = open_store(DB_PATH, "employees", None, EMP_COLS)
 devices = open_store(DB_PATH, "devices", None, DEV_COLS)
 consumables = open_store(DB_PATH, "consumables", None, CONS_COLS)
 licenses = open_store(DB_PATH, "licenses", None, LIC_COLS)
+license_seats = open_store(DB_PATH, "license_seats", None, LIC_SEAT_COLS)
 field_defs = open_store(DB_PATH, "field_defs", None, FIELD_DEF_COLS)
 field_values = open_store(DB_PATH, "field_values", None, FIELD_VAL_COLS)
 contracts = open_store(DB_PATH, "contracts", None, CONTRACT_COLS)
@@ -149,6 +146,11 @@ watchers = open_store(DB_PATH, "watchers", None, WATCHER_COLS)
 worklogs = open_store(DB_PATH, "worklogs", None, WORKLOG_COLS)
 versions = open_store(DB_PATH, "versions", None, VERSION_COLS)
 sprints = open_store(DB_PATH, "sprints", None, SPRINT_COLS)
+racks = open_store(DB_PATH, "racks", None, RACK_COLS)
+rack_items = open_store(DB_PATH, "rack_items", None, RACK_ITEM_COLS)
+maintenance_schedules = open_store(
+    DB_PATH, "maintenance_schedules", None, MAINT_SCHEDULE_COLS
+)
 
 PATHS = {
     "db": DB_PATH,
@@ -160,12 +162,12 @@ PATHS = {
     "history": os.path.join(config.TRANSACTIONS_DIR, "History.csv"),
 }
 
-from services.assignment_service import AssignmentService  # noqa: E402
-from services.api_token_service import TOKEN_COLS, ApiTokenService  # noqa: E402
-from services.auth_service import USER_COLS, AuthService  # noqa: E402
-from services.disposal_service import DisposalService  # noqa: E402
-from services.history_service import HISTORY_COLS, HistoryService  # noqa: E402
-from services.notify_service import (  # noqa: E402
+from services.api_token_service import TOKEN_COLS, ApiTokenService
+from services.assignment_service import AssignmentService
+from services.auth_service import USER_COLS, AuthService
+from services.disposal_service import DisposalService
+from services.history_service import HISTORY_COLS, HistoryService
+from services.notify_service import (  # noqa: F401
     assignment_email,
     digest_email,
     return_email,
@@ -173,16 +175,16 @@ from services.notify_service import (  # noqa: E402
     send_email_async,
     warranty_expiring,
 )
-from services.popis_service import PopisService  # noqa: E402
-from services.qr_service import qr_png_bytes  # noqa: E402
-from services.repair_closure import RepairClosureService  # noqa: E402
-from services.repair_service import RepairService  # noqa: E402
-from services.replacement_service import ReplacementService  # noqa: E402
-from services.return_service import ReturnService  # noqa: E402
-from services.signature import decode_signature  # noqa: E402
-from services.ratelimit import is_allowed as _rate_ok  # noqa: E402
-from utils.helpers import backup_all, stamp  # noqa: E402
-from utils.validators import ValidationError  # noqa: E402
+from services.popis_service import PopisService
+from services.qr_service import qr_png_bytes  # noqa: F401
+from services.ratelimit import is_allowed as _rate_ok
+from services.repair_closure import RepairClosureService
+from services.repair_service import RepairService
+from services.replacement_service import ReplacementService
+from services.return_service import ReturnService
+from services.signature import decode_signature  # noqa: F401
+from utils.helpers import backup_all, stamp  # noqa: F401
+from utils.validators import ValidationError
 
 history = HistoryService(
     open_store(PATHS["db"], "history", PATHS["history"], HISTORY_COLS)
@@ -255,7 +257,7 @@ try:
         except ValueError:
             pass
 except ImportError:  # Flask-Login недостапен: рутите остануваат отворени
-    login_required = lambda f: f  # noqa: E731
+    login_required = lambda f: f
     current_user = None
 
     class AppUser:  # минимален fallback за /login без Flask-Login
@@ -332,7 +334,8 @@ def enforce_auth():
     from flask import flash as _flash
 
     _flash("Најавете се за да продолжите.", "warning")
-    from flask import redirect as _redirect, url_for as _url_for
+    from flask import redirect as _redirect
+    from flask import url_for as _url_for
 
     return _redirect(_url_for("admin.login", next=request.path))
 
@@ -340,16 +343,16 @@ def enforce_auth():
 @app.before_request
 def csrf_protect():
     if not app.config.get("CSRF_ENABLED"):
-        return None
+        return
     if request.method != "POST":
-        return None
+        return
     from services.csrf import is_valid, should_enforce
 
     if not should_enforce(request.path or ""):
-        return None
+        return
     if not is_valid(session, request):
         abort(403)
-    return None
+    return
 
 
 def roles_required(*roles):
@@ -500,13 +503,15 @@ from routes.boards import bp as boards_bp
 from routes.catalog import bp as catalog_bp
 from routes.cmdb import bp as cmdb_bp
 from routes.files import bp as files_bp
-from routes.inventory import bp as inventory_bp
 from routes.incidents import bp as incidents_bp
+from routes.inventory import bp as inventory_bp
 from routes.kb import bp as kb_bp
+from routes.maintenance import bp as maintenance_bp
 from routes.operations import bp as operations_bp
 from routes.popis import bp as popis_bp
 from routes.portal import bp as portal_bp
 from routes.projects import bp as projects_bp
+from routes.racks import bp as racks_bp
 from routes.reports import bp as reports_bp
 from routes.sprints import bp as sprints_bp
 from routes.system import bp as system_bp
@@ -520,10 +525,12 @@ app.register_blueprint(files_bp)
 app.register_blueprint(inventory_bp)
 app.register_blueprint(incidents_bp)
 app.register_blueprint(kb_bp)
+app.register_blueprint(maintenance_bp)
 app.register_blueprint(operations_bp)
 app.register_blueprint(popis_bp)
 app.register_blueprint(portal_bp)
 app.register_blueprint(projects_bp)
+app.register_blueprint(racks_bp)
 app.register_blueprint(reports_bp)
 app.register_blueprint(sprints_bp)
 app.register_blueprint(system_bp)

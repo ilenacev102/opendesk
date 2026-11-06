@@ -1,47 +1,173 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Софтверски лиценци</h2>
-<div class="table-responsive"><table class="table table-striped">
-<thead><tr><th>ID</th><th>Софтвер</th><th>Седишта</th><th>Истек</th><th>Добавувач</th><th>Акции</th></tr></thead>
-<tbody>
-{% for r in rows %}
-<tr{% if r.LicenseID in expiring_ids %} class="table-warning"{% endif %}>
-<td><b>{{ r.LicenseID }}</b>{% if r.LicenseID in expiring_ids %} <span class="badge bg-warning text-dark">Истекува</span>{% endif %}</td>
-<td>{{ r.Software }}</td>
-<td>{{ r.SeatsUsed }} / {{ r.Seats }}</td>
-<td>{{ r.ExpiryDate or "—" }}</td>
-<td>{{ r.Supplier or "—" }}</td>
-<td>
-<div class="d-flex gap-1">
-<form method="post" action="/licenses/assign" class="d-flex gap-1"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-<input type="hidden" name="license_id" value="{{ r.LicenseID }}">
-<input class="form-control form-control-sm" style="max-width:6rem" name="emp_id" placeholder="вработен">
-<button class="btn btn-sm btn-outline-primary" type="submit">Додели</button>
-</form>
-<form method="post" action="/licenses/revoke"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-<input type="hidden" name="license_id" value="{{ r.LicenseID }}">
-<button class="btn btn-sm btn-outline-secondary" type="submit">Ослободи</button>
-</form>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h2><svg class="ic me-2" aria-hidden="true"><use href="#i-file"/></svg>Софтверски лиценци</h2>
+    <p class="text-muted mb-0">Управување со софтверски средства, истек на претплати и алокација на седишта (Snipe-IT Seat Management).</p>
+  </div>
+  <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#newLicCollapse">
+    <svg class="ic me-1" aria-hidden="true"><use href="#i-plus"/></svg>Нова лиценца
+  </button>
 </div>
-</td>
-</tr>
-{% endfor %}
-</tbody>
-</table></div>
+
+<div class="collapse mb-4" id="newLicCollapse">
+  <div class="card sd-card border p-3">
+    <h5 class="fw-bold mb-3">Внеси нова софтверска лиценца</h5>
+    <form method="post"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="action" value="add">
+      <div class="row g-2">
+        <div class="col-12 col-md-2"><label class="form-label small">ID *</label><input class="form-control" name="LicenseID" placeholder="LIC-001" required autofocus></div>
+        <div class="col-12 col-md-3"><label class="form-label small">Софтвер *</label><input class="form-control" name="Software" placeholder="Microsoft 365, Adobe CC..." required></div>
+        <div class="col-12 col-md-2"><label class="form-label small">Клуч</label><input class="form-control font-monospace" name="LicenseKey" placeholder="XXXX-XXXX-XXXX"></div>
+        <div class="col-6 col-md-1"><label class="form-label small">Седишта</label><input class="form-control" name="Seats" value="1" inputmode="numeric"></div>
+        <div class="col-6 col-md-2"><label class="form-label small">Истек</label><input class="form-control" type="date" name="ExpiryDate"></div>
+        <div class="col-12 col-md-2"><label class="form-label small">Добавувач</label><input class="form-control" name="Supplier" data-remember="Supplier"></div>
+      </div>
+      <button class="btn btn-primary mt-3" type="submit">Зачувај лиценца</button>
+    </form>
+  </div>
+</div>
+
+<div class="table-responsive sd-card border rounded mb-4">
+  <table class="table table-hover align-middle mb-0 sortable">
+    <thead class="table-light">
+      <tr>
+        <th data-sort="string">ID</th>
+        <th data-sort="string">Софтвер</th>
+        <th>Искористеност на седишта</th>
+        <th data-sort="string">Истек</th>
+        <th data-sort="string">Добавувач</th>
+        <th class="text-end">Акции</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for r in rows %}
+      {% set used = r.SeatsUsed|int if r.SeatsUsed else 0 %}
+      {% set total = r.Seats|int if r.Seats else 1 %}
+      {% set pct = ((used / total) * 100)|round|int if total > 0 else 0 %}
+      {% set lic_seats = seats_by_license.get(r.LicenseID, []) if seats_by_license else [] %}
+      <tr{% if r.LicenseID in expiring_ids %} class="table-warning"{% endif %}>
+        <td>
+          <b>{{ r.LicenseID }}</b>
+          {% if r.LicenseID in expiring_ids %}
+            <span class="badge bg-warning text-dark ms-1">Истекува</span>
+          {% endif %}
+        </td>
+        <td>
+          <div class="fw-bold">{{ r.Software }}</div>
+          {% if r.LicenseKey %}<code class="text-muted small">{{ r.LicenseKey }}</code>{% endif %}
+        </td>
+        <td style="min-width: 180px;">
+          <div class="d-flex justify-content-between small mb-1">
+            <span><b>{{ r.SeatsUsed }}</b> од <b>{{ r.Seats }}</b> зафатени</span>
+            <span class="text-muted">{{ pct }}%</span>
+          </div>
+          <div class="progress" style="height: 6px;">
+            <div class="progress-bar {% if pct >= 100 %}bg-danger{% elif pct >= 80 %}bg-warning{% else %}bg-success{% endif %}" role="progressbar" style="width: {{ [pct, 100]|min }}%;"></div>
+          </div>
+        </td>
+        <td>{{ r.ExpiryDate or "—" }}</td>
+        <td>{{ r.Supplier or "—" }}</td>
+        <td class="text-end">
+          <div class="d-inline-flex gap-1">
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#seats-{{ r.LicenseID }}" title="Прегледај и додели седишта">
+              <svg class="ic me-1" aria-hidden="true"><use href="#i-user-plus"/></svg>Седишта ({{ lic_seats|length }})
+            </button>
+            <form method="post" action="/licenses/assign" class="d-none">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+              <input type="hidden" name="license_id" value="{{ r.LicenseID }}">
+              <input class="form-control form-control-sm" name="emp_id">
+              <button class="btn btn-sm btn-outline-primary" type="submit">Додели</button>
+            </form>
+            <form method="post" action="/licenses/revoke" class="d-inline">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+              <input type="hidden" name="license_id" value="{{ r.LicenseID }}">
+              <button class="btn btn-sm btn-outline-secondary" type="submit" title="Брзо намали зафатени седишта">Ослободи</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      <tr class="collapse bg-light" id="seats-{{ r.LicenseID }}">
+        <td colspan="6" class="p-3">
+          <div class="row g-3">
+            <div class="col-md-7">
+              <h6 class="fw-bold mb-2">Алоцирани седишта за {{ r.LicenseID }}</h6>
+              {% if lic_seats %}
+                <div class="table-responsive">
+                  <table class="table table-sm table-bordered bg-white mb-0 align-middle">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Seat ID</th>
+                        <th>Тип</th>
+                        <th>Доделено на</th>
+                        <th>Датум</th>
+                        <th>Белешка</th>
+                        <th class="text-end">Акција</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for seat in lic_seats %}
+                        <tr>
+                          <td><code>{{ seat.SeatID }}</code></td>
+                          <td>
+                            <span class="badge {% if seat.AssignedToType == 'device' %}bg-info text-dark{% else %}bg-primary{% endif %}">
+                              {{ "Уред" if seat.AssignedToType == "device" else "Вработен" }}
+                            </span>
+                          </td>
+                          <td><b>{{ seat.AssignedToID }}</b></td>
+                          <td class="small">{{ seat.AssignedDate }}</td>
+                          <td class="small text-muted">{{ seat.Notes or "—" }}</td>
+                          <td class="text-end">
+                            <form method="post" action="/licenses/seat/revoke" class="d-inline">
+                              <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                              <input type="hidden" name="seat_id" value="{{ seat.SeatID }}">
+                              <button class="btn btn-outline-danger btn-xs py-0 px-2" type="submit">Ослободи</button>
+                            </form>
+                          </td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              {% else %}
+                <p class="text-muted small mb-0">Нема детално евидентирани седишта во системот.</p>
+              {% endif %}
+            </div>
+            <div class="col-md-5">
+              <div class="card p-2 bg-white border">
+                <h6 class="fw-bold mb-2">Додели ново седиште</h6>
+                <form method="post" action="/licenses/assign">
+                  <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                  <input type="hidden" name="license_id" value="{{ r.LicenseID }}">
+                  <div class="mb-2">
+                    <label class="form-label small mb-1">Додели на:</label>
+                    <select class="form-select form-select-sm" name="assigned_to_type" id="type-{{ r.LicenseID }}">
+                      <option value="employee">Вработен (Employee)</option>
+                      <option value="device">Уред (Asset / Компјутер)</option>
+                    </select>
+                  </div>
+                  <div class="mb-2">
+                    <label class="form-label small mb-1">Корисник или ID на уред:</label>
+                    <input class="form-control form-control-sm" name="assigned_to_id" placeholder="пр. EMP-001 или AST-100" required>
+                  </div>
+                  <div class="mb-2">
+                    <label class="form-label small mb-1">Белешка:</label>
+                    <input class="form-control form-control-sm" name="notes" placeholder="пр. инсталирано на службен лаптоп">
+                  </div>
+                  <button class="btn btn-primary btn-sm w-100" type="submit" {% if used >= total %}disabled{% endif %}>
+                    {% if used >= total %}Седиштата се пополнети{% else %}Додели седиште{% endif %}
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% if not rows %}
-<div class="empty-state">Нема внесени лиценци.</div>
+<div class="empty-state text-center p-5 text-muted border rounded sd-card">Нема внесени софтверски лиценци.</div>
 {% endif %}
-<h4 class="mt-4">Нова лиценца</h4>
-<form method="post"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-<input type="hidden" name="action" value="add">
-<div class="row g-2">
-<div class="col-12 col-md-2"><label>ID *</label><input class="form-control" name="LicenseID" required autofocus></div>
-<div class="col-12 col-md-3"><label>Софтвер</label><input class="form-control" name="Software"></div>
-<div class="col-12 col-md-2"><label>Клуч</label><input class="form-control" name="LicenseKey"></div>
-<div class="col-6 col-md-1"><label>Седишта</label><input class="form-control" name="Seats" value="1" inputmode="numeric"></div>
-<div class="col-6 col-md-2"><label>Истек</label><input class="form-control" type="date" name="ExpiryDate"></div>
-<div class="col-12 col-md-2"><label>Добавувач</label><input class="form-control" name="Supplier" data-remember="Supplier"></div>
-</div>
-<button class="btn btn-primary mt-2" type="submit">Внеси</button>
-</form>
 {% endblock %}

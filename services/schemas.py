@@ -234,3 +234,41 @@ SPRINT_COLS = [
     "Status",
     "Created",
 ]
+
+LIC_SEAT_COLS = [
+    "SeatID",
+    "LicenseID",
+    "AssignedToType",
+    "AssignedToID",
+    "AssignedDate",
+    "Notes",
+]
+
+RACK_COLS = [
+    "RackID",
+    "Name",
+    "Location",
+    "Units",
+    "Notes",
+]
+
+RACK_ITEM_COLS = [
+    "ItemID",
+    "RackID",
+    "AssetID",
+    "StartUnit",
+    "HeightUnits",
+    "Notes",
+]
+
+MAINT_SCHEDULE_COLS = [
+    "ScheduleID",
+    "AssetID",
+    "Title",
+    "FrequencyDays",
+    "LastServiced",
+    "NextDue",
+    "Status",
+    "Notes",
+]
+

@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h2><svg class="ic me-2" aria-hidden="true"><use href="#i-server"/></svg>Серверски Рек Ормари (42U Elevation)</h2>
+    <p class="text-muted mb-0">Визуелен распоред на сервери, свичови и мрежна опрема во ормарите (Snipe-IT / Device42 style).</p>
+  </div>
+  <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#newRackCollapse">
+    <svg class="ic me-1" aria-hidden="true"><use href="#i-plus"/></svg>Нов ормар
+  </button>
+</div>
+
+<div class="collapse mb-4" id="newRackCollapse">
+  <div class="card sd-card border p-3">
+    <h5 class="fw-bold mb-3">Креирај нов серверски ормар</h5>
+    <form method="post"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+      <div class="row g-2">
+        <div class="col-12 col-md-2"><label class="form-label small">ID на ормар</label><input class="form-control" name="rack_id" placeholder="RCK-02"></div>
+        <div class="col-12 col-md-3"><label class="form-label small">Назив *</label><input class="form-control" name="name" placeholder="Ормар Мрежа & Свичови" required></div>
+        <div class="col-12 col-md-3"><label class="form-label small">Локација</label><input class="form-control" name="location" placeholder="Сервер сала, Кат 1"></div>
+        <div class="col-6 col-md-2"><label class="form-label small">Единици (U)</label><input class="form-control" name="units" value="42" inputmode="numeric"></div>
+        <div class="col-12 col-md-2"><label class="form-label small">Белешка</label><input class="form-control" name="notes"></div>
+      </div>
+      <button class="btn btn-primary mt-3" type="submit">Зачувај ормар</button>
+    </form>
+  </div>
+</div>
+
+<!-- Rack Selector Strip & KPIs -->
+<div class="row g-3 mb-4">
+  <div class="col-lg-3 col-md-6">
+    <div class="card sd-card p-3 border h-100">
+      <label class="form-label text-muted small fw-bold mb-1">Избери серверски ормар:</label>
+      <form method="get" action="/racks">
+        <select class="form-select" name="rack_id" onchange="this.form.submit()">
+          {% for rk in all_racks %}
+            <option value="{{ rk.RackID }}" {% if selected_rack and selected_rack.RackID == rk.RackID %}selected{% endif %}>
+              {{ rk.RackID }} — {{ rk.Name }} ({{ rk.Units }}U)
+            </option>
+          {% endfor %}
+        </select>
+      </form>
+      <div class="small text-muted mt-2">
+        <svg class="ic me-1" aria-hidden="true"><use href="#i-clip"/></svg>{{ selected_rack.Location or "Локација не е дефинирана" }}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-3 col-md-6">
+    <div class="card sd-card p-3 border h-100 text-center">
+      <div class="text-muted small">Вкупен капацитет</div>
+      <div class="display-6 fw-bold text-primary">{{ total_units }}U</div>
+      <div class="small text-muted">{{ occupied_count }}U зафатени слотови</div>
+    </div>
+  </div>
+
+  <div class="col-lg-3 col-md-6">
+    <div class="card sd-card p-3 border h-100 text-center">
+      <div class="text-muted small">Слободен простор</div>
+      <div class="display-6 fw-bold text-success">{{ free_count }}U</div>
+      <div class="small text-muted">достапни за нови сервери</div>
+    </div>
+  </div>
+
+  <div class="col-lg-3 col-md-6">
+    <div class="card sd-card p-3 border h-100 text-center">
+      <div class="text-muted small">Искористеност на ормарот</div>
+      <div class="display-6 fw-bold {% if usage_pct > 85 %}text-danger{% elif usage_pct > 60 %}text-warning{% else %}text-info{% endif %}">
+        {{ usage_pct }}%
+      </div>
+      <div class="progress mt-1" style="height: 6px;">
+        <div class="progress-bar {% if usage_pct > 85 %}bg-danger{% elif usage_pct > 60 %}bg-warning{% else %}bg-info{% endif %}" style="width: {{ usage_pct }}%;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Main Rack Visualization & Mounting Controls -->
+<div class="row g-4 mb-5">
+  <!-- Visual Elevation Frame -->
+  <div class="col-lg-7">
+    <div class="card sd-card border p-3">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold mb-0">
+          <svg class="ic me-1" aria-hidden="true"><use href="#i-server"/></svg>
+          {{ selected_rack.Name }} ({{ selected_rack.RackID }}) — 42U Висина
+        </h5>
+        <span class="badge bg-secondary">{{ total_units }} Слотови</span>
+      </div>
+
+      <!-- Rack Chassis Outer -->
+      <div class="rack-cabinet p-2 bg-dark rounded border shadow-sm" style="background-color: #1a1e24 !important;">
+        <div class="rack-rails border border-secondary rounded p-1 bg-black">
+          {% for slot in slots %}
+            {% set u = slot.u %}
+            {% if slot.state == "top" %}
+              {% set it = slot.item %}
+              {% set dev = it.device %}
+              <div class="rack-slot occupied-top border border-primary rounded-1 mb-1 p-2 text-white d-flex justify-content-between align-items-center"
+                   style="background: linear-gradient(90deg, #1f2a37 0%, #111827 100%); min-height: {{ it.height_units * 36 }}px;">
+                <div class="d-flex align-items-center gap-2">
+                  <span class="badge bg-secondary font-monospace">U{{ it.start_unit }}..U{{ it.start_unit + it.height_units - 1 }}</span>
+                  <span class="badge bg-primary">{{ it.height_units }}U</span>
+                  <div>
+                    <div class="fw-bold text-light">
+                      <svg class="ic me-1 text-info" aria-hidden="true"><use href="#i-server"/></svg>
+                      {{ dev.Model if dev and dev.Model else it.asset_id }}
+                      {% if dev and dev.Manufacturer %}<span class="text-muted small">({{ dev.Manufacturer }})</span>{% endif %}
+                    </div>
+                    <div class="small text-muted font-monospace">
+                      Asset: <b>{{ it.asset_id }}</b>
+                      {% if dev and dev.SerialNumber %} | SN: {{ dev.SerialNumber }}{% endif %}
+                      {% if it.notes %} | <i>{{ it.notes }}</i>{% endif %}
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <form method="post" action="/racks/remove" class="d-inline">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="rack_id" value="{{ selected_rack.RackID }}">
+                    <input type="hidden" name="item_id" value="{{ it.item_id }}">
+                    <button class="btn btn-outline-danger btn-xs py-0 px-2" type="submit" title="Демонтирај уред">
+                      <svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg>
+                    </button>
+                  </form>
+                </div>
+              </div>
+            {% elif slot.state == "body" %}
+              <!-- Sub-unit of a multi-U server (visually merged) -->
+            {% else %}
+              <div class="rack-slot empty border border-secondary border-opacity-25 rounded-1 mb-1 px-2 py-1 d-flex justify-content-between align-items-center text-muted"
+                   style="background-color: #0d1117; min-height: 32px; font-size: 0.8rem;">
+                <span class="font-monospace text-secondary">U{{ u }}</span>
+                <span class="text-secondary opacity-50 small">-- слободен слот --</span>
+                <span class="font-monospace text-secondary">U{{ u }}</span>
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mounting Sidebar -->
+  <div class="col-lg-5">
+    <div class="card sd-card border p-3 mb-4">
+      <h5 class="fw-bold mb-3">
+        <svg class="ic me-1" aria-hidden="true"><use href="#i-plus"/></svg>Монтирај уред во ормарот
+      </h5>
+      <form method="post" action="/racks/assign">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="rack_id" value="{{ selected_rack.RackID }}">
+
+        <div class="mb-3">
+          <label class="form-label small fw-bold">Избери хардверски уред *</label>
+          <select class="form-select form-select-sm" name="asset_id" required>
+            <option value="">-- Избери уред од инвентарот --</option>
+            {% for d in all_devices %}
+              <option value="{{ d.AssetID }}">
+                {{ d.AssetID }} — {{ d.Manufacturer }} {{ d.Model }} ({{ d.Category or d.Type }})
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label small fw-bold">Почетна единица (U) *</label>
+            <input class="form-control form-control-sm" name="start_unit" type="number" min="1" max="{{ total_units }}" placeholder="пр. 1" required>
+            <div class="form-text small">Број на слотот (1..{{ total_units }})</div>
+          </div>
+          <div class="col-6">
+            <label class="form-label small fw-bold">Висина на уредот *</label>
+            <select class="form-select form-select-sm" name="height_units">
+              <option value="1">1U (Свич / Пач / 1U Сервер)</option>
+              <option value="2" selected>2U (Стандарден Сервер)</option>
+              <option value="3">3U (Storage / Складиште)</option>
+              <option value="4">4U (Тежок Сервер / UPS)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label small fw-bold">Белешка за монтажата</label>
+          <input class="form-control form-control-sm" name="notes" placeholder="пр. примарен DC контролер">
+        </div>
+
+        <button class="btn btn-primary w-100" type="submit">
+          <svg class="ic me-1" aria-hidden="true"><use href="#i-server"/></svg>Монтирај во ормарот
+        </button>
+      </form>
+    </div>
+
+    <!-- Active Equipment Summary Table -->
+    <div class="card sd-card border p-3">
+      <h6 class="fw-bold mb-3">Монтирана опрема во {{ selected_rack.RackID }}</h6>
+      {% set mounted_items = [] %}
+      {% for slot in slots %}
+        {% if slot.state == "top" %}
+          {% set _ = mounted_items.append(slot.item) %}
+        {% endif %}
+      {% endfor %}
+
+      {% if mounted_items %}
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Позиција</th>
+                <th>Уред</th>
+                <th>Висина</th>
+                <th class="text-end">Акција</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for it in mounted_items %}
+                {% set dev = it.device %}
+                <tr>
+                  <td><span class="badge bg-secondary font-monospace">U{{ it.start_unit }}</span></td>
+                  <td>
+                    <div class="fw-bold">{{ it.asset_id }}</div>
+                    {% if dev %}<div class="small text-muted">{{ dev.Model }}</div>{% endif %}
+                  </td>
+                  <td><span class="badge bg-info text-dark">{{ it.height_units }}U</span></td>
+                  <td class="text-end">
+                    <form method="post" action="/racks/remove" class="d-inline">
+                      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                      <input type="hidden" name="rack_id" value="{{ selected_rack.RackID }}">
+                      <input type="hidden" name="item_id" value="{{ it.item_id }}">
+                      <button class="btn btn-outline-danger btn-xs py-0 px-1" type="submit">Отстрани</button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="text-muted small mb-0">Во моментов нема монтирано опрема во овој ормар.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

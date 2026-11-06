@@ -147,6 +147,21 @@ class DbStore:
             connection.commit()
         return data
 
+    def delete_where(self, col, value, con=None):
+        if col not in self.columns:
+            return 0
+        if con is not None:
+            cur = con.execute(
+                f'DELETE FROM "{self.table}" WHERE "{col}" = ?', (value,)
+            )
+            return cur.rowcount
+        with self._connect() as connection:
+            cur = connection.execute(
+                f'DELETE FROM "{self.table}" WHERE "{col}" = ?', (value,)
+            )
+            connection.commit()
+            return cur.rowcount
+
     def replace_all(self, rows):
         with self._connect() as con:
             con.execute(f'DELETE FROM "{self.table}"')

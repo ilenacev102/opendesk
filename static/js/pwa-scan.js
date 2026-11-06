@@ -162,7 +162,26 @@
     stopBtn.hidden = true;
   }
   stopBtn.addEventListener("click", stop);
-  window.addEventListener("online", flush);
+
+  var netBadge = document.getElementById("scan-net-badge");
+  function updateNetStatus() {
+    if (!netBadge) return;
+    if (window.navigator.onLine) {
+      netBadge.className = "badge bg-success ms-2";
+      netBadge.innerHTML = '<svg class="ic me-1" aria-hidden="true"><use href="#i-check"/></svg>Онлајн';
+    } else {
+      netBadge.className = "badge bg-warning text-dark ms-2";
+      netBadge.innerHTML = '<svg class="ic me-1" aria-hidden="true"><use href="#i-warn"/></svg>Офлајн (Кеширање)';
+    }
+  }
+
+  window.addEventListener("online", function () {
+    updateNetStatus();
+    flush();
+  });
+  window.addEventListener("offline", updateNetStatus);
+  updateNetStatus();
+
   renderQueue(loadQueue());
   flush();
 })();

@@ -46,14 +46,16 @@
 <a class="nav-link {% if request.path.startswith('/projects') %}active{% endif %}" href="/projects">Проекти</a>
 <a class="nav-link {% if request.path.startswith('/my-board') %}active{% endif %}" href="/my-board">Моја табла</a>
 <div class="nav-item dropdown">
-<a class="nav-link dropdown-toggle {% if request.path in ['/assign', '/quick-return', '/replace', '/repair', '/dispose', '/packages', '/popis', '/labels', '/consumables', '/licenses', '/fields', '/contracts', '/reservations', '/requests'] %}active{% endif %}" href="#" data-bs-toggle="dropdown">Операции</a>
+<a class="nav-link dropdown-toggle {% if request.path in ['/assign', '/quick-return', '/replace', '/repair', '/dispose', '/packages', '/popis', '/labels', '/consumables', '/licenses', '/fields', '/contracts', '/reservations', '/requests', '/maintenance', '/racks'] %}active{% endif %}" href="#" data-bs-toggle="dropdown">Операции</a>
 <ul class="dropdown-menu">
 <li><a class="dropdown-item" href="/assign"><svg class="ic" aria-hidden="true"><use href="#i-user-plus"/></svg>Задолжување</a></li>
 <li><a class="dropdown-item" href="/quick-return"><svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg>Брзо враќање</a></li>
 <li><a class="dropdown-item" href="/replace"><svg class="ic" aria-hidden="true"><use href="#i-swap"/></svg>Замена</a></li>
 <li><a class="dropdown-item" href="/repair"><svg class="ic" aria-hidden="true"><use href="#i-wrench"/></svg>Сервис</a></li>
+<li><a class="dropdown-item" href="/maintenance"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg>Превентивен сервис</a></li>
 <li><a class="dropdown-item" href="/dispose"><svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg>Расход</a></li>
 <li><hr class="dropdown-divider"></li>
+<li><a class="dropdown-item" href="/racks"><svg class="ic" aria-hidden="true"><use href="#i-server"/></svg>Рек ормари</a></li>
 <li><a class="dropdown-item" href="/packages"><svg class="ic" aria-hidden="true"><use href="#i-box"/></svg>Пакети</a></li>
 <li><a class="dropdown-item" href="/popis"><svg class="ic" aria-hidden="true"><use href="#i-clip"/></svg>Попис</a></li>
 <li><a class="dropdown-item" href="/labels"><svg class="ic" aria-hidden="true"><use href="#i-clip"/></svg>Налепници</a></li>

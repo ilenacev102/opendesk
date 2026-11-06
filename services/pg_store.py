@@ -179,6 +179,24 @@ class PgStore:
             if own:
                 con.close()
 
+    def delete_where(self, col, value, con=None):
+        if col not in self.columns:
+            return 0
+        own = con is None
+        con = self._connect() if own else con
+        try:
+            with con.cursor() as cur:
+                cur.execute(
+                    f'DELETE FROM "{self.table}" WHERE "{col}" = %s', (value,)
+                )
+                cnt = cur.rowcount
+            if own:
+                con.commit()
+            return cnt
+        finally:
+            if own:
+                con.close()
+
     def replace_all(self, rows):
         con = self._connect()
         try:

@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h2><svg class="ic me-2" aria-hidden="true"><use href="#i-wrench"/></svg>Превентивно Одржување (Maintenance Scheduler)</h2>
+    <p class="text-muted mb-0">Автоматизиран распоред за редовно сервисирање на критична ИТ опрема, сервери и климатизација.</p>
+  </div>
+  <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#newMaintCollapse">
+    <svg class="ic me-1" aria-hidden="true"><use href="#i-plus"/></svg>Нов распоред
+  </button>
+</div>
+
+<div class="collapse mb-4" id="newMaintCollapse">
+  <div class="card sd-card border p-3">
+    <h5 class="fw-bold mb-3">Креирај нов план за превентивно одржување</h5>
+    <form method="post" action="/maintenance/new">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+      <div class="row g-2">
+        <div class="col-12 col-md-3">
+          <label class="form-label small">Уред *</label>
+          <select class="form-select" name="asset_id" required>
+            <option value="">-- Избери уред --</option>
+            {% for d in all_devices %}
+              <option value="{{ d.AssetID }}">{{ d.AssetID }} — {{ d.Manufacturer }} {{ d.Model }} ({{ d.Category or d.Type }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label small">Наслов на активност *</label>
+          <input class="form-control" name="title" placeholder="пр. Чистење прашина и замена термална паста" required>
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label small">Интервал (денови) *</label>
+          <select class="form-select" name="frequency_days">
+            <option value="30">30 дена (Месечно)</option>
+            <option value="90" selected>90 дена (Квартално)</option>
+            <option value="180">180 дена (Полугодишно)</option>
+            <option value="365">365 дена (Годишно)</option>
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label small">Последен сервис</label>
+          <input class="form-control" type="date" name="last_serviced" value="{{ today }}">
+        </div>
+        <div class="col-12 col-md-2">
+          <label class="form-label small">Белешка</label>
+          <input class="form-control" name="notes" placeholder="пр. изведувач ИТ Сервис ДООЕЛ">
+        </div>
+      </div>
+      <button class="btn btn-primary mt-3" type="submit">Зачувај план</button>
+    </form>
+  </div>
+</div>
+
+<!-- KPI Dashboard Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card sd-card p-3 border text-center h-100">
+      <div class="text-muted small">Вкупно планови</div>
+      <div class="display-6 fw-bold text-primary">{{ total_count }}</div>
+      <div class="small text-muted">активни распореди</div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card sd-card p-3 border text-center h-100 {% if overdue_count > 0 %}border-danger bg-danger-subtle{% endif %}">
+      <div class="text-muted small">Доцнат за сервис</div>
+      <div class="display-6 fw-bold text-danger">{{ overdue_count }}</div>
+      <div class="small text-muted">итна интервенција</div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card sd-card p-3 border text-center h-100 {% if due_soon_count > 0 %}border-warning bg-warning-subtle{% endif %}">
+      <div class="text-muted small">Доспеваат наскоро</div>
+      <div class="display-6 fw-bold text-warning">{{ due_soon_count }}</div>
+      <div class="small text-muted">во следните 14 дена</div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card sd-card p-3 border text-center h-100">
+      <div class="text-muted small">Редовни / Во рок</div>
+      <div class="display-6 fw-bold text-success">{{ ok_count }}</div>
+      <div class="small text-muted">нема доспеани активности</div>
+    </div>
+  </div>
+</div>
+
+<!-- Maintenance Schedules Table -->
+<div class="card sd-card border mb-5">
+  <div class="card-header bg-transparent py-3 d-flex justify-content-between align-items-center">
+    <span class="fw-bold"><svg class="ic me-2" aria-hidden="true"><use href="#i-clock"/></svg>Распореди за редовен сервис</span>
+    <input type="search" class="form-control form-control-sm w-auto" placeholder="Инстантно филтрирање..." data-instant-filter="maintTable">
+  </div>
+  <div class="table-responsive mb-0">
+    <table class="table table-hover align-middle mb-0 sortable" id="maintTable">
+      <thead class="table-light">
+        <tr>
+          <th data-sort="string">Статус</th>
+          <th data-sort="string">ID</th>
+          <th data-sort="string">Уред</th>
+          <th data-sort="string">Активност</th>
+          <th data-sort="string">Интервал</th>
+          <th data-sort="string">Последен сервис</th>
+          <th data-sort="string">Следен рок</th>
+          <th class="text-end">Акции</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for s in schedules %}
+        {% set dev = s.device %}
+        <tr class="{% if s.calc_status == 'overdue' %}table-danger{% elif s.calc_status == 'due_soon' %}table-warning{% endif %}">
+          <td>
+            {% if s.calc_status == 'overdue' %}
+              <span class="badge bg-danger"><svg class="ic me-1" aria-hidden="true"><use href="#i-warn"/></svg>Доцни</span>
+            {% elif s.calc_status == 'due_soon' %}
+              <span class="badge bg-warning text-dark"><svg class="ic me-1" aria-hidden="true"><use href="#i-clock"/></svg>Наскоро</span>
+            {% else %}
+              <span class="badge bg-success"><svg class="ic me-1" aria-hidden="true"><use href="#i-check"/></svg>Во ред</span>
+            {% endif %}
+          </td>
+          <td><code>{{ s.ScheduleID }}</code></td>
+          <td>
+            <b>{{ s.AssetID }}</b>
+            {% if dev %}<div class="small text-muted">{{ dev.Manufacturer }} {{ dev.Model }}</div>{% endif %}
+          </td>
+          <td>
+            <div class="fw-bold">{{ s.Title }}</div>
+            {% if s.Notes %}<div class="small text-muted">{{ s.Notes }}</div>{% endif %}
+          </td>
+          <td><span class="badge bg-secondary">Секои {{ s.FrequencyDays }} дена</span></td>
+          <td>{{ s.LastServiced }}</td>
+          <td><b>{{ s.NextDue }}</b></td>
+          <td class="text-end">
+            <div class="d-inline-flex gap-1">
+              <!-- Complete button modal trigger -->
+              <button class="btn btn-sm btn-outline-success" type="button" data-bs-toggle="collapse" data-bs-target="#complete-{{ s.ScheduleID }}" title="Заврши сервис">
+                <svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>
+              </button>
+              <!-- Create ticket button -->
+              <form method="post" action="/maintenance/create-ticket" class="d-inline">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="schedule_id" value="{{ s.ScheduleID }}">
+                <button class="btn btn-sm btn-outline-primary" type="submit" title="Отвори сервисен тикет за овој план">
+                  <svg class="ic" aria-hidden="true"><use href="#i-wrench"/></svg>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        <tr class="collapse bg-light" id="complete-{{ s.ScheduleID }}">
+          <td colspan="8" class="p-3">
+            <div class="card p-3 border bg-white">
+              <h6 class="fw-bold mb-2">Евидентирај завршен сервис за {{ s.ScheduleID }} ({{ s.AssetID }})</h6>
+              <form method="post" action="/maintenance/complete">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="schedule_id" value="{{ s.ScheduleID }}">
+                <div class="row g-2 align-items-end">
+                  <div class="col-md-3">
+                    <label class="form-label small">Датум на завршување</label>
+                    <input class="form-control form-control-sm" type="date" name="service_date" value="{{ today }}" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small">Забелешка од сервисерот</label>
+                    <input class="form-control form-control-sm" name="notes" placeholder="пр. заменет филтер за прашина, батеријата е во одлична состојба">
+                  </div>
+                  <div class="col-md-3">
+                    <button class="btn btn-success btn-sm w-100" type="submit">
+                      <svg class="ic me-1" aria-hidden="true"><use href="#i-check"/></svg>Потврди завршен сервис
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if not schedules %}
+    <div class="p-5 text-center text-muted">
+      Нема дефинирано планови за превентивно одржување.
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
