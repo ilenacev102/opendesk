@@ -505,6 +505,7 @@ from routes.incidents import bp as incidents_bp
 from routes.kb import bp as kb_bp
 from routes.operations import bp as operations_bp
 from routes.popis import bp as popis_bp
+from routes.portal import bp as portal_bp
 from routes.projects import bp as projects_bp
 from routes.reports import bp as reports_bp
 from routes.sprints import bp as sprints_bp
@@ -521,6 +522,7 @@ app.register_blueprint(incidents_bp)
 app.register_blueprint(kb_bp)
 app.register_blueprint(operations_bp)
 app.register_blueprint(popis_bp)
+app.register_blueprint(portal_bp)
 app.register_blueprint(projects_bp)
 app.register_blueprint(reports_bp)
 app.register_blueprint(sprints_bp)

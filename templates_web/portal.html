@@ -1,0 +1,360 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="portal-header mb-4 p-4 rounded-3 sd-card border shadow-sm">
+  <div class="row align-items-center">
+    <div class="col-md-8">
+      <h2 class="display-6 fw-bold mb-1">
+        {% if emp %}
+          Здраво, {{ emp.FirstName }} {{ emp.LastName }}
+        {% else %}
+          Кориснички Портал
+        {% endif %}
+      </h2>
+      <p class="text-muted mb-0">Каталог на ИТ услуги, пријава на дефекти и преглед на вашата опрема.</p>
+    </div>
+    <div class="col-md-4 text-md-end mt-3 mt-md-0">
+      <span class="badge badge-st st-Assigned fs-6 py-2 px-3">
+        <svg class="ic me-1" aria-hidden="true"><use href="#i-monitor"/></svg>
+        {{ my_devices|length }} задолжени уреди
+      </span>
+    </div>
+  </div>
+</div>
+
+<h4 class="fw-bold mb-3">ИТ Услуги и Брзи Барања</h4>
+<div class="row g-3 mb-5">
+  <div class="col-md-3">
+    <div class="card sd-card h-100 border text-center p-3 hover-shadow">
+      <div class="card-body">
+        <div class="mb-3 text-primary">
+          <svg class="ic" style="width:36px;height:36px;" aria-hidden="true"><use href="#i-plus"/></svg>
+        </div>
+        <h5 class="card-title fw-bold">Барам нова опрема</h5>
+        <p class="card-text text-muted small">Поднесете барање за лаптоп, монитор, периферија или софтвер.</p>
+        <button type="button" class="btn btn-outline-primary btn-sm w-100" data-bs-toggle="modal" data-bs-target="#requestModal">
+          Поднеси барање
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card sd-card h-100 border text-center p-3 hover-shadow">
+      <div class="card-body">
+        <div class="mb-3 text-danger">
+          <svg class="ic" style="width:36px;height:36px;" aria-hidden="true"><use href="#i-wrench"/></svg>
+        </div>
+        <h5 class="card-title fw-bold">Пријави дефект</h5>
+        <p class="card-text text-muted small">Проблем со хардвер, дефект на опрема или хаварија.</p>
+        <button type="button" class="btn btn-outline-danger btn-sm w-100" data-bs-toggle="modal" data-bs-target="#incidentModal">
+          Отвори тикет
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card sd-card h-100 border text-center p-3 hover-shadow">
+      <div class="card-body">
+        <div class="mb-3 text-warning">
+          <svg class="ic" style="width:36px;height:36px;" aria-hidden="true"><use href="#i-bolt"/></svg>
+        </div>
+        <h5 class="card-title fw-bold">Сметка и пристап</h5>
+        <p class="card-text text-muted small">Ресетирање на лозинка, пристап до VPN, е-пошта или фолдери.</p>
+        <button type="button" class="btn btn-outline-secondary btn-sm w-100" data-bs-toggle="modal" data-bs-target="#incidentModal" data-preset="пристап">
+          Барај пристап
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card sd-card h-100 border text-center p-3 hover-shadow">
+      <div class="card-body">
+        <div class="mb-3 text-info">
+          <svg class="ic" style="width:36px;height:36px;" aria-hidden="true"><use href="#i-file"/></svg>
+        </div>
+        <h5 class="card-title fw-bold">База на знаење</h5>
+        <p class="card-text text-muted small">Упатства, чести прашања и чекор-по-чекор решенија.</p>
+        <a href="/kb" class="btn btn-outline-info btn-sm w-100">
+          Пребарај упатства
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 mb-5">
+  <div class="col-lg-6">
+    <div class="card sd-card h-100 border">
+      <div class="card-header bg-transparent fw-bold d-flex justify-content-between align-items-center py-3">
+        <span><svg class="ic me-2" aria-hidden="true"><use href="#i-monitor"/></svg>Моја задолжена опрема</span>
+        <span class="badge bg-secondary">{{ my_devices|length }}</span>
+      </div>
+      <div class="card-body p-0">
+        {% if my_devices %}
+          <div class="table-responsive mb-0">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Уред</th>
+                  <th>Тип / Модел</th>
+                  <th>Сериски бр.</th>
+                  <th class="text-end">Акција</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for d in my_devices %}
+                  <tr>
+                    <td><strong>{{ d.AssetID }}</strong></td>
+                    <td>{{ d.Manufacturer }} {{ d.Model }}</td>
+                    <td><code>{{ d.SerialNumber }}</code></td>
+                    <td class="text-end">
+                      <button type="button" class="btn btn-sm btn-outline-danger report-device-btn" data-asset-id="{{ d.AssetID }}" data-asset-title="{{ d.Manufacturer }} {{ d.Model }}">
+                        Дефект
+                      </button>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="p-4 text-center text-muted">
+            <svg class="ic mb-2" style="width:32px;height:32px;" aria-hidden="true"><use href="#i-box"/></svg>
+            <p class="mb-0">Немате задолжена опрема во моментов.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card sd-card h-100 border">
+      <div class="card-header bg-transparent fw-bold d-flex justify-content-between align-items-center py-3">
+        <span><svg class="ic me-2" aria-hidden="true"><use href="#i-clip"/></svg>Мои активни барања и тикети</span>
+        <span class="badge bg-secondary">{{ my_incidents|length + my_requests|length }}</span>
+      </div>
+      <div class="card-body p-0">
+        {% if my_incidents or my_requests %}
+          <div class="table-responsive mb-0">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Број</th>
+                  <th>Опис / Наслов</th>
+                  <th>Статус</th>
+                  <th>Датум</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for i in my_incidents %}
+                  <tr>
+                    <td>
+                      <a href="/incidents/{{ i.IncidentID }}" class="fw-bold text-decoration-none">
+                        {{ i.IncidentID }}
+                      </a>
+                    </td>
+                    <td>{{ i.Title }}</td>
+                    <td>
+                      {% if i.Status == 'resolved' %}
+                        <span class="badge badge-st st-Repaired">решен</span>
+                      {% elif i.Status == 'in-progress' %}
+                        <span class="badge badge-st st-Assigned">во тек</span>
+                      {% else %}
+                        <span class="badge badge-st st-Broken">отворен</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-muted small">{{ i.Created[:10] }}</td>
+                  </tr>
+                {% endfor %}
+                {% for r in my_requests %}
+                  <tr>
+                    <td><span class="fw-bold text-muted">{{ r.RequestID }}</span></td>
+                    <td>{{ r.NeedText }}</td>
+                    <td>
+                      {% if r.Status == 'approved' %}
+                        <span class="badge badge-st st-Repaired">одобрено</span>
+                      {% elif r.Status == 'rejected' %}
+                        <span class="badge badge-st st-Broken">одбиено</span>
+                      {% else %}
+                        <span class="badge badge-st st-Repair">чека одобрение</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-muted small">{{ r.Created[:10] }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="p-4 text-center text-muted">
+            <svg class="ic mb-2" style="width:32px;height:32px;" aria-hidden="true"><use href="#i-check"/></svg>
+            <p class="mb-0">Немате отворени барања или инциденти.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Request Modal -->
+<div class="modal fade" id="requestModal" tabindex="-1" aria-labelledby="requestModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content sd-card shadow">
+      <form action="/portal/request" method="post">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        <div class="modal-header border-bottom py-2">
+          <h5 class="modal-title fs-6 fw-bold" id="requestModalLabel">
+            <svg class="ic me-2" aria-hidden="true"><use href="#i-plus"/></svg>Барање за нова опрема / софтвер
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Затвори"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-bold">Што точно ви е потребно?</label>
+            <textarea class="form-control" name="need_text" rows="3" placeholder="Пр: Дополнителен монитор за работа од дома, слушалки со микрофон, лиценца за Adobe..." required></textarea>
+            <div class="form-text">Вашето барање ќе биде испратено до ИТ службата и менаџментот за одобрување.</div>
+          </div>
+        </div>
+        <div class="modal-footer border-top py-2">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Откажи</button>
+          <button type="submit" class="btn btn-primary btn-sm">Испрати барање</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Incident Modal with Real-time KB Deflection -->
+<div class="modal fade" id="incidentModal" tabindex="-1" aria-labelledby="incidentModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content sd-card shadow">
+      <form action="/portal/incident" method="post">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        <div class="modal-header border-bottom py-2">
+          <h5 class="modal-title fs-6 fw-bold" id="incidentModalLabel">
+            <svg class="ic me-2" aria-hidden="true"><use href="#i-wrench"/></svg>Пријава на дефект / проблем
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Затвори"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-bold">Краток наслов на проблемот</label>
+            <input type="text" class="form-control" name="title" id="incidentTitleInput" placeholder="Пр: Лаптопот не се полни, VPN конекцијата паѓа..." required autocomplete="off">
+          </div>
+
+          <!-- Real-time KB Deflection Suggestions Box -->
+          <div id="kbDeflectionBox" class="alert alert-info py-2 px-3 d-none mb-3">
+            <div class="fw-bold small mb-1">
+              <svg class="ic me-1" aria-hidden="true"><use href="#i-bolt"/></svg>
+              Можеби ова ќе ви помогне пред да отворите тикет:
+            </div>
+            <div id="kbSuggestionsList" class="small"></div>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-md-7">
+              <label class="form-label fw-bold">Засегнат уред (опционално)</label>
+              <select class="form-select" name="asset_id" id="incidentAssetSelect">
+                <option value="">-- Општ проблем (не е врзан за уред) --</option>
+                {% for d in my_devices %}
+                  <option value="{{ d.AssetID }}">{{ d.AssetID }} ({{ d.Manufacturer }} {{ d.Model }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-5">
+              <label class="form-label fw-bold">Итност / Влијание</label>
+              <select class="form-select" name="priority">
+                <option value="low">Ниска (можам да продолжам со работа)</option>
+                <option value="medium" selected>Средна (делумно ме попречува)</option>
+                <option value="high">Висока (целосен прекин на работа)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Детален опис на дефектот</label>
+            <textarea class="form-control" name="notes" rows="4" placeholder="Опишете ги чекорите што доведоа до проблемот, дали има порака за грешка..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer border-top py-2">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Откажи</button>
+          <button type="submit" class="btn btn-danger btn-sm">Пријави инцидент</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script nonce="{{ csp_nonce }}">
+(function () {
+  // Wire up "Дефект" buttons on device table
+  document.querySelectorAll(".report-device-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const assetId = btn.dataset.assetId || "";
+      const select = document.getElementById("incidentAssetSelect");
+      if (select) select.value = assetId;
+      const modalEl = document.getElementById("incidentModal");
+      if (modalEl && typeof bootstrap !== "undefined") {
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+      }
+    });
+  });
+
+  // Wire preset buttons (e.g. "Барај пристап")
+  document.querySelectorAll("[data-preset]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const preset = btn.dataset.preset;
+      const titleInput = document.getElementById("incidentTitleInput");
+      if (titleInput && preset === "пристап") {
+        titleInput.value = "Барам ресетирање на лозинка / пристап";
+      }
+    });
+  });
+
+  // Real-time KB deflection as user types ticket title
+  const titleInput = document.getElementById("incidentTitleInput");
+  const box = document.getElementById("kbDeflectionBox");
+  const list = document.getElementById("kbSuggestionsList");
+  let debounce = null;
+
+  if (titleInput && box && list) {
+    titleInput.addEventListener("input", () => {
+      clearTimeout(debounce);
+      debounce = setTimeout(() => {
+        const q = titleInput.value.trim();
+        if (q.length < 3) {
+          box.classList.add("d-none");
+          list.innerHTML = "";
+          return;
+        }
+
+        fetch("/portal/kb-suggest?q=" + encodeURIComponent(q))
+          .then(r => r.json())
+          .then(data => {
+            const results = data.results || [];
+            if (!results.length) {
+              box.classList.add("d-none");
+              list.innerHTML = "";
+              return;
+            }
+            list.innerHTML = results.map(r => `
+              <div class="py-1 border-bottom border-light">
+                <a href="/kb/${encodeURIComponent(r.id)}" target="_blank" class="fw-bold text-decoration-none">
+                  ${r.title}
+                </a>
+                <span class="text-muted ms-1">— ${r.snippet}</span>
+              </div>
+            `).join("");
+            box.classList.remove("d-none");
+          })
+          .catch(() => {
+            box.classList.add("d-none");
+          });
+      }, 150);
+    });
+  }
+})();
+</script>
+{% endblock %}

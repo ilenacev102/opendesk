@@ -40,6 +40,7 @@
 <div class="collapse navbar-collapse" id="nav">
 <div class="navbar-nav me-auto">
 <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">Табла</a>
+<a class="nav-link {% if request.path.startswith('/portal') %}active{% endif %}" href="/portal">Портал</a>
 <a class="nav-link {% if request.path.startswith('/device') %}active{% endif %}" href="/devices">Уреди</a>
 <a class="nav-link {% if request.path.startswith('/employee') %}active{% endif %}" href="/employees">Вработени</a>
 <a class="nav-link {% if request.path.startswith('/projects') %}active{% endif %}" href="/projects">Проекти</a>
