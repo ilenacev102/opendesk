@@ -68,6 +68,13 @@
 </ul>
 </div>
 <div class="nav-item dropdown">
+<a class="nav-link dropdown-toggle {% if request.path in ['/problems', '/changes'] %}active{% endif %}" href="#" data-bs-toggle="dropdown">ITSM</a>
+<ul class="dropdown-menu">
+<li><a class="dropdown-item" href="/problems"><svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg>Проблеми (PRB)</a></li>
+<li><a class="dropdown-item" href="/changes"><svg class="ic" aria-hidden="true"><use href="#i-swap"/></svg>Промени (CAB)</a></li>
+</ul>
+</div>
+<div class="nav-item dropdown">
 <a class="nav-link dropdown-toggle {% if request.path in ['/departments', '/locations', '/history', '/reports', '/import'] %}active{% endif %}" href="#" data-bs-toggle="dropdown">Прегледи</a>
 <ul class="dropdown-menu">
 <li><a class="dropdown-item" href="/departments">Оддели</a></li>

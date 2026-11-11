@@ -84,6 +84,7 @@ def inject_unread_count():
 
 
 from services.schemas import (
+    CHANGE_COLS,
     COMMENT_COLS,
     CONS_COLS,
     CONTRACT_COLS,
@@ -101,6 +102,7 @@ from services.schemas import (
     LIC_SEAT_COLS,
     MAINT_SCHEDULE_COLS,
     NOTIF_COLS,
+    PROBLEM_COLS,
     PROJECT_COLS,
     RACK_COLS,
     RACK_ITEM_COLS,
@@ -151,6 +153,8 @@ rack_items = open_store(DB_PATH, "rack_items", None, RACK_ITEM_COLS)
 maintenance_schedules = open_store(
     DB_PATH, "maintenance_schedules", None, MAINT_SCHEDULE_COLS
 )
+problems = open_store(DB_PATH, "problems", None, PROBLEM_COLS)
+changes = open_store(DB_PATH, "changes", None, CHANGE_COLS)
 
 PATHS = {
     "db": DB_PATH,
@@ -505,6 +509,7 @@ from routes.cmdb import bp as cmdb_bp
 from routes.files import bp as files_bp
 from routes.incidents import bp as incidents_bp
 from routes.inventory import bp as inventory_bp
+from routes.itsm import bp as itsm_bp
 from routes.kb import bp as kb_bp
 from routes.maintenance import bp as maintenance_bp
 from routes.operations import bp as operations_bp
@@ -522,8 +527,9 @@ app.register_blueprint(boards_bp)
 app.register_blueprint(catalog_bp)
 app.register_blueprint(cmdb_bp)
 app.register_blueprint(files_bp)
-app.register_blueprint(inventory_bp)
 app.register_blueprint(incidents_bp)
+app.register_blueprint(inventory_bp)
+app.register_blueprint(itsm_bp)
 app.register_blueprint(kb_bp)
 app.register_blueprint(maintenance_bp)
 app.register_blueprint(operations_bp)

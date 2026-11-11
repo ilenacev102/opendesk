@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h2><svg class="ic me-2" aria-hidden="true"><use href="#i-swap"/></svg>Управување со Промени (Change Management & CAB)</h2>
+    <p class="text-muted mb-0">Планирање на мрежни и инфраструктурни интервенции, процена на ризик, Rollback планови и CAB одобрувања.</p>
+  </div>
+  <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#newChangeCollapse">
+    <svg class="ic me-1" aria-hidden="true"><use href="#i-plus"/></svg>Ново барање за промена (CHG)
+  </button>
+</div>
+
+<div class="collapse mb-4" id="newChangeCollapse">
+  <div class="card sd-card border p-3">
+    <h5 class="fw-bold mb-3">Поднеси барање за системска промена (RFC)</h5>
+    <form method="post" action="/changes/new">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+      <div class="row g-2">
+        <div class="col-12 col-md-5">
+          <label class="form-label small">Наслов на промената *</label>
+          <input class="form-control" name="title" placeholder="пр. Надградба на core свич firmware во датацентар" required>
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label small">Ниво на ризик *</label>
+          <select class="form-select" name="risk_level">
+            <option value="low">Низок (Low)</option>
+            <option value="medium" selected>Среден (Medium)</option>
+            <option value="high">Висок (High)</option>
+            <option value="critical">Критичен (Critical)</option>
+          </select>
+        </div>
+        <div class="col-6 col-md-5">
+          <label class="form-label small">Засегнати системи и корисници *</label>
+          <input class="form-control" name="impact_scope" placeholder="пр. ERP систем, сите корисници во зграда 1" required>
+        </div>
+        <div class="col-6 col-md-3 mt-2">
+          <label class="form-label small">Почеток на прозорец (Maintenance Start)</label>
+          <input class="form-control" type="datetime-local" name="scheduled_start">
+        </div>
+        <div class="col-6 col-md-3 mt-2">
+          <label class="form-label small">Крај на прозорец (Maintenance End)</label>
+          <input class="form-control" type="datetime-local" name="scheduled_end">
+        </div>
+        <div class="col-12 col-md-6 mt-2">
+          <label class="form-label small fw-bold text-danger">Rollback План (План за враќање наназад) *</label>
+          <input class="form-control border-danger" name="rollback_plan" placeholder="пр. Во случај на неуспех, враќање на секундарен boot partition за 10 мин" required>
+        </div>
+      </div>
+      <button class="btn btn-primary mt-3" type="submit">Поднеси до CAB</button>
+    </form>
+  </div>
+</div>
+
+<!-- KPI Summary Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card sd-card p-3 border text-center h-100">
+      <div class="text-muted small">Вкупно промени</div>
+      <div class="display-6 fw-bold text-primary">{{ total_count }}</div>
+      <div class="small text-muted">сите поднесени барања</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card sd-card p-3 border text-center h-100 {% if pending_cab_count > 0 %}border-warning bg-warning-subtle{% endif %}">
+      <div class="text-muted small">На чекање од CAB</div>
+      <div class="display-6 fw-bold text-warning">{{ pending_cab_count }}</div>
+      <div class="small text-muted">потребно одобрување</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card sd-card p-3 border text-center h-100">
+      <div class="text-muted small">Одобрени од CAB</div>
+      <div class="display-6 fw-bold text-success">{{ approved_count }}</div>
+      <div class="small text-muted">подготвени за извршување</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card sd-card p-3 border text-center h-100 {% if high_risk_count > 0 %}border-danger bg-danger-subtle{% endif %}">
+      <div class="text-muted small">Висок / Критичен ризик</div>
+      <div class="display-6 fw-bold text-danger">{{ high_risk_count }}</div>
+      <div class="small text-muted">бараат строг надзор</div>
+    </div>
+  </div>
+</div>
+
+<!-- Changes Table -->
+<div class="card sd-card border mb-5">
+  <div class="card-header bg-transparent py-3 d-flex justify-content-between align-items-center">
+    <span class="fw-bold"><svg class="ic me-2" aria-hidden="true"><use href="#i-swap"/></svg>Регистар на промени (RFC & CAB)</span>
+    <input type="search" class="form-control form-control-sm w-auto" placeholder="Инстантно филтрирање..." data-instant-filter="chgTable">
+  </div>
+  <div class="table-responsive mb-0">
+    <table class="table table-hover align-middle mb-0 sortable" id="chgTable">
+      <thead class="table-light">
+        <tr>
+          <th data-sort="string">Статус</th>
+          <th data-sort="string">ID</th>
+          <th data-sort="string">Промена & Опфат</th>
+          <th data-sort="string">Ниво на ризик</th>
+          <th data-sort="string">Интервал (Прозорец)</th>
+          <th>Rollback План</th>
+          <th data-sort="string">Одобрено од</th>
+          <th class="text-end">CAB Одлука / Акции</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for c in changes %}
+        <tr class="{% if c.Status == 'pending_cab' %}table-warning{% elif c.Status == 'implemented' %}table-light{% elif c.Status == 'failed' %}table-danger{% endif %}">
+          <td>
+            {% if c.Status == 'pending_cab' %}
+              <span class="badge bg-warning text-dark"><svg class="ic me-1" aria-hidden="true"><use href="#i-clock"/></svg>Чека CAB</span>
+            {% elif c.Status == 'approved' %}
+              <span class="badge bg-success"><svg class="ic me-1" aria-hidden="true"><use href="#i-check"/></svg>Одобрено</span>
+            {% elif c.Status == 'implemented' %}
+              <span class="badge bg-primary"><svg class="ic me-1" aria-hidden="true"><use href="#i-check"/></svg>Имплементирано</span>
+            {% elif c.Status == 'failed' %}
+              <span class="badge bg-danger"><svg class="ic me-1" aria-hidden="true"><use href="#i-warn"/></svg>Вратено / Неуспешно</span>
+            {% else %}
+              <span class="badge bg-secondary">{{ c.Status }}</span>
+            {% endif %}
+          </td>
+          <td><b><code>{{ c.ChangeID }}</code></b></td>
+          <td>
+            <div class="fw-bold">{{ c.Title }}</div>
+            {% if c.ImpactScope %}<div class="small text-muted">Опфат: {{ c.ImpactScope }}</div>{% endif %}
+            <div class="small text-muted">Барател: {{ c.Requester }}</div>
+          </td>
+          <td>
+            {% if c.RiskLevel == 'critical' %}
+              <span class="badge bg-danger">Критичен</span>
+            {% elif c.RiskLevel == 'high' %}
+              <span class="badge bg-warning text-dark">Висок</span>
+            {% elif c.RiskLevel == 'medium' %}
+              <span class="badge bg-info text-dark">Среден</span>
+            {% else %}
+              <span class="badge bg-secondary">Низок</span>
+            {% endif %}
+          </td>
+          <td class="small">
+            {% if c.ScheduledStart or c.ScheduledEnd %}
+              <div>{{ c.ScheduledStart }}</div>
+              <div class="text-muted">до {{ c.ScheduledEnd }}</div>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="small font-monospace text-truncate d-inline-block" style="max-width: 180px;" title="{{ c.RollbackPlan }}">
+              {{ c.RollbackPlan }}
+            </span>
+          </td>
+          <td class="small">
+            {% if c.ApprovedBy %}
+              <b>{{ c.ApprovedBy }}</b>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            <div class="d-inline-flex gap-1">
+              {% if c.Status == 'pending_cab' %}
+                <!-- CAB Approve -->
+                <form method="post" action="/changes/decision" class="d-inline">
+                  <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                  <input type="hidden" name="change_id" value="{{ c.ChangeID }}">
+                  <input type="hidden" name="decision" value="approve">
+                  <button class="btn btn-sm btn-success" type="submit" title="Одобри од CAB">
+                    <svg class="ic me-1" aria-hidden="true"><use href="#i-check"/></svg>Одобри
+                  </button>
+                </form>
+                <!-- CAB Reject -->
+                <form method="post" action="/changes/decision" class="d-inline">
+                  <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                  <input type="hidden" name="change_id" value="{{ c.ChangeID }}">
+                  <input type="hidden" name="decision" value="reject">
+                  <button class="btn btn-sm btn-outline-danger" type="submit" title="Одбиј промена">
+                    <svg class="ic" aria-hidden="true"><use href="#i-x"/></svg>
+                  </button>
+                </form>
+              {% elif c.Status == 'approved' %}
+                <!-- Mark Implemented -->
+                <form method="post" action="/changes/implement" class="d-inline">
+                  <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                  <input type="hidden" name="change_id" value="{{ c.ChangeID }}">
+                  <input type="hidden" name="result" value="implemented">
+                  <button class="btn btn-sm btn-outline-primary" type="submit" title="Означи како завршена">
+                    <svg class="ic me-1" aria-hidden="true"><use href="#i-check"/></svg>Имплементирано
+                  </button>
+                </form>
+                <!-- Mark Failed / Rollback -->
+                <form method="post" action="/changes/implement" class="d-inline">
+                  <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                  <input type="hidden" name="change_id" value="{{ c.ChangeID }}">
+                  <input type="hidden" name="result" value="failed">
+                  <button class="btn btn-sm btn-outline-warning text-dark" type="submit" title="Вратено назад (Rollback)">
+                    Rollback
+                  </button>
+                </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if not changes %}
+    <div class="p-5 text-center text-muted">
+      Нема евидентирано барања за промени (RFC) во системот.
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -272,3 +272,30 @@ MAINT_SCHEDULE_COLS = [
     "Notes",
 ]
 
+PROBLEM_COLS = [
+    "ProblemID",
+    "Title",
+    "Description",
+    "RootCause",
+    "Workaround",
+    "Status",
+    "Owner",
+    "Created",
+    "ResolvedAt",
+]
+
+CHANGE_COLS = [
+    "ChangeID",
+    "Title",
+    "RiskLevel",
+    "ImpactScope",
+    "ScheduledStart",
+    "ScheduledEnd",
+    "RollbackPlan",
+    "Status",
+    "Requester",
+    "ApprovedBy",
+    "Created",
+]
+
+

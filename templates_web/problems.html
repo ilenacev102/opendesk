@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h2><svg class="ic me-2" aria-hidden="true"><use href="#i-bolt"/></svg>Управување со Проблеми (ITIL Problem Management)</h2>
+    <p class="text-muted mb-0">Групирање на слични инциденти под коренска причина (Root Cause) и автоматско каскадно решавање.</p>
+  </div>
+  <button class="btn btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#newProblemCollapse">
+    <svg class="ic me-1" aria-hidden="true"><use href="#i-plus"/></svg>Отвори нов Проблем
+  </button>
+</div>
+
+<div class="collapse mb-4" id="newProblemCollapse">
+  <div class="card sd-card border p-3">
+    <h5 class="fw-bold mb-3">Евидентирај нов проблем (PRB)</h5>
+    <form method="post" action="/problems/new">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+      <div class="row g-2">
+        <div class="col-12 col-md-4">
+          <label class="form-label small">Наслов на проблемот *</label>
+          <input class="form-control" name="title" placeholder="пр. Прекин на интернет конекција во објект Битола" required>
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label small">Одговорен инженер</label>
+          <input class="form-control" name="owner" placeholder="пр. игор.инженер">
+        </div>
+        <div class="col-12 col-md-5">
+          <label class="form-label small">Привремено решение (Workaround)</label>
+          <input class="form-control" name="workaround" placeholder="пр. Префрлање на 4G резервен рутер">
+        </div>
+        <div class="col-12 mt-2">
+          <label class="form-label small">Детален опис на симптомите</label>
+          <textarea class="form-control" name="description" rows="2" placeholder="Опишете ги симптомите кои влијаат врз повеќе корисници..."></textarea>
+        </div>
+      </div>
+      <button class="btn btn-primary mt-3" type="submit">Зачувај проблем</button>
+    </form>
+  </div>
+</div>
+
+<!-- KPI Summary Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card sd-card p-3 border text-center h-100">
+      <div class="text-muted small">Вкупно Проблеми</div>
+      <div class="display-6 fw-bold text-primary">{{ total_count }}</div>
+      <div class="small text-muted">евидентирани системски дефекти</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card sd-card p-3 border text-center h-100 {% if open_count > 0 %}border-warning bg-warning-subtle{% endif %}">
+      <div class="text-muted small">Во активна истрага</div>
+      <div class="display-6 fw-bold text-warning">{{ open_count }}</div>
+      <div class="small text-muted">неразрешена коренска причина</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card sd-card p-3 border text-center h-100">
+      <div class="text-muted small">Успешно решени</div>
+      <div class="display-6 fw-bold text-success">{{ resolved_count }}</div>
+      <div class="small text-muted">со документиран Root Cause</div>
+    </div>
+  </div>
+</div>
+
+<!-- Problems List -->
+<div class="card sd-card border mb-5">
+  <div class="card-header bg-transparent py-3 d-flex justify-content-between align-items-center">
+    <span class="fw-bold"><svg class="ic me-2" aria-hidden="true"><use href="#i-bolt"/></svg>Регистар на проблеми (PRB)</span>
+    <input type="search" class="form-control form-control-sm w-auto" placeholder="Инстантно филтрирање..." data-instant-filter="probTable">
+  </div>
+  <div class="table-responsive mb-0">
+    <table class="table table-hover align-middle mb-0 sortable" id="probTable">
+      <thead class="table-light">
+        <tr>
+          <th data-sort="string">Статус</th>
+          <th data-sort="string">ID</th>
+          <th data-sort="string">Наслов & Симптоми</th>
+          <th data-sort="string">Одговорен</th>
+          <th>Поврзани инциденти</th>
+          <th data-sort="string">Отворен</th>
+          <th class="text-end">Акции</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for p in problems %}
+        <tr class="{% if p.Status == 'resolved' %}table-light{% else %}table-warning{% endif %}">
+          <td>
+            {% if p.Status == 'resolved' %}
+              <span class="badge bg-success"><svg class="ic me-1" aria-hidden="true"><use href="#i-check"/></svg>Решен</span>
+            {% else %}
+              <span class="badge bg-warning text-dark"><svg class="ic me-1" aria-hidden="true"><use href="#i-clock"/></svg>Истрага</span>
+            {% endif %}
+          </td>
+          <td><b><code>{{ p.ProblemID }}</code></b></td>
+          <td>
+            <div class="fw-bold">{{ p.Title }}</div>
+            {% if p.Description %}<div class="small text-muted text-truncate" style="max-width:300px;">{{ p.Description }}</div>{% endif %}
+            {% if p.Workaround %}<div class="small text-info">Workaround: {{ p.Workaround }}</div>{% endif %}
+            {% if p.RootCause %}<div class="small text-success">Root Cause: <b>{{ p.RootCause }}</b></div>{% endif %}
+          </td>
+          <td>{{ p.Owner or "—" }}</td>
+          <td>
+            <span class="badge bg-primary rounded-pill">{{ p.linked_count }}</span>
+            {% if p.linked_incidents %}
+              <div class="small text-muted mt-1 font-monospace">
+                {% for inc in p.linked_incidents[:3] %}
+                  <a href="/incidents/{{ inc.IncidentID }}" class="text-decoration-none badge bg-secondary">{{ inc.IncidentID }}</a>
+                {% endfor %}
+                {% if p.linked_incidents|length > 3 %}...{% endif %}
+              </div>
+            {% endif %}
+          </td>
+          <td class="small">{{ p.Created[:10] if p.Created else "—" }}</td>
+          <td class="text-end">
+            <div class="d-inline-flex gap-1">
+              {% if p.Status != 'resolved' %}
+                <!-- Link incident trigger -->
+                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#link-{{ p.ProblemID }}" title="Поврзи инцидент">
+                  <svg class="ic" aria-hidden="true"><use href="#i-clip"/></svg>
+                </button>
+                <!-- Resolve button trigger -->
+                <button class="btn btn-sm btn-success" type="button" data-bs-toggle="collapse" data-bs-target="#resolve-{{ p.ProblemID }}" title="Реши проблем и затвори инциденти">
+                  <svg class="ic me-1" aria-hidden="true"><use href="#i-check"/></svg>Реши
+                </button>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+
+        <!-- Link Incident Collapse Form -->
+        <tr class="collapse bg-light" id="link-{{ p.ProblemID }}">
+          <td colspan="7" class="p-3">
+            <div class="card p-3 border bg-white">
+              <h6 class="fw-bold mb-2">Поврзи отворен тикет/инцидент со {{ p.ProblemID }}</h6>
+              <form method="post" action="/problems/link-incident">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="problem_id" value="{{ p.ProblemID }}">
+                <div class="row g-2 align-items-end">
+                  <div class="col-md-8">
+                    <label class="form-label small">Избери отворен инцидент</label>
+                    <select class="form-select form-select-sm" name="incident_id" required>
+                      <option value="">-- Избери инцидент --</option>
+                      {% for inc in open_incidents %}
+                        <option value="{{ inc.IncidentID }}">{{ inc.IncidentID }} — {{ inc.Title }} ({{ inc.AssetID or inc.EmployeeID }})</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <button class="btn btn-primary btn-sm w-100" type="submit">
+                      <svg class="ic me-1" aria-hidden="true"><use href="#i-clip"/></svg>Поврзи со Проблемот
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </td>
+        </tr>
+
+        <!-- Resolve Problem & Cascade Resolution Collapse -->
+        <tr class="collapse bg-light" id="resolve-{{ p.ProblemID }}">
+          <td colspan="7" class="p-3">
+            <div class="card p-3 border border-success bg-white">
+              <h6 class="fw-bold text-success mb-2">
+                <svg class="ic me-1" aria-hidden="true"><use href="#i-check"/></svg>
+                Каскадно решавање на проблем {{ p.ProblemID }} и сите {{ p.linked_count }} поврзани тикети
+              </h6>
+              <p class="small text-muted mb-3">Со внесување на Root Cause, системот автоматски ќе ги затвори сите поврзани инциденти и ќе ја зачува причината во историјата.</p>
+              <form method="post" action="/problems/resolve">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="problem_id" value="{{ p.ProblemID }}">
+                <div class="row g-2">
+                  <div class="col-12 col-md-6">
+                    <label class="form-label small fw-bold">Root Cause (Основна причина за дефектот) *</label>
+                    <input class="form-control form-control-sm" name="root_cause" placeholder="пр. Свичот Cisco во рак 2 имаше дефектно напојување" required>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <label class="form-label small">Трајно решение / Инструкции за корисниците</label>
+                    <input class="form-control form-control-sm" name="workaround" placeholder="пр. Заменето напојување и обновен firmware">
+                  </div>
+                  <div class="col-12 mt-3 text-end">
+                    <button class="btn btn-success btn-sm px-4" type="submit">
+                      Потврди каскадно решавање (Close All)
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if not problems %}
+    <div class="p-5 text-center text-muted">
+      Нема евидентирано системски проблеми во регистарот.
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
