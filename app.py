@@ -263,7 +263,10 @@ try:
         except ValueError:
             pass
 except ImportError:  # Flask-Login недостапен: рутите остануваат отворени
-    login_required = lambda f: f
+
+    def login_required(f):
+        return f
+
     current_user = None
 
     class AppUser:  # минимален fallback за /login без Flask-Login

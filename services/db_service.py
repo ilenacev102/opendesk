@@ -2,6 +2,7 @@
 
 import os
 import sqlite3
+from contextlib import contextmanager
 
 
 class DbStore:
@@ -151,9 +152,7 @@ class DbStore:
         if col not in self.columns:
             return 0
         if con is not None:
-            cur = con.execute(
-                f'DELETE FROM "{self.table}" WHERE "{col}" = ?', (value,)
-            )
+            cur = con.execute(f'DELETE FROM "{self.table}" WHERE "{col}" = ?', (value,))
             return cur.rowcount
         with self._connect() as connection:
             cur = connection.execute(
@@ -217,9 +216,6 @@ def table_counts(db_path):
         return {
             t: con.execute(f'SELECT COUNT(*) FROM "{t}"').fetchone()[0] for t in tables
         }
-
-
-from contextlib import contextmanager
 
 
 @contextmanager

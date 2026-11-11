@@ -1,0 +1,12 @@
+# Lint policy — pinned to the pre-0.17 ruff default rule set (E4/E7/E9 + F).
+# WHY: ruff 0.17 expanded its default rule set (BLE, SIM, S, RUF, PLW, ISC, B
+# now fire by default), which flags ~77 pre-existing, intentional patterns
+# (broad `except Exception` re-raised as domain errors, availability-probe
+# imports, closing sockets best-effort). Enabling those rules is a separate
+# cleanup decision, not a reason to fail CI. Extend `select` deliberately.
+# WHY E402: module-level init order is load-bearing — stores and services are
+# instantiated between imports against constants defined above them (PATHS,
+# DB_PATH, schema column lists). Reordering imports would move service
+# instantiation before its configuration. See ARCHITECTURE.md.
+lint.select = ["E4", "E7", "E9", "F"]
+lint.per-file-ignores = { "app.py" = ["E402"] }

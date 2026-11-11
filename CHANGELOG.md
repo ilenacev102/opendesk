@@ -565,10 +565,35 @@
   а `start.sh` сега автоматски ја користи локалната `.venv` виртуелна околина.
 - **Тест верификација**: 438 passed, 0 failed, 3 skipped (вкупно 441).
 
+## Sprint 5 — CMDB Topology Graph и Impact Analysis (2026-11-11)
+
+- **Интерактивна топологија (`routes/cmdb.py`, `templates_web/cmdb_topology.html`)**:
+  визуелен граф на зависности меѓу CI (уреди, employees, rack-ови, експлицитни
+  врски) со коренска точка `?root=` и филтер по тип `?type=`.
+- **Graph API**: `GET /api/v1/cmdb/graph` (nodes + edges JSON) и
+  `GET /api/v1/cmdb/impact/<asset_id>` — Blast Radius калкулатор (BFS
+  надолно/нагоре) за процентели од уреди, rack-ови и rack items на кои
+  влијае дефект на даден CI.
+- **Релации**: `GET/POST /cmdb/relations/new` и `POST /cmdb/relations/delete`
+  (SourceID/TargetID/RelationType во нова `cmdb_relations` табела, авто-ALTER).
+- **UI анимациони систем**: `static/css/motion.css` (360 реда) +
+  `static/js/motion.js` (251 реда) — spotlight glow по курсор, click ripples,
+  alert progress bars, kinetic drag feedback; spring easings преку CSS токени,
+  со почитување на `prefers-reduced-motion`. Board DnD мигриран на новите
+  `.is-dragging`/`.drag-active` класи.
+- **Тестови**: `tests/test_cmdb_topology.py` (5: graph API, blast radius,
+  relations CRUD, topologiја, isolation).
+- **Lint политика**: додаден `ruff.toml` — заклучен на pre-0.17 default
+  (E4/E7/E9+F) со документирано WHY; `app.py` E402 per-file ignore (намерен
+  init-редослед). CI сега инсталира pinned `requirements-dev.txt` наместо
+  floating `ruff` (ruff 0.17 прошири default правила → 77 нови advisory
+  грешки во стар код).
+- **Suite: 465 passed, 0 failed, 3 skipped (вкупно 468).**
+
 ## Стартување
 
 ```bash
 bash start.sh             # стартува со .venv и отвора порта 5000
-python3 -m pytest tests/  # целосен suite (438 passed)
+python3 -m pytest tests/  # целосен suite (465 passed)
 ```
 

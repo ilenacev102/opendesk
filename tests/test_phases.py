@@ -103,7 +103,8 @@ def env(monkeypatch):
         _rs, "fill_template", lambda *a, **k: "documents/x.docx", raising=False
     )
     try:
-        from services.document_service import fill_zadolzenie_multi as _m
+        # Availability probe: patch only if fill_zadolzenie_multi exists.
+        from services.document_service import fill_zadolzenie_multi as _m  # noqa: F401
 
         monkeypatch.setattr(
             _rs,

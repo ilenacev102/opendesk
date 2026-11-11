@@ -103,7 +103,6 @@ def test_incident_create_logs_user(monkeypatch):
 def test_rolled_back_confirm_writes_no_history(monkeypatch):
     app_mod = _env(monkeypatch)
     try:
-        real_append = app_mod.devices.append_row
 
         def flaky(row, con=None):
             raise OSError("simulated disk failure")

@@ -35,7 +35,7 @@ def _env():
         performed_by="admin",
     )
     inc_svc.transition(b["IncidentID"], "in-progress", performed_by="admin")
-    c = inc_svc.create(
+    inc_svc.create(
         asset_id="AST003",
         title="Отворен стар",
         priority="medium",

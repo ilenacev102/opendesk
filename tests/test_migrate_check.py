@@ -86,7 +86,7 @@ def test_legacy_migration_preserves_counts(tmp_path):
     from services.history_service import HISTORY_COLS
     from services.schemas import INCIDENT_COLS, LDAPMAP_COLS, STAGING_COLS
 
-    history = DbStore(db, "history", HISTORY_COLS)
+    DbStore(db, "history", HISTORY_COLS)
     DbStore(db, "incidents", INCIDENT_COLS)
     DbStore(db, "staging", STAGING_COLS)
     DbStore(db, "ldapmap", LDAPMAP_COLS)

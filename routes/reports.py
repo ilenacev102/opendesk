@@ -99,7 +99,10 @@ def reports():
     from services.schemas import EMP_COLS
 
     devs = devices.records()
-    by = lambda key: dict(Counter(r.get(key, "") or "—" for r in devs))
+
+    def by(key):
+        return dict(Counter(r.get(key, "") or "—" for r in devs))
+
     hist = history.recent(1000)
     monthly = Counter()
     for h in hist:
