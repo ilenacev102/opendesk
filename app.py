@@ -85,6 +85,7 @@ def inject_unread_count():
 
 from services.schemas import (
     CHANGE_COLS,
+    CMDB_REL_COLS,
     COMMENT_COLS,
     CONS_COLS,
     CONTRACT_COLS,
@@ -155,6 +156,7 @@ maintenance_schedules = open_store(
 )
 problems = open_store(DB_PATH, "problems", None, PROBLEM_COLS)
 changes = open_store(DB_PATH, "changes", None, CHANGE_COLS)
+cmdb_relations = open_store(DB_PATH, "cmdb_relations", None, CMDB_REL_COLS)
 
 PATHS = {
     "db": DB_PATH,

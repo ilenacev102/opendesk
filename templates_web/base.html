@@ -27,6 +27,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
 <link href="/static/css/bootstrap.min.css" rel="stylesheet">
 <link href="/static/css/app.css" rel="stylesheet">
+<link href="/static/css/motion.css" rel="stylesheet">
 </head>
 <body>
 {% include "_icons.html" %}
@@ -68,10 +69,11 @@
 </ul>
 </div>
 <div class="nav-item dropdown">
-<a class="nav-link dropdown-toggle {% if request.path in ['/problems', '/changes'] %}active{% endif %}" href="#" data-bs-toggle="dropdown">ITSM</a>
+<a class="nav-link dropdown-toggle {% if request.path in ['/problems', '/changes', '/cmdb/topology'] %}active{% endif %}" href="#" data-bs-toggle="dropdown">ITSM</a>
 <ul class="dropdown-menu">
 <li><a class="dropdown-item" href="/problems"><svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg>Проблеми (PRB)</a></li>
 <li><a class="dropdown-item" href="/changes"><svg class="ic" aria-hidden="true"><use href="#i-swap"/></svg>Промени (CAB)</a></li>
+<li><a class="dropdown-item" href="/cmdb/topology"><svg class="ic" aria-hidden="true"><use href="#i-network"/></svg>CMDB Топологија</a></li>
 </ul>
 </div>
 <div class="nav-item dropdown">
@@ -176,6 +178,7 @@
 <script src="/static/js/form-keys.js"></script>
 <script src="/static/js/powersort.js"></script>
 <script src="/static/js/sort.js"></script>
+<script src="/static/js/motion.js"></script>
 <script nonce="{{ csp_nonce }}">
 function mailDoc(pdfUrl, email, subject, body) {
   const a = document.createElement("a");
@@ -224,8 +227,9 @@ document.querySelectorAll("form[method='post']").forEach(f => {
 });
 setTimeout(() => {
   document.querySelectorAll(".alert-success").forEach(a => {
-    a.style.transition = "opacity .5s";
+    a.style.transition = "opacity .5s, transform .5s";
     a.style.opacity = "0";
+    a.style.transform = "translateY(-12px)";
     setTimeout(() => a.remove(), 550);
   });
 }, 4000);

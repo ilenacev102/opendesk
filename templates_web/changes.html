@@ -10,7 +10,7 @@
   </button>
 </div>
 
-<div class="collapse mb-4" id="newChangeCollapse">
+<div class="collapse mb-4 {% if request.args.get('title') or request.args.get('impact_scope') %}show{% endif %}" id="newChangeCollapse">
   <div class="card sd-card border p-3">
     <h5 class="fw-bold mb-3">Поднеси барање за системска промена (RFC)</h5>
     <form method="post" action="/changes/new">
@@ -18,20 +18,20 @@
       <div class="row g-2">
         <div class="col-12 col-md-5">
           <label class="form-label small">Наслов на промената *</label>
-          <input class="form-control" name="title" placeholder="пр. Надградба на core свич firmware во датацентар" required>
+          <input class="form-control" name="title" value="{{ request.args.get('title', '') }}" placeholder="пр. Надградба на core свич firmware во датацентар" required>
         </div>
         <div class="col-6 col-md-2">
           <label class="form-label small">Ниво на ризик *</label>
           <select class="form-select" name="risk_level">
-            <option value="low">Низок (Low)</option>
-            <option value="medium" selected>Среден (Medium)</option>
-            <option value="high">Висок (High)</option>
-            <option value="critical">Критичен (Critical)</option>
+            <option value="low" {% if request.args.get('risk_level') == 'low' %}selected{% endif %}>Низок (Low)</option>
+            <option value="medium" {% if not request.args.get('risk_level') or request.args.get('risk_level') == 'medium' %}selected{% endif %}>Среден (Medium)</option>
+            <option value="high" {% if request.args.get('risk_level') == 'high' %}selected{% endif %}>Висок (High)</option>
+            <option value="critical" {% if request.args.get('risk_level') == 'critical' %}selected{% endif %}>Критичен (Critical)</option>
           </select>
         </div>
         <div class="col-6 col-md-5">
           <label class="form-label small">Засегнати системи и корисници *</label>
-          <input class="form-control" name="impact_scope" placeholder="пр. ERP систем, сите корисници во зграда 1" required>
+          <input class="form-control" name="impact_scope" value="{{ request.args.get('impact_scope', '') }}" placeholder="пр. ERP систем, сите корисници во зграда 1" required>
         </div>
         <div class="col-6 col-md-3 mt-2">
           <label class="form-label small">Почеток на прозорец (Maintenance Start)</label>

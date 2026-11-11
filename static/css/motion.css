@@ -1,0 +1,360 @@
+/* ==========================================================================
+   ServiceDesk Motion Design & Micro-interactions System
+   Compliant with DESIGN.md: GPU-accelerated (transform/opacity),
+   spring easings, prefers-reduced-motion, and theme-token compatible.
+   ========================================================================== */
+
+:root {
+  --sd-ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --sd-ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --sd-ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --sd-spotlight-color: rgba(37, 99, 235, 0.07);
+  --sd-spotlight-size: 380px;
+}
+
+[data-bs-theme="dark"] {
+  --sd-spotlight-color: rgba(96, 165, 250, 0.12);
+}
+
+/* --- 1. Interactive Spotlight Glow on Cards --- */
+.card-spotlight {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.22s var(--sd-ease-spring), box-shadow 0.22s var(--sd-ease-spring), border-color 0.2s ease;
+}
+
+.card-spotlight::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    var(--sd-spotlight-size) circle at var(--mouse-x, -500px) var(--mouse-y, -500px),
+    var(--sd-spotlight-color),
+    transparent 70%
+  );
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: 1;
+}
+
+.card-spotlight:hover::before {
+  opacity: 1;
+}
+
+.card-spotlight > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* --- 2. Stat-Card Kinetic Lift & Icon Play --- */
+.stat-card {
+  transition: transform 0.24s var(--sd-ease-spring), box-shadow 0.24s var(--sd-ease-spring), border-color 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-3px) scale(1.008);
+  box-shadow: 0 8px 24px rgba(16, 42, 67, 0.13);
+}
+
+[data-bs-theme="dark"] .stat-card:hover {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+.stat-card .stat-ic {
+  transition: transform 0.28s var(--sd-ease-bounce);
+}
+
+.stat-card:hover .stat-ic {
+  transform: scale(1.12) rotate(-4deg);
+}
+
+/* --- 3. Command Strip Micro-Interactions --- */
+.command-action {
+  transition: background 0.18s ease, color 0.18s ease, transform 0.2s var(--sd-ease-spring);
+}
+
+.command-action:hover {
+  transform: translateY(-2px);
+}
+
+.command-action .ic {
+  transition: transform 0.25s var(--sd-ease-bounce);
+}
+
+.command-action:hover .ic {
+  transform: scale(1.18) translateY(-1px);
+}
+
+.command-action:active {
+  transform: translateY(0) scale(0.97);
+}
+
+/* --- 4. Button Shimmer, Ripple, and Tactile Press --- */
+.btn {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.14s var(--sd-ease-spring), box-shadow 0.15s var(--sd-ease-spring), background-color 0.15s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1.5px);
+}
+
+.btn:active {
+  transform: translateY(1px) scale(0.97);
+}
+
+/* Shimmer wave on primary buttons */
+.btn-primary::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -120%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.24) 50%,
+    transparent 100%
+  );
+  transform: skewX(-20deg);
+  pointer-events: none;
+}
+
+.btn-primary:hover::after {
+  left: 140%;
+  transition: left 0.75s ease-in-out;
+}
+
+/* Dynamic Ripple effect */
+.sd-ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  transform: scale(0);
+  animation: sdRipple 0.55s ease-out forwards;
+  pointer-events: none;
+}
+
+.btn-outline-secondary .sd-ripple,
+.btn-light .sd-ripple,
+.command-action .sd-ripple {
+  background: rgba(47, 93, 163, 0.18);
+}
+
+[data-bs-theme="dark"] .btn-outline-secondary .sd-ripple,
+[data-bs-theme="dark"] .command-action .sd-ripple {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+@keyframes sdRipple {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* --- 5. Live Radar Pulse on Status Indicators --- */
+.nav-health {
+  position: relative;
+}
+
+.nav-health i {
+  position: relative;
+  display: inline-block;
+}
+
+.nav-health i::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 1.5px solid #34d399;
+  animation: sdPulseRing 2.2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  pointer-events: none;
+}
+
+@keyframes sdPulseRing {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.9;
+  }
+  65%, 100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+/* Subtle badge pulse for urgent / critical tags */
+.st-Broken,
+.st-Lost,
+.st-Stolen,
+.w-critical,
+.w-expired,
+.badge-pulse {
+  position: relative;
+}
+
+.st-Broken::before,
+.w-critical::before,
+.badge-pulse::before {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  margin-right: 5px;
+  vertical-align: 1px;
+  animation: sdBlink 1.8s ease-in-out infinite;
+}
+
+@keyframes sdBlink {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.85); }
+}
+
+/* --- 6. Floating Empty-State Animation --- */
+.empty-state .ic {
+  animation: sdFloat 3.6s ease-in-out infinite;
+}
+
+@keyframes sdFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* --- 7. Alert / Toast Motion & Dismiss Timer --- */
+.alert {
+  position: relative;
+  overflow: hidden;
+  animation: sdSlideDown 0.38s var(--sd-ease-spring) both;
+}
+
+@keyframes sdSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.alert-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  width: 100%;
+  background: rgba(0, 0, 0, 0.12);
+  transform-origin: left;
+  animation: sdAlertTimer 4s linear forwards;
+}
+
+[data-bs-theme="dark"] .alert-progress {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+@keyframes sdAlertTimer {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+/* --- 8. Kanban Drag-and-Drop Kinetic Tilt --- */
+.kanban-card {
+  transition: transform 0.18s var(--sd-ease-spring), box-shadow 0.18s var(--sd-ease-spring), opacity 0.15s ease;
+}
+
+.kanban-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(16, 32, 54, 0.1);
+}
+
+.kanban-card.is-dragging {
+  opacity: 0.5;
+  transform: rotate(2.5deg) scale(1.02);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
+  cursor: grabbing !important;
+}
+
+.kanban-dropzone {
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.kanban-dropzone.drag-active {
+  background: rgba(37, 99, 235, 0.05);
+  border: 2px dashed var(--sd-accent) !important;
+  border-radius: var(--sd-radius);
+  animation: sdBreathe 1.5s ease-in-out infinite;
+}
+
+[data-bs-theme="dark"] .kanban-dropzone.drag-active {
+  background: rgba(96, 165, 250, 0.08);
+}
+
+@keyframes sdBreathe {
+  0%, 100% { opacity: 0.9; }
+  50% { opacity: 0.65; }
+}
+
+/* --- 9. Canvas Confetti Overlay --- */
+#sdConfettiCanvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 99999;
+}
+
+/* --- 10. Table Row Micro-Highlight --- */
+.table tbody tr {
+  transition: background-color 0.16s ease, transform 0.16s ease;
+}
+
+.table tbody tr:hover {
+  transform: scale([1.002]);
+}
+
+/* --- 11. Dropdown and Modal Spring Reveals --- */
+.dropdown-menu {
+  animation: sdDropdownIn 0.2s var(--sd-ease-spring) both;
+  transform-origin: top;
+}
+
+@keyframes sdDropdownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* --- 12. Accessibility: Reduced Motion Override --- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .card-spotlight::before {
+    display: none !important;
+  }
+  .empty-state .ic {
+    animation: none !important;
+  }
+  .nav-health i::after {
+    display: none !important;
+  }
+}

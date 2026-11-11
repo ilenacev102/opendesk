@@ -5,11 +5,35 @@
 <li class="breadcrumb-item"><a href="/device/{{ dev.AssetID }}">{{ dev.AssetID }}</a></li>
 <li class="breadcrumb-item active" aria-current="page">Врски</li>
 </ol></nav>
-<h2>Врски — {{ dev.AssetID }}</h2>
-<p>{{ dev.Manufacturer }} {{ dev.Model }} | Статус: <b>{{ dev.Status }}</b></p>
+<div class="d-flex justify-content-between align-items-center">
+  <div>
+    <h2>Врски — {{ dev.AssetID }}</h2>
+    <p class="mb-0">{{ dev.Manufacturer }} {{ dev.Model }} | Статус: <b>{{ dev.Status }}</b></p>
+  </div>
+  <a class="btn btn-primary" href="/cmdb/topology?root={{ dev.AssetID }}">
+    <svg class="ic me-1" aria-hidden="true"><use href="#i-network"/></svg>Интерактивна Топологија & Blast Radius
+  </a>
+</div>
 {% if owner %}
-<p>Сопственик: <b>{{ owner.FirstName }} {{ owner.LastName }}</b> ({{ owner.EmployeeID }})</p>
+<p class="mt-2">Сопственик: <b>{{ owner.FirstName }} {{ owner.LastName }}</b> ({{ owner.EmployeeID }})</p>
 {% endif %}
+
+<h4 class="mt-4">CMDB Релации</h4>
+{% if custom_relations %}
+<ul class="list-group">{% for r in custom_relations %}
+<li class="list-group-item d-flex justify-content-between align-items-center">
+  <span><svg class="ic me-1 text-primary" aria-hidden="true"><use href="#i-network"/></svg><b>{{ r.Relation }}</b>: {{ r.TargetID if r.SourceID == dev.AssetID else r.SourceID }} ({{ r.Notes or 'Без опис' }})</span>
+  <form method="post" action="/cmdb/relations/delete/{{ r.RelID }}" class="d-inline mb-0">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="redirect_to" value="/cmdb/{{ dev.AssetID }}">
+    <button type="submit" class="btn btn-sm btn-outline-danger" title="Избриши релација">
+      <svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg>
+    </button>
+  </form>
+</li>
+{% endfor %}</ul>
+{% else %}<p class="text-muted">Нема дефинирани сопствени релации.</p>{% endif %}
+
 <h4 class="mt-4">Лиценци</h4>
 {% if licenses %}
 <ul class="list-group">{% for l in licenses %}
@@ -40,7 +64,7 @@
 <li class="list-group-item"><b><a href="/incident/{{ i.IncidentID }}">{{ i.IncidentID }}</a></b> — {{ i.Title }} ({{ i.Status }})</li>
 {% endfor %}</ul>
 {% else %}<p class="text-muted">Нема поврзани инциденти.</p>{% endif %}
-{% if not licenses and not contracts and not reservations and not requests and not incidents %}
+{% if not licenses and not contracts and not reservations and not requests and not incidents and not custom_relations %}
 <div class="empty-state mt-3">Нема поврзани записи.</div>
 {% endif %}
 {% endblock %}

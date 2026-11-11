@@ -298,4 +298,14 @@ CHANGE_COLS = [
     "Created",
 ]
 
+CMDB_REL_COLS = [
+    "RelID",
+    "SourceType",
+    "SourceID",
+    "Relation",
+    "TargetType",
+    "TargetID",
+    "Notes",
+]
+
 

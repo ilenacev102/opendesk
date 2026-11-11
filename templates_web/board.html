@@ -99,16 +99,16 @@
   cards.forEach(card => {
     card.addEventListener("dragstart", (e) => {
       activeCard = card;
-      card.style.opacity = "0.45";
+      card.classList.add("is-dragging");
       e.dataTransfer.setData("text/plain", card.dataset.incidentId);
       e.dataTransfer.effectAllowed = "move";
     });
     card.addEventListener("dragend", () => {
       if (activeCard) {
-        activeCard.style.opacity = "1";
+        activeCard.classList.remove("is-dragging");
         activeCard = null;
       }
-      zones.forEach(z => z.classList.remove("border", "border-primary", "rounded", "p-1"));
+      zones.forEach(z => z.classList.remove("drag-active", "border", "border-primary", "rounded", "p-1"));
     });
   });
 
@@ -117,14 +117,16 @@
     zone.addEventListener("dragover", (e) => {
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
-      zone.classList.add("border", "border-primary", "rounded", "p-1");
+      zone.classList.add("drag-active");
     });
-    zone.addEventListener("dragleave", () => {
-      zone.classList.remove("border", "border-primary", "rounded", "p-1");
+    zone.addEventListener("dragleave", (e) => {
+      if (!zone.contains(e.relatedTarget)) {
+        zone.classList.remove("drag-active");
+      }
     });
     zone.addEventListener("drop", async (e) => {
       e.preventDefault();
-      zone.classList.remove("border", "border-primary", "rounded", "p-1");
+      zone.classList.remove("drag-active");
       if (!activeCard || !parentCol) return;
       const targetStatus = parentCol.dataset.status;
       const curStatus = activeCard.dataset.status;
