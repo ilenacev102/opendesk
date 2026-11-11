@@ -89,6 +89,15 @@
 {% endif %}
 <form method="post" action="/incidents/comment" class="mt-2"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="incident_id" value="{{ inc.IncidentID }}">
+{% if macros %}
+<div class="mb-2"><label class="form-label small" for="macroPicker">Брз одговор (макро)</label>
+<select class="form-select form-select-sm" id="macroPicker">
+<option value="">— Изберете шаблон —</option>
+{% for m in macros %}
+<option value="{{ loop.index0 }}" data-body="{{ m.BodyText }}">{{ m.Category }}{{ ' / ' if m.Category }}{{ m.Title }}</option>
+{% endfor %}
+</select></div>
+{% endif %}
 <div class="mb-2"><label for="cmtBody">Нов коментар</label>
 <div class="position-relative">
 <textarea class="form-control" id="cmtBody" name="body" rows="2" maxlength="2000" required></textarea>
@@ -98,6 +107,22 @@
 </div>
 <button class="btn btn-primary btn-sm" type="submit">Додај коментар</button>
 </form>
+{% if macros %}
+<script nonce="{{ csp_nonce }}">
+(function () {
+  var picker = document.getElementById("macroPicker");
+  var body = document.getElementById("cmtBody");
+  if (!picker || !body) return;
+  picker.addEventListener("change", function () {
+    var opt = picker.options[picker.selectedIndex];
+    if (opt && opt.dataset.body && opt.value !== "") {
+      body.value = opt.dataset.body;
+      body.focus();
+    }
+  });
+})();
+</script>
+{% endif %}
 <h4 class="mt-4">Работно време</h4>
 {% if worklog_rows %}
 <ul class="list-group">{% for w in worklog_rows %}

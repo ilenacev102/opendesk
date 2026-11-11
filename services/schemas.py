@@ -165,6 +165,14 @@ SLA_POLICY_COLS = [
     "Active",
 ]
 
+MACRO_COLS = [
+    "MacroID",
+    "Title",
+    "Category",
+    "BodyText",
+    "Created",
+]
+
 KB_COLS = [
     "ArticleID",
     "Title",
@@ -307,5 +315,3 @@ CMDB_REL_COLS = [
     "TargetID",
     "Notes",
 ]
-
-

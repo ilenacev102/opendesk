@@ -7,6 +7,7 @@ against the live ``app`` module (test monkeypatching keeps working).
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 
 from routes._roles import require
+from services import macro_service
 from services.incident_service import PRIORITIES, STATUSES
 
 bp = Blueprint("incidents", __name__)
@@ -161,7 +162,7 @@ def incident_list():
 
 @bp.route("/incident/<iid>")
 def incident_detail(iid):
-    from app import comments, history, incidents
+    from app import comments, history, incidents, macros
     from services.comment_service import CommentService
 
     inc = incidents.find("IncidentID", iid)
@@ -185,6 +186,7 @@ def incident_detail(iid):
         linked_articles=linked_articles,
         respond_at=svc.first_response_at(iid),
         reopened=svc.reopen_count(iid),
+        macros=macro_service.for_picker(macros),
         **_collab_ctx(inc),
     )
 
@@ -338,7 +340,6 @@ def incident_transition():
             return jsonify({"ok": False, "error": str(exc)}), 400
         flash(f"ГРЕШКА: {exc}", "danger")
     return redirect(url_for("incidents.incident_detail", iid=iid))
-
 
 
 @bp.route("/incidents/<iid>/rate", methods=["POST"])
