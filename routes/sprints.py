@@ -152,6 +152,35 @@ def sprint_move(sid):
     return redirect(url_for("sprints.sprint_detail", sid=sid))
 
 
+@bp.route("/sprints/<sid>/analytics")
+def sprint_analytics(sid):
+    """Burndown curve + velocity chart for one sprint (vanilla-canvas view)."""
+    from app import incidents, projects, sprints
+
+    sprint = sprints.find("SprintID", sid)
+    if sprint is None:
+        abort(404)
+    project = projects.find("ProjectID", sprint.get("ProjectID", ""))
+    burndown_chart = sprint_service.burndown(sprints, incidents, sid)
+    velocity_rows = [
+        r
+        for r in sprint_service.velocity(sprints, incidents)
+        if r["SprintID"]
+        in {
+            s.get("SprintID", "")
+            for s in sprints.records()
+            if s.get("ProjectID") == sprint.get("ProjectID", "")
+        }
+    ]
+    return render_template(
+        "sprint_analytics.html",
+        sprint=sprint,
+        project=project,
+        burndown=burndown_chart,
+        velocity=velocity_rows,
+    )
+
+
 @bp.route("/sprints/<sid>")
 def sprint_detail(sid):
     from app import incidents, projects, sprints
