@@ -4,10 +4,19 @@ App-owned names are imported lazily INSIDE each view so they always resolve
 against the live ``app`` module (test monkeypatching keeps working).
 """
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import (
+    Blueprint,
+    abort,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 
 from routes._roles import require
-from services import macro_service
+from services import duplicate_service, macro_service
 from services.incident_service import PRIORITIES, STATUSES
 
 bp = Blueprint("incidents", __name__)
@@ -176,6 +185,14 @@ def incident_detail(iid):
     ).for_incident(iid)
     linked_articles = _kb_link_service().for_incident(iid)
     svc = _service()
+    similar = (
+        duplicate_service.detect(incidents, inc.get("Title", ""), exclude_id=iid)
+        if (
+            inc.get("Status") in ("open", "in-progress")
+            and not (inc.get("LinkedTo") or "").strip()
+        )
+        else []
+    )
     return render_template(
         "incident.html",
         inc=inc,
@@ -187,6 +204,7 @@ def incident_detail(iid):
         respond_at=svc.first_response_at(iid),
         reopened=svc.reopen_count(iid),
         macros=macro_service.for_picker(macros),
+        similar=similar,
         **_collab_ctx(inc),
     )
 
@@ -277,6 +295,18 @@ def incident_attachment(iid, name):
     if os.path.commonpath([base, full]) != base or not os.path.isfile(full):
         abort(404)
     return send_file(full)
+
+
+@bp.route("/api/v1/incidents/detect-duplicates")
+def api_detect_duplicates():
+    """JSON duplicate suggestions for a title (Jaccard over active incidents)."""
+    from app import incidents
+    from services import duplicate_service
+
+    title = request.args.get("title", "")
+    exclude_id = request.args.get("exclude", "")
+    matches = duplicate_service.detect(incidents, title, exclude_id=exclude_id)
+    return jsonify({"matches": matches})
 
 
 @bp.route("/incidents/new", methods=["POST"])

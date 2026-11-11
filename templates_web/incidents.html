@@ -48,7 +48,10 @@
 <form method="post" action="/incidents/new"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <div class="row g-2">
 <div class="col-12 col-md-2"><label>Уред</label><input class="form-control" name="AssetID"></div>
-<div class="col-12 col-md-4"><label>Наслов *</label><input class="form-control" name="Title" required></div>
+<div class="col-12 col-md-4"><label>Наслов *</label><input class="form-control" name="Title" required id="dupTitle"></div>
+<div class="col-12 d-none" id="dupDetector">
+<div class="alert alert-warning py-2 mb-0" role="alert" id="dupDetectorBox"></div>
+</div>
 <div class="col-6 col-md-2"><label>Приоритет</label>
 <select class="form-control" name="Priority">
 <option value="low">low</option><option value="medium" selected>medium</option>
@@ -61,4 +64,35 @@
 </div>
 <button class="btn btn-primary mt-2" type="submit">Заведи</button>
 </form>
+<script nonce="{{ csp_nonce }}">
+(function () {
+  var input = document.getElementById("dupTitle");
+  var wrap = document.getElementById("dupDetector");
+  var box = document.getElementById("dupDetectorBox");
+  if (!input || !wrap || !box) return;
+  var timer = null;
+  function render(matches) {
+    if (!matches.length) { wrap.classList.add("d-none"); return; }
+    var items = matches.map(function (m) {
+      return "<li>" + m.IncidentID + " — " + m.Title +
+        " <span class='text-muted small'>(сличност " + m.Score + ")</span></li>";
+    }).join("");
+    box.innerHTML = "<strong>Слични активни инциденти:</strong><ul class='mb-0 mt-1'>" +
+      items + "</ul><div class='small mt-1'>Проверете дали е дупликат пред да заведете нов тикет.</div>";
+    wrap.classList.remove("d-none");
+  }
+  input.addEventListener("input", function () {
+    clearTimeout(timer);
+    var title = input.value.trim();
+    if (title.length < 4) { wrap.classList.add("d-none"); return; }
+    timer = setTimeout(function () {
+      fetch("/api/v1/incidents/detect-duplicates?title=" +
+          encodeURIComponent(title), { credentials: "same-origin" })
+        .then(function (r) { return r.ok ? r.json() : { matches: [] }; })
+        .then(function (d) { render(d.matches || []); })
+        .catch(function () { wrap.classList.add("d-none"); });
+    }, 400);
+  });
+})();
+</script>
 {% endblock %}

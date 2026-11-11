@@ -6,6 +6,27 @@
 <li class="breadcrumb-item active" aria-current="page">{{ inc.IncidentID }}</li>
 </ol></nav>
 <h2>Инцидент {{ inc.IncidentID }}</h2>
+
+{% if similar %}
+<div class="alert alert-warning" role="alert" id="dupAlert">
+<strong>Слични активни инциденти:</strong>
+Пронајдени се {{ similar | length }} слични активни инциденти
+({{ similar | map(attribute='IncidentID') | join(', ') }}).
+<ul class="mb-2 mt-1">
+{% for s in similar %}
+<li>{{ s.IncidentID }} — {{ s.Title }} <span class="text-muted small">(сличност {{ s.Score }})</span></li>
+{% endfor %}
+</ul>
+{% for s in similar %}
+<form method="post" action="/incidents/link" class="d-inline me-1">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<input type="hidden" name="incident_id" value="{{ inc.IncidentID }}">
+<input type="hidden" name="target_id" value="{{ s.IncidentID }}">
+<button class="btn btn-sm btn-outline-warning" type="submit">Поврзи како дупликат со {{ s.IncidentID }}</button>
+</form>
+{% endfor %}
+</div>
+{% endif %}
 <dl class="row">
 <dt class="col-sm-3">Наслов</dt><dd class="col-sm-9">{{ inc.Title }}</dd>
 <dt class="col-sm-3">Уред</dt><dd class="col-sm-9">{{ inc.AssetID or "—" }}</dd>
