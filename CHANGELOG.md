@@ -590,6 +590,47 @@
   грешки во стар код).
 - **Suite: 465 passed, 0 failed, 3 skipped (вкупно 468).**
 
+## Sprint 6 — ChatOps, Webhooks & Agile Sprint Analytics (2026-11-12)
+
+- **Sprint Analytics (`routes/sprints.py`, `templates_web/sprint_analytics.html`,
+  `static/js/burndown.js`)**: нова страница `/sprints/<sid>/analytics` —
+  Burndown крива (идеал vs. реални преостанати Story Points) и Velocity
+  графикон (Committed vs. Completed) низ завршени спринтови;
+  `sprint_service.velocity()` пресметува поени по завршен спринт,
+  сортирани по EndDate; vanilla canvas рендер без Chart.js (CSP-safe),
+  dark/light освестен, DPR-скейлиран.
+- **Canned Response Macros (`routes/chatops.py`, `services/macro_service.py`,
+  `templates_web/macros.html`)**: складиште `macros` (MACRO_COLS), админ
+  страница `/settings/macros` (админ само), JSON API `GET /api/v1/macros`
+  за најавени корисници; избирач во формата за коментар на инцидент што
+  инстантно го пополнува текстот.
+- **Duplicate Detection (`services/duplicate_service.py`)**: Jaccard
+  сличност по токени (кирилица+латиница); `GET
+  /api/v1/incidents/detect-duplicates?title=&exclude=`; предупредувачки
+  панел на страната на инцидент со 1-клик „Поврзи како дупликат“ (повторно
+  го користи POST /incidents/link); debounced JS детектор на формата за
+  нов инцидент; веќе-линкувани и resolved инциденти не се сугерираат.
+- **Outgoing Webhooks (`services/webhook_service.py`,
+  `templates_web/webhooks.html`)**: складиште `webhooks` (WEBHOOK_COLS),
+  админ страница `/settings/webhooks` со toggle/delete; асинхроно
+  испраќање преку ThreadPoolExecutor со HMAC-SHA256 потпис (`X-Signature`);
+  настани: `incident.critical_created` (критичен инцидент — во системот
+  тоа е приоритет `urgent`), `change.cab_pending` (нова промена поднесена
+  до CAB), `problem.resolved` (решен проблем со каскаден број); доставата е
+  fire-and-forget — неуспехот се логира, никад не крева исклучок.
+- **Бугфикс (review)**: испорака на webhook при креирање на критичен
+  инцидент била тивка — dispatch го добивал погрешен store и условот
+  проверувал непостоечки приоритет `critical`; сега се испорачува на
+  `urgent`, а wiring-от за сите три настани е покриен со тестови.
+  URL валидација на webhook цели е зацврстена (urlparse: scheme+host,
+  без whitespace); дупликат-детекторот на формата повеќе не гради HTML
+  преку innerHTML (DOM API — без XSS); „Поврзи како дупликат“ копчињата
+  се скриени за `citac` улога; burndown/velocity графиконите реагираат
+  веднаш на рачна промена на темата (`sd-theme` настан).
+- **Тестови**: `test_sprint_analytics.py` (9), `test_macros.py` (10),
+  `test_duplicate_detection.py` (14), `test_webhooks.py` (18).
+- **Suite: 516 passed, 0 failed, 3 skipped (вкупно 519).**
+
 ## Стартување
 
 ```bash

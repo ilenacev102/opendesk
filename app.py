@@ -86,6 +86,8 @@ def inject_unread_count():
 from services.schemas import (
     CHANGE_COLS,
     CMDB_REL_COLS,
+    MACRO_COLS,
+    WEBHOOK_COLS,
     COMMENT_COLS,
     CONS_COLS,
     CONTRACT_COLS,
@@ -157,6 +159,8 @@ maintenance_schedules = open_store(
 problems = open_store(DB_PATH, "problems", None, PROBLEM_COLS)
 changes = open_store(DB_PATH, "changes", None, CHANGE_COLS)
 cmdb_relations = open_store(DB_PATH, "cmdb_relations", None, CMDB_REL_COLS)
+macros = open_store(DB_PATH, "macros", None, MACRO_COLS)
+webhooks = open_store(DB_PATH, "webhooks", None, WEBHOOK_COLS)
 
 PATHS = {
     "db": DB_PATH,
@@ -510,6 +514,7 @@ from routes.admin import bp as admin_bp
 from routes.api import bp as api_bp
 from routes.boards import bp as boards_bp
 from routes.catalog import bp as catalog_bp
+from routes.chatops import bp as chatops_bp
 from routes.cmdb import bp as cmdb_bp
 from routes.files import bp as files_bp
 from routes.incidents import bp as incidents_bp
@@ -530,6 +535,7 @@ app.register_blueprint(admin_bp)
 app.register_blueprint(api_bp)
 app.register_blueprint(boards_bp)
 app.register_blueprint(catalog_bp)
+app.register_blueprint(chatops_bp)
 app.register_blueprint(cmdb_bp)
 app.register_blueprint(files_bp)
 app.register_blueprint(incidents_bp)

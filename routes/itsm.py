@@ -44,7 +44,9 @@ def problems_view():
         if linked.startswith("PRB-"):
             incidents_by_prob.setdefault(linked, []).append(inc)
 
-    open_incidents = [i for i in all_incidents if i.get("Status") not in ("closed", "resolved")]
+    open_incidents = [
+        i for i in all_incidents if i.get("Status") not in ("closed", "resolved")
+    ]
 
     annotated = []
     open_count = 0
@@ -65,7 +67,13 @@ def problems_view():
         annotated.append(p_copy)
 
     # Sort open first, then resolved
-    annotated.sort(key=lambda x: (1 if x.get("Status") in ("resolved", "closed") else 0, x.get("Created", "")), reverse=True)
+    annotated.sort(
+        key=lambda x: (
+            1 if x.get("Status") in ("resolved", "closed") else 0,
+            x.get("Created", ""),
+        ),
+        reverse=True,
+    )
 
     return render_template(
         "problems.html",
@@ -94,17 +102,19 @@ def problems_new():
             raise ValidationError("Насловот на проблемот е задолжителен.")
 
         pid = next_id(problems_store, "ProblemID", "PRB-")
-        problems_store.append_row({
-            "ProblemID": pid,
-            "Title": title,
-            "Description": description,
-            "RootCause": "",
-            "Workaround": workaround,
-            "Status": "investigating",
-            "Owner": owner,
-            "Created": stamp(),
-            "ResolvedAt": "",
-        })
+        problems_store.append_row(
+            {
+                "ProblemID": pid,
+                "Title": title,
+                "Description": description,
+                "RootCause": "",
+                "Workaround": workaround,
+                "Status": "investigating",
+                "Owner": owner,
+                "Created": stamp(),
+                "ResolvedAt": "",
+            }
+        )
 
         if config.BACKUP_ON_WRITE and hasattr(app_mod, "backup_all"):
             app_mod.backup_all([problems_store])
@@ -169,7 +179,9 @@ def problems_resolve():
         if not prob:
             raise ValidationError(f"Проблемот {pid} не постои.")
         if not root_cause:
-            raise ValidationError("Внесувањето на Root Cause (Основна причина) е задолжително за затворање на Проблем.")
+            raise ValidationError(
+                "Внесувањето на Root Cause (Основна причина) е задолжително за затворање на Проблем."
+            )
 
         now_str = stamp()
         problems_store.update_where(
@@ -187,10 +199,16 @@ def problems_resolve():
         cascaded_count = 0
         if incidents_store:
             for inc in incidents_store.records():
-                if (inc.get("LinkedTo") or "").strip() == pid and inc.get("Status") not in ("closed", "resolved"):
+                if (inc.get("LinkedTo") or "").strip() == pid and inc.get(
+                    "Status"
+                ) not in ("closed", "resolved"):
                     old_notes = inc.get("Notes", "")
                     resolution_note = f"[Решено преку Проблем {pid}]: {root_cause}"
-                    new_notes = f"{old_notes}\n{resolution_note}".strip() if old_notes else resolution_note
+                    new_notes = (
+                        f"{old_notes}\n{resolution_note}".strip()
+                        if old_notes
+                        else resolution_note
+                    )
                     incidents_store.update_where(
                         "IncidentID",
                         inc["IncidentID"],
@@ -221,6 +239,20 @@ def problems_resolve():
                 stores_to_backup.append(incidents_store)
             app_mod.backup_all(stores_to_backup)
 
+        from app import webhooks as webhooks_store
+        from services import webhook_service
+
+        webhook_service.dispatch(
+            webhooks_store,
+            "problem.resolved",
+            {
+                "ProblemID": pid,
+                "RootCause": root_cause,
+                "Workaround": workaround,
+                "CascadedIncidents": cascaded_count,
+            },
+        )
+
         flash(
             f"Проблемот {pid} е означен како решен! Автоматски се затворени {cascaded_count} поврзани инциденти.",
             "success",
@@ -246,11 +278,23 @@ def changes_view():
     pending_cab_count = sum(1 for c in all_changes if c.get("Status") == "pending_cab")
     approved_count = sum(1 for c in all_changes if c.get("Status") == "approved")
     implemented_count = sum(1 for c in all_changes if c.get("Status") == "implemented")
-    high_risk_count = sum(1 for c in all_changes if c.get("RiskLevel") in ("high", "critical"))
+    high_risk_count = sum(
+        1 for c in all_changes if c.get("RiskLevel") in ("high", "critical")
+    )
 
     # Order: pending CAB first, then approved, then others
-    status_weights = {"pending_cab": 0, "approved": 1, "implemented": 2, "rejected": 3, "failed": 4}
-    ordered = sorted(all_changes, key=lambda c: (status_weights.get(c.get("Status"), 5), c.get("Created", "")), reverse=True)
+    status_weights = {
+        "pending_cab": 0,
+        "approved": 1,
+        "implemented": 2,
+        "rejected": 3,
+        "failed": 4,
+    }
+    ordered = sorted(
+        all_changes,
+        key=lambda c: (status_weights.get(c.get("Status"), 5), c.get("Created", "")),
+        reverse=True,
+    )
 
     return render_template(
         "changes.html",
@@ -282,27 +326,48 @@ def changes_new():
         if not title:
             raise ValidationError("Насловот на барањето за промена е задолжителен.")
         if not rollback_plan:
-            raise ValidationError("Rollback планот е задолжителен според ITIL стандардот пред одобрување од CAB.")
+            raise ValidationError(
+                "Rollback планот е задолжителен според ITIL стандардот пред одобрување од CAB."
+            )
 
         cid = next_id(changes_store, "ChangeID", "CHG-")
-        changes_store.append_row({
-            "ChangeID": cid,
-            "Title": title,
-            "RiskLevel": risk_level,
-            "ImpactScope": impact_scope,
-            "ScheduledStart": sched_start,
-            "ScheduledEnd": sched_end,
-            "RollbackPlan": rollback_plan,
-            "Status": "pending_cab",
-            "Requester": requester,
-            "ApprovedBy": "",
-            "Created": stamp(),
-        })
+        changes_store.append_row(
+            {
+                "ChangeID": cid,
+                "Title": title,
+                "RiskLevel": risk_level,
+                "ImpactScope": impact_scope,
+                "ScheduledStart": sched_start,
+                "ScheduledEnd": sched_end,
+                "RollbackPlan": rollback_plan,
+                "Status": "pending_cab",
+                "Requester": requester,
+                "ApprovedBy": "",
+                "Created": stamp(),
+            }
+        )
 
         if config.BACKUP_ON_WRITE and hasattr(app_mod, "backup_all"):
             app_mod.backup_all([changes_store])
 
-        flash(f"Барањето за промена {cid} ({title}) е поднесено до CAB за одобрување.", "success")
+        from app import webhooks as webhooks_store
+        from services import webhook_service
+
+        webhook_service.dispatch(
+            webhooks_store,
+            "change.cab_pending",
+            {
+                "ChangeID": cid,
+                "Title": title,
+                "Status": "pending_cab",
+                "Requester": requester,
+            },
+        )
+
+        flash(
+            f"Барањето за промена {cid} ({title}) е поднесено до CAB за одобрување.",
+            "success",
+        )
     except ValidationError as exc:
         flash(f"ГРЕШКА: {exc}", "danger")
 
@@ -338,7 +403,9 @@ def changes_decision():
         if config.BACKUP_ON_WRITE and hasattr(app_mod, "backup_all"):
             app_mod.backup_all([changes_store])
 
-        action_label = "одобрена од CAB" if new_status == "approved" else "одбиена од CAB"
+        action_label = (
+            "одобрена од CAB" if new_status == "approved" else "одбиена од CAB"
+        )
         flash(f"Промената {cid} е {action_label}.", "success")
     except ValidationError as exc:
         flash(f"ГРЕШКА: {exc}", "danger")
@@ -367,7 +434,11 @@ def changes_implement():
         if config.BACKUP_ON_WRITE and hasattr(app_mod, "backup_all"):
             app_mod.backup_all([changes_store])
 
-        msg = f"Промената {cid} е успешно имплементирана!" if target_status == "implemented" else f"Промената {cid} е означена како неуспешна/вратена назад."
+        msg = (
+            f"Промената {cid} е успешно имплементирана!"
+            if target_status == "implemented"
+            else f"Промената {cid} е означена како неуспешна/вратена назад."
+        )
         flash(msg, "info" if target_status == "implemented" else "warning")
     except ValidationError as exc:
         flash(f"ГРЕШКА: {exc}", "danger")

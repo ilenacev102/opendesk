@@ -4,9 +4,19 @@ App-owned names are imported lazily INSIDE each view so they always resolve
 against the live ``app`` module (test monkeypatching keeps working).
 """
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import (
+    Blueprint,
+    abort,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 
 from routes._roles import require
+from services import duplicate_service, macro_service
 from services.incident_service import PRIORITIES, STATUSES
 
 bp = Blueprint("incidents", __name__)
@@ -161,7 +171,7 @@ def incident_list():
 
 @bp.route("/incident/<iid>")
 def incident_detail(iid):
-    from app import comments, history, incidents
+    from app import comments, history, incidents, macros
     from services.comment_service import CommentService
 
     inc = incidents.find("IncidentID", iid)
@@ -175,6 +185,14 @@ def incident_detail(iid):
     ).for_incident(iid)
     linked_articles = _kb_link_service().for_incident(iid)
     svc = _service()
+    similar = (
+        duplicate_service.detect(incidents, inc.get("Title", ""), exclude_id=iid)
+        if (
+            inc.get("Status") in ("open", "in-progress")
+            and not (inc.get("LinkedTo") or "").strip()
+        )
+        else []
+    )
     return render_template(
         "incident.html",
         inc=inc,
@@ -185,6 +203,8 @@ def incident_detail(iid):
         linked_articles=linked_articles,
         respond_at=svc.first_response_at(iid),
         reopened=svc.reopen_count(iid),
+        macros=macro_service.for_picker(macros),
+        similar=similar,
         **_collab_ctx(inc),
     )
 
@@ -277,6 +297,18 @@ def incident_attachment(iid, name):
     return send_file(full)
 
 
+@bp.route("/api/v1/incidents/detect-duplicates")
+def api_detect_duplicates():
+    """JSON duplicate suggestions for a title (Jaccard over active incidents)."""
+    from app import incidents
+    from services import duplicate_service
+
+    title = request.args.get("title", "")
+    exclude_id = request.args.get("exclude", "")
+    matches = duplicate_service.detect(incidents, title, exclude_id=exclude_id)
+    return jsonify({"matches": matches})
+
+
 @bp.route("/incidents/new", methods=["POST"])
 @require("admin", "magacioner")
 def incident_new():
@@ -297,6 +329,20 @@ def incident_new():
         )
         if config.BACKUP_ON_WRITE:
             backup_all([incidents])
+        if inc.get("Priority") == "urgent":
+            from app import webhooks as webhooks_store
+            from services import webhook_service
+
+            webhook_service.dispatch(
+                webhooks_store,
+                "incident.critical_created",
+                {
+                    "IncidentID": inc["IncidentID"],
+                    "Title": inc.get("Title", ""),
+                    "Priority": inc.get("Priority", ""),
+                    "Assignee": inc.get("Assignee", ""),
+                },
+            )
         flash(f"Инцидентот {inc['IncidentID']} е заведен.", "success")
         return redirect(url_for("incidents.incident_detail", iid=inc["IncidentID"]))
     except ValueError as exc:
@@ -338,7 +384,6 @@ def incident_transition():
             return jsonify({"ok": False, "error": str(exc)}), 400
         flash(f"ГРЕШКА: {exc}", "danger")
     return redirect(url_for("incidents.incident_detail", iid=iid))
-
 
 
 @bp.route("/incidents/<iid>/rate", methods=["POST"])

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+<li class="breadcrumb-item"><a href="/">Почетна</a></li>
+<li class="breadcrumb-item active" aria-current="page">Webhooks</li>
+</ol></nav>
+<h2>Outgoing Webhooks</h2>
+<p class="text-muted">Автоматски JSON нотификации кон Slack / Teams / Mattermost при критични настани.</p>
+
+<div class="row g-3">
+<div class="col-lg-5">
+<div class="card sd-card mb-3">
+<div class="card-body">
+<h5>Нов вебхук</h5>
+<form method="post" action="/settings/webhooks">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<div class="mb-2"><label class="form-label" for="wName">Име</label>
+<input class="form-control" id="wName" name="name" required maxlength="120"></div>
+<div class="mb-2"><label class="form-label" for="wUrl">URL</label>
+<input class="form-control" id="wUrl" name="url" required maxlength="400" placeholder="https://hooks.slack.com/services/..."></div>
+<div class="mb-2"><label class="form-label">Настани</label>
+{% for e in events %}
+<div class="form-check">
+<input class="form-check-input" type="checkbox" name="events" id="ev{{ loop.index }}" value="{{ e }}">
+<label class="form-check-label" for="ev{{ loop.index }}">{{ e }}</label>
+</div>
+{% endfor %}
+</div>
+<div class="mb-2"><label class="form-label" for="wSecret">Secret (HMAC потпис)</label>
+<input class="form-control" id="wSecret" name="secret" maxlength="128" placeholder="опционално — генерира се сам"></div>
+<button class="btn btn-primary" type="submit">Зачувај</button>
+</form>
+</div>
+</div>
+</div>
+
+<div class="col-lg-7">
+<div class="card sd-card mb-3">
+<div class="card-body">
+<h5>Вебхукови ({{ rows | length }})</h5>
+<div class="table-responsive">
+<table class="table table-striped">
+<thead><tr><th>Име</th><th>URL</th><th>Настани</th><th>Активен</th><th></th></tr></thead>
+<tbody>
+{% for w in rows %}
+<tr>
+<td>{{ w.Name }}</td>
+<td><span class="small text-muted">{{ w.Url | truncate(40) }}</span></td>
+<td><span class="small">{{ w.Events }}</span></td>
+<td>
+{% if w.Active == 'YES' %}<span class="badge bg-success">да</span>
+{% else %}<span class="badge bg-secondary">не</span>{% endif %}
+</td>
+<td class="text-end">
+<form method="post" action="/settings/webhooks/{{ w.WebhookID }}/toggle" class="d-inline">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<button class="btn btn-outline-secondary btn-sm" type="submit">{{ 'Исклучи' if w.Active == 'YES' else 'Вклучи' }}</button>
+</form>
+<form method="post" action="/settings/webhooks/{{ w.WebhookID }}/delete" class="d-inline">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<button class="btn btn-outline-danger btn-sm" type="submit">Избриши</button>
+</form>
+</td>
+</tr>
+{% else %}
+<tr><td colspan="5" class="text-muted">Нема вебхукови уште.</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+</div>
+{% endblock %}

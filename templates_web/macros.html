@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+<li class="breadcrumb-item"><a href="/">Почетна</a></li>
+<li class="breadcrumb-item active" aria-current="page">Макроа</li>
+</ol></nav>
+<h2>Canned Response Macros</h2>
+<p class="text-muted">Брзи шаблонски одговори за агентите — достапни кај секој коментар на инцидент.</p>
+
+<div class="row g-3">
+<div class="col-lg-5">
+<div class="card sd-card mb-3">
+<div class="card-body">
+<h5>Ново макро</h5>
+<form method="post" action="/settings/macros">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<div class="mb-2"><label class="form-label" for="mTitle">Наслов</label>
+<input class="form-control" id="mTitle" name="title" required maxlength="120"></div>
+<div class="mb-2"><label class="form-label" for="mCategory">Категорија</label>
+<input class="form-control" id="mCategory" name="category" maxlength="64"></div>
+<div class="mb-2"><label class="form-label" for="mBody">Текст</label>
+<textarea class="form-control" id="mBody" name="body" rows="4" required maxlength="2000"></textarea></div>
+<button class="btn btn-primary" type="submit">Зачувај</button>
+</form>
+</div>
+</div>
+</div>
+
+<div class="col-lg-7">
+<div class="card sd-card mb-3">
+<div class="card-body">
+<h5>Макроа ({{ rows | length }})</h5>
+<div class="table-responsive">
+<table class="table table-striped">
+<thead><tr><th>Наслов</th><th>Категорија</th><th>Текст</th><th></th></tr></thead>
+<tbody>
+{% for m in rows %}
+<tr>
+<td>{{ m.Title }}</td>
+<td>{{ m.Category or '—' }}</td>
+<td><span class="small text-muted">{{ m.BodyText | truncate(80) }}</span></td>
+<td class="text-end">
+<form method="post" action="/settings/macros/{{ m.MacroID }}/delete" class="d-inline">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<button class="btn btn-outline-danger btn-sm" type="submit">Избриши</button>
+</form>
+</td>
+</tr>
+{% else %}
+<tr><td colspan="4" class="text-muted">Нема макроа уште — креирајте прво.</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+</div>
+{% endblock %}

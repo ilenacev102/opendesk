@@ -179,3 +179,33 @@ def burndown(sprints, incidents, sprint_id, today=None):
         "ideal": ideal,
         "total": total,
     }
+
+
+def velocity(sprints, incidents):
+    """Committed vs completed StoryPoints per completed sprint, ordered by EndDate.
+
+    Committed sums StoryPoints of all tickets still bound to the sprint
+    (carried-over work counts); Completed sums only the resolved ones.
+
+    Returns:
+        list of dicts with SprintID, Name, EndDate, Committed, Completed.
+    """
+    rows = []
+    for sprint in sprints.records():
+        if sprint.get("Status") != "completed":
+            continue
+        sid = sprint.get("SprintID", "")
+        tickets = [t for t in incidents.records() if t.get("SprintID") == sid]
+        committed = _points(tickets)
+        completed = _points([t for t in tickets if t.get("Status") == "resolved"])
+        rows.append(
+            {
+                "SprintID": sid,
+                "Name": sprint.get("Name", ""),
+                "EndDate": sprint.get("EndDate", ""),
+                "Committed": committed,
+                "Completed": completed,
+            }
+        )
+    rows.sort(key=lambda r: (r["EndDate"], r["SprintID"]))
+    return rows
