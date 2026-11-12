@@ -173,6 +173,16 @@ MACRO_COLS = [
     "Created",
 ]
 
+WEBHOOK_COLS = [
+    "WebhookID",
+    "Name",
+    "Url",
+    "Events",
+    "Secret",
+    "Active",
+    "Created",
+]
+
 KB_COLS = [
     "ArticleID",
     "Title",

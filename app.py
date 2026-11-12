@@ -87,6 +87,7 @@ from services.schemas import (
     CHANGE_COLS,
     CMDB_REL_COLS,
     MACRO_COLS,
+    WEBHOOK_COLS,
     COMMENT_COLS,
     CONS_COLS,
     CONTRACT_COLS,
@@ -159,6 +160,7 @@ problems = open_store(DB_PATH, "problems", None, PROBLEM_COLS)
 changes = open_store(DB_PATH, "changes", None, CHANGE_COLS)
 cmdb_relations = open_store(DB_PATH, "cmdb_relations", None, CMDB_REL_COLS)
 macros = open_store(DB_PATH, "macros", None, MACRO_COLS)
+webhooks = open_store(DB_PATH, "webhooks", None, WEBHOOK_COLS)
 
 PATHS = {
     "db": DB_PATH,

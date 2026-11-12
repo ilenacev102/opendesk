@@ -329,6 +329,19 @@ def incident_new():
         )
         if config.BACKUP_ON_WRITE:
             backup_all([incidents])
+        if inc.get("Priority") == "critical":
+            from services import webhook_service
+
+            webhook_service.dispatch(
+                incidents,
+                "incident.critical_created",
+                {
+                    "IncidentID": inc["IncidentID"],
+                    "Title": inc.get("Title", ""),
+                    "Priority": inc.get("Priority", ""),
+                    "Assignee": inc.get("Assignee", ""),
+                },
+            )
         flash(f"Инцидентот {inc['IncidentID']} е заведен.", "success")
         return redirect(url_for("incidents.incident_detail", iid=inc["IncidentID"]))
     except ValueError as exc:
