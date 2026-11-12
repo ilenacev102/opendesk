@@ -329,11 +329,12 @@ def incident_new():
         )
         if config.BACKUP_ON_WRITE:
             backup_all([incidents])
-        if inc.get("Priority") == "critical":
+        if inc.get("Priority") == "urgent":
+            from app import webhooks as webhooks_store
             from services import webhook_service
 
             webhook_service.dispatch(
-                incidents,
+                webhooks_store,
                 "incident.critical_created",
                 {
                     "IncidentID": inc["IncidentID"],

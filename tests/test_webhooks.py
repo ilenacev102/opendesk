@@ -42,7 +42,29 @@ def test_webhook_create_validates_name_and_url():
         webhook_service.create(webhooks, "Slack", "ftp://not-http")
     with pytest.raises(ValidationError):
         webhook_service.create(webhooks, "Slack", "not-a-url")
-    assert webhooks.records() == []
+    with pytest.raises(ValidationError):
+        webhook_service.create(
+            webhooks, "Slack", "https://", events="problem.resolved"
+        )  # no host
+    with pytest.raises(ValidationError):
+        webhook_service.create(
+            webhooks,
+            "Slack",
+            "https://x.y/hook with space",
+            events="problem.resolved",
+        )
+    with pytest.raises(ValidationError):
+        webhook_service.create(
+            webhooks,
+            "Slack",
+            "https://x.y/hook\nX-Evil: 1",
+            events="problem.resolved",
+        )
+    row = webhook_service.create(
+        webhooks, "Slack", "https://x.y/hook", events="problem.resolved"
+    )
+    assert row["Url"] == "https://x.y/hook"
+    assert len(webhooks.records()) == 1
 
 
 def test_webhook_create_rejects_unknown_events():
@@ -156,7 +178,7 @@ def test_dispatch_signs_body_with_secret(monkeypatch):
     from services import webhook_service
 
     webhooks = _store(_db(), "webhooks", WEBHOOK_COLS)
-    row = webhook_service.create(
+    webhook_service.create(
         webhooks,
         "Signed",
         "https://s.y/hook",
@@ -212,7 +234,6 @@ def test_dispatch_unknown_event_no_targets(monkeypatch):
 def hooks_env(monkeypatch):
     import app as app_mod
     from services import ratelimit as rl
-    from services.db_service import DbStore
     from services.history_service import HISTORY_COLS, HistoryService
     from services.schemas import ISSUE_TYPE_COLS, PROJECT_COLS
 
@@ -318,3 +339,168 @@ def test_real_deliver_uses_urllib(monkeypatch):
     )
     assert captured["url"] == "https://x.y/h"
     assert captured["timeout"] == webhook_service.TIMEOUT_S
+
+
+def _wiring_env(hooks_env, monkeypatch):
+    """Patch the incidents store so a real POST /incidents/new can run."""
+    import app as app_mod
+    from services.db_service import DbStore
+    from services.schemas import INCIDENT_COLS
+
+    db = app_mod.webhooks.db_path
+    monkeypatch.setattr(app_mod, "incidents", DbStore(db, "incidents", INCIDENT_COLS))
+    return app_mod
+
+
+def test_critical_incident_creation_fires_webhook(hooks_env, monkeypatch):
+    """Wiring: creating a critical incident through the route dispatches
+    incident.critical_created to active matching webhooks."""
+    from services import webhook_service
+
+    app_mod = _wiring_env(hooks_env, monkeypatch)
+    webhook_service.create(
+        app_mod.webhooks,
+        "Slack",
+        "https://x.y/hook",
+        events="incident.critical_created",
+    )
+
+    delivered = []
+    monkeypatch.setattr(
+        webhook_service,
+        "_deliver",
+        lambda url, body, headers: delivered.append((url, json.loads(body))),
+    )
+    _sync_pool(monkeypatch, webhook_service)
+
+    c = hooks_env["client"]("mag")
+    r = c.post(
+        "/incidents/new",
+        data={"Title": "Серверот гори", "Priority": "urgent"},
+    )
+    assert r.status_code == 302
+    assert len(delivered) == 1
+    url, body = delivered[0]
+    assert url == "https://x.y/hook"
+    assert body["event"] == "incident.critical_created"
+    assert body["data"]["Title"] == "Серверот гори"
+
+
+def test_medium_incident_creation_fires_no_webhook(hooks_env, monkeypatch):
+    """Wiring: non-critical incidents dispatch nothing."""
+    from services import webhook_service
+
+    app_mod = _wiring_env(hooks_env, monkeypatch)
+    webhook_service.create(
+        app_mod.webhooks,
+        "Slack",
+        "https://x.y/hook",
+        events="incident.critical_created",
+    )
+
+    delivered = []
+    monkeypatch.setattr(
+        webhook_service,
+        "_deliver",
+        lambda url, body, headers: delivered.append((url, body)),
+    )
+    _sync_pool(monkeypatch, webhook_service)
+
+    c = hooks_env["client"]("mag")
+    r = c.post("/incidents/new", data={"Title": "Мал дефект", "Priority": "medium"})
+    assert r.status_code == 302
+    assert delivered == []
+
+
+def test_change_creation_fires_cab_pending_webhook(monkeypatch):
+    """Wiring: creating a change request dispatches change.cab_pending."""
+    import app as app_mod
+    from services import webhook_service
+    from services.db_service import DbStore
+    from services.schemas import CHANGE_COLS
+
+    tmp = tempfile.mkdtemp()
+    db = os.path.join(tmp, "chg.db")
+    monkeypatch.setattr(app_mod, "changes", DbStore(db, "changes", CHANGE_COLS))
+    monkeypatch.setattr(app_mod, "webhooks", _store(db, "webhooks", WEBHOOK_COLS))
+    monkeypatch.setattr(app_mod, "backup_all", lambda stores: None)
+
+    webhook_service.create(
+        app_mod.webhooks, "Ops", "https://x.y/hook", events="change.cab_pending"
+    )
+    delivered = []
+    monkeypatch.setattr(
+        webhook_service,
+        "_deliver",
+        lambda url, body, headers: delivered.append((url, json.loads(body))),
+    )
+    _sync_pool(monkeypatch, webhook_service)
+
+    c = app_mod.app.test_client()
+    r = c.post(
+        "/changes/new",
+        data={
+            "title": "Надградба на kernel",
+            "risk_level": "high",
+            "rollback_plan": "GRUB snapshot враќање",
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    chg = app_mod.changes.records()[0]
+    assert len(delivered) == 1
+    url, body = delivered[0]
+    assert url == "https://x.y/hook"
+    assert body["event"] == "change.cab_pending"
+    assert body["data"]["ChangeID"] == chg["ChangeID"]
+    assert body["data"]["Title"] == "Надградба на kernel"
+
+
+def test_problem_resolution_fires_resolved_webhook(monkeypatch):
+    """Wiring: resolving a problem dispatches problem.resolved."""
+    import app as app_mod
+    from services import webhook_service
+    from services.db_service import DbStore
+    from services.history_service import HISTORY_COLS, HistoryService
+    from services.schemas import DEV_COLS, INCIDENT_COLS, PROBLEM_COLS
+
+    tmp = tempfile.mkdtemp()
+    db = os.path.join(tmp, "prob.db")
+    monkeypatch.setattr(app_mod, "problems", DbStore(db, "problems", PROBLEM_COLS))
+    monkeypatch.setattr(app_mod, "incidents", DbStore(db, "incidents", INCIDENT_COLS))
+    monkeypatch.setattr(app_mod, "devices", DbStore(db, "devices", DEV_COLS))
+    monkeypatch.setattr(
+        app_mod, "history", HistoryService(DbStore(db, "history", HISTORY_COLS))
+    )
+    monkeypatch.setattr(app_mod, "webhooks", _store(db, "webhooks", WEBHOOK_COLS))
+    monkeypatch.setattr(app_mod, "backup_all", lambda stores: None)
+
+    webhook_service.create(
+        app_mod.webhooks, "Ops", "https://x.y/hook", events="problem.resolved"
+    )
+    delivered = []
+    monkeypatch.setattr(
+        webhook_service,
+        "_deliver",
+        lambda url, body, headers: delivered.append((url, json.loads(body))),
+    )
+    _sync_pool(monkeypatch, webhook_service)
+
+    c = app_mod.app.test_client()
+    c.post("/problems/new", data={"title": "Прекин на мрежа"})
+    pid = app_mod.problems.records()[0]["ProblemID"]
+    r = c.post(
+        "/problems/resolve",
+        data={
+            "problem_id": pid,
+            "root_cause": "Дефектно напојување",
+            "workaround": "Резервно напојување",
+        },
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
+    assert len(delivered) == 1
+    url, body = delivered[0]
+    assert url == "https://x.y/hook"
+    assert body["event"] == "problem.resolved"
+    assert body["data"]["ProblemID"] == pid

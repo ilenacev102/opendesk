@@ -166,6 +166,7 @@ def test_api_macros_lists_for_logged_users(macros_env):
         assert r.status_code == 200
         assert b"[]\n" == r.data or r.get_json() == []
     macros_env["client"]("cit").get("/api/v1/macros")
+    assert macros_env["client"]("cit").get("/api/v1/macros").status_code == 200
 
 
 def test_api_macros_requires_login(macros_env):

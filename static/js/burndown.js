@@ -165,4 +165,5 @@
       .matchMedia("(prefers-color-scheme: dark)")
       .addEventListener("change", render);
   }
+  document.addEventListener("sd-theme", render);
 })();

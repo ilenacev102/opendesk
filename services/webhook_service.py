@@ -6,6 +6,7 @@ import json
 import logging
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
+from urllib.parse import urlparse
 
 from utils.helpers import next_id, stamp
 from utils.validators import ValidationError
@@ -53,8 +54,13 @@ def create(webhooks, name, url, events="", secret=""):
     url = (url or "").strip()
     if not name:
         raise ValidationError("Името на вебхукот е задолжително.")
-    if not (url.startswith("http://") or url.startswith("https://")):
-        raise ValidationError("URL мора да започнува со http:// или https://.")
+    parsed = urlparse(url)
+    if (
+        parsed.scheme not in ("http", "https")
+        or not parsed.netloc
+        or any(ch.isspace() for ch in url)
+    ):
+        raise ValidationError("URL мора да е валиден http(s) адреса со host.")
     parsed = _parse_events(events)
     row = {
         "WebhookID": next_id(webhooks, "WebhookID", "WH"),

@@ -614,13 +614,22 @@
   `templates_web/webhooks.html`)**: складиште `webhooks` (WEBHOOK_COLS),
   админ страница `/settings/webhooks` со toggle/delete; асинхроно
   испраќање преку ThreadPoolExecutor со HMAC-SHA256 потпис (`X-Signature`);
-  настани: `incident.critical_created` (критичен инцидент),
-  `change.cab_pending` (нова промена поднесена до CAB),
-  `problem.resolved` (решен проблем со каскаден број); доставата е
+  настани: `incident.critical_created` (критичен инцидент — во системот
+  тоа е приоритет `urgent`), `change.cab_pending` (нова промена поднесена
+  до CAB), `problem.resolved` (решен проблем со каскаден број); доставата е
   fire-and-forget — неуспехот се логира, никад не крева исклучок.
+- **Бугфикс (review)**: испорака на webhook при креирање на критичен
+  инцидент била тивка — dispatch го добивал погрешен store и условот
+  проверувал непостоечки приоритет `critical`; сега се испорачува на
+  `urgent`, а wiring-от за сите три настани е покриен со тестови.
+  URL валидација на webhook цели е зацврстена (urlparse: scheme+host,
+  без whitespace); дупликат-детекторот на формата повеќе не гради HTML
+  преку innerHTML (DOM API — без XSS); „Поврзи како дупликат“ копчињата
+  се скриени за `citac` улога; burndown/velocity графиконите реагираат
+  веднаш на рачна промена на темата (`sd-theme` настан).
 - **Тестови**: `test_sprint_analytics.py` (9), `test_macros.py` (10),
-  `test_duplicate_detection.py` (14), `test_webhooks.py` (14).
-- **Suite: 512 passed, 0 failed, 3 skipped (вкупно 515).**
+  `test_duplicate_detection.py` (14), `test_webhooks.py` (18).
+- **Suite: 516 passed, 0 failed, 3 skipped (вкупно 519).**
 
 ## Стартување
 

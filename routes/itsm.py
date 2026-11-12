@@ -239,10 +239,11 @@ def problems_resolve():
                 stores_to_backup.append(incidents_store)
             app_mod.backup_all(stores_to_backup)
 
+        from app import webhooks as webhooks_store
         from services import webhook_service
 
         webhook_service.dispatch(
-            getattr(app_mod, "webhooks", None),
+            webhooks_store,
             "problem.resolved",
             {
                 "ProblemID": pid,
@@ -349,10 +350,11 @@ def changes_new():
         if config.BACKUP_ON_WRITE and hasattr(app_mod, "backup_all"):
             app_mod.backup_all([changes_store])
 
+        from app import webhooks as webhooks_store
         from services import webhook_service
 
         webhook_service.dispatch(
-            getattr(app_mod, "webhooks", None),
+            webhooks_store,
             "change.cab_pending",
             {
                 "ChangeID": cid,

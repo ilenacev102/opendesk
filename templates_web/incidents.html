@@ -73,12 +73,23 @@
   var timer = null;
   function render(matches) {
     if (!matches.length) { wrap.classList.add("d-none"); return; }
-    var items = matches.map(function (m) {
-      return "<li>" + m.IncidentID + " — " + m.Title +
-        " <span class='text-muted small'>(сличност " + m.Score + ")</span></li>";
-    }).join("");
-    box.innerHTML = "<strong>Слични активни инциденти:</strong><ul class='mb-0 mt-1'>" +
-      items + "</ul><div class='small mt-1'>Проверете дали е дупликат пред да заведете нов тикет.</div>";
+    var strong = document.createElement("strong");
+    strong.textContent = "Слични активни инциденти:";
+    var ul = document.createElement("ul");
+    ul.className = "mb-0 mt-1";
+    matches.forEach(function (m) {
+      var li = document.createElement("li");
+      li.textContent = m.IncidentID + " — " + m.Title;
+      var score = document.createElement("span");
+      score.className = "text-muted small";
+      score.textContent = " (сличност " + m.Score + ")";
+      li.appendChild(score);
+      ul.appendChild(li);
+    });
+    var hint = document.createElement("div");
+    hint.className = "small mt-1";
+    hint.textContent = "Проверете дали е дупликат пред да заведете нов тикет.";
+    box.replaceChildren(strong, ul, hint);
     wrap.classList.remove("d-none");
   }
   input.addEventListener("input", function () {
