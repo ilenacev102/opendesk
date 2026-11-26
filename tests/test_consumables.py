@@ -83,6 +83,44 @@ def test_issue_decrements_and_logs(monkeypatch):
     assert "CONSUME" in actions
 
 
+def test_issue_attributed_to_current_user(monkeypatch):
+    """Audit integrity: history rows record the acting user, never hardcoded 'admin'."""
+    import tempfile as _tf
+
+    app_mod = _cons_env(monkeypatch)
+    monkeypatch.setenv("SERVICEDESK_DB", os.path.join(_tf.mkdtemp(), "u.db"))
+    app_mod.auth_svc.create_user("mag", "dolgapass123", role="magacioner")
+    try:
+        c = app_mod.app.test_client()
+        c.post("/login", data={"username": "mag", "password": "dolgapass123"})
+        c.post(
+            "/consumables",
+            data={
+                "action": "add",
+                "ConsumableID": "CABLE-09",
+                "Name": "Кабел",
+                "Quantity": "5",
+                "MinLevel": "1",
+            },
+        )
+        r = c.post(
+            "/consumables/issue",
+            data={"consumable_id": "CABLE-09", "qty": "1", "notes": ""},
+        )
+        assert r.status_code == 302
+        last = [
+            h for h in app_mod.history.store.records() if h.get("Action") == "CONSUME"
+        ][-1]
+        assert last.get("PerformedBy") == "mag"
+    finally:
+        import sqlite3
+
+        con = sqlite3.connect(app_mod.DB_PATH)
+        con.execute("DELETE FROM users")
+        con.commit()
+        con.close()
+
+
 def test_issue_over_stock_rejected(monkeypatch):
     app_mod = _cons_env(monkeypatch)
     c = app_mod.app.test_client()

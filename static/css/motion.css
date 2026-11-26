@@ -319,7 +319,7 @@
 }
 
 .table tbody tr:hover {
-  transform: scale([1.002]);
+  transform: scale(1.002);
 }
 
 /* --- 11. Dropdown and Modal Spring Reveals --- */
@@ -339,6 +339,267 @@
   }
 }
 
+/* --- 13. Vector Nexus Brand Kinetics & Aura --- */
+.brand-mark {
+  transition: transform 0.35s var(--sd-ease-spring), box-shadow 0.35s ease, background-color 0.2s ease;
+}
+
+.navbar-brand:hover .brand-mark {
+  transform: translateY(-1.5px) rotate(-6deg) scale(1.1);
+  box-shadow: 0 4px 16px rgba(47, 93, 163, 0.45);
+}
+
+[data-bs-theme="dark"] .brand-mark {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+}
+
+[data-bs-theme="dark"] .navbar-brand:hover .brand-mark {
+  box-shadow: 0 0 16px rgba(122, 165, 216, 0.6);
+}
+
+/* --- 14. Shimmer Skeleton Loading State System --- */
+.sd-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(148, 163, 184, 0.12) 25%,
+    rgba(148, 163, 184, 0.26) 50%,
+    rgba(148, 163, 184, 0.12) 75%
+  );
+  background-size: 200% 100%;
+  animation: sdShimmer 1.6s infinite linear;
+  border-radius: var(--sd-radius-sm);
+  display: inline-block;
+  pointer-events: none;
+}
+
+[data-bs-theme="dark"] .sd-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.05) 25%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.05) 75%
+  );
+  background-size: 200% 100%;
+}
+
+@keyframes sdShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.sd-skeleton-text {
+  height: 0.9em;
+  margin-bottom: 0.4em;
+  width: 100%;
+}
+
+.sd-skeleton-card {
+  height: 90px;
+  width: 100%;
+  border-radius: var(--sd-radius);
+}
+
+/* --- 15. Linear-Style Slide-Over Drawer (Peek Sheet) --- */
+.sd-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1040;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.26s ease;
+}
+
+.sd-drawer-backdrop.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sd-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 580px;
+  max-width: 92vw;
+  background: var(--sd-card);
+  box-shadow: -10px 0 35px rgba(0, 0, 0, 0.18);
+  z-index: 1050;
+  transform: translateX(100%);
+  transition: transform 0.32s var(--sd-ease-spring);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-left: 1px solid var(--sd-line);
+}
+
+.sd-drawer.open {
+  transform: translateX(0);
+}
+
+.sd-drawer-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--sd-line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--sd-card);
+}
+
+.sd-drawer-body {
+  padding: 1.25rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.sd-drawer-footer {
+  padding: 0.9rem 1.25rem;
+  border-top: 1px solid var(--sd-line);
+  background: var(--sd-bg);
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* --- 16. Interactive CSAT Rating Stars & Micro-interactions --- */
+.csat-rating-group {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.csat-star-btn {
+  background: transparent;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--sd-muted);
+  border-radius: var(--sd-radius-sm);
+  transition: transform 0.18s var(--sd-ease-bounce), color 0.18s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.csat-star-btn .ic {
+  width: 22px;
+  height: 22px;
+}
+
+.csat-star-btn:hover {
+  transform: scale(1.28) translateY(-2px);
+  color: #f59e0b;
+}
+
+.csat-star-btn.is-active {
+  color: #f59e0b;
+}
+
+.csat-star-btn.is-active svg {
+  fill: #f59e0b;
+}
+
+/* --- 17. Zero-Friction Portal Dropzone & Paste Area --- */
+.portal-dropzone {
+  border: 2px dashed var(--sd-line);
+  background: rgba(47, 93, 163, 0.02);
+  border-radius: var(--sd-radius);
+  padding: 1.1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.22s var(--sd-ease-spring);
+  position: relative;
+}
+
+.portal-dropzone:hover,
+.portal-dropzone.dragover {
+  border-color: var(--sd-accent);
+  background: rgba(47, 93, 163, 0.06);
+  transform: scale(1.01);
+}
+
+[data-bs-theme="dark"] .portal-dropzone {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+[data-bs-theme="dark"] .portal-dropzone:hover,
+[data-bs-theme="dark"] .portal-dropzone.dragover {
+  background: rgba(122, 165, 216, 0.08);
+}
+
+.portal-dropzone .dz-icon {
+  width: 28px;
+  height: 28px;
+  color: var(--sd-accent);
+  transition: transform 0.2s var(--sd-ease-bounce);
+}
+
+.portal-dropzone:hover .dz-icon {
+  transform: translateY(-2px) scale(1.15);
+}
+
+.portal-preview-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  background: var(--sd-card);
+  border: 1px solid var(--sd-line);
+  border-radius: var(--sd-radius-sm);
+  font-size: 0.85rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+/* --- 18. Ticket Status Stepper --- */
+.ticket-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.76rem;
+}
+
+.ticket-stepper .step-node {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--sd-muted);
+}
+
+.ticket-stepper .step-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sd-line);
+  display: inline-block;
+  transition: all 0.2s ease;
+}
+
+.ticket-stepper .step-line {
+  width: 12px;
+  height: 2px;
+  background: var(--sd-line);
+}
+
+.ticket-stepper .step-node.active .step-dot {
+  background: var(--sd-accent);
+  box-shadow: 0 0 0 3px rgba(47, 93, 163, 0.2);
+}
+
+.ticket-stepper .step-node.active {
+  color: var(--sd-text);
+  font-weight: 600;
+}
+
+.ticket-stepper .step-node.done .step-dot {
+  background: #10b981;
+}
+
+.ticket-stepper .step-node.done {
+  color: #10b981;
+}
+
 /* --- 12. Accessibility: Reduced Motion Override --- */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -356,5 +617,11 @@
   }
   .nav-health i::after {
     display: none !important;
+  }
+  .sd-drawer {
+    transition: none !important;
+  }
+  .sd-skeleton {
+    animation: none !important;
   }
 }

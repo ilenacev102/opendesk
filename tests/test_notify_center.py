@@ -80,9 +80,12 @@ def test_notifications_page_and_badge(monkeypatch):
         body = c.get("/notifications").get_data(as_text=True)
         assert "I-1" in body
         home = c.get("/").get_data(as_text=True)
-        assert "Известувања (1)" in home
+        assert 'aria-label="Известувања, 1 непрочитани"' in home
+        assert 'nav-unread-badge">1<' in home
         assert c.post("/notifications/read", data={}).status_code == 302
-        assert "Известувања (1)" not in c.get("/").get_data(as_text=True)
+        after = c.get("/").get_data(as_text=True)
+        assert "nav-unread-badge" not in after
+        assert 'aria-label="Известувања"' in after
     finally:
         import sqlite3
 

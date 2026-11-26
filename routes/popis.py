@@ -23,6 +23,12 @@ bp = Blueprint("popis", __name__)
 log = __import__("logging").getLogger("servicedesk")
 
 
+def _who():
+    from flask_login import current_user as _cu
+
+    return str(getattr(_cu, "id", "admin")) if _cu else "admin"
+
+
 @bp.route("/popis", methods=["GET", "POST"])
 def popis_start():
     from app import devices, employees, popis_svc
@@ -42,7 +48,7 @@ def popis_start():
         if not expected:
             flash("ГРЕШКА: нема уреди за тој опсег.", "danger")
         else:
-            pid = popis_svc.start(scope, name, expected)
+            pid = popis_svc.start(scope, name, expected, performed_by=_who())
             return redirect(url_for("popis.popis_detail", pid=pid))
     popisi = []
     for rec in popis_svc.store.records():
@@ -78,7 +84,7 @@ def popis_missing():
 
 @bp.route("/popis/<pid>", methods=["GET", "POST"])
 def popis_detail(pid):
-    from app import devices, history, popis_svc
+    from app import devices, popis_svc
     from services.document_service import fill_template, mk_date
 
     rec = popis_svc.get(pid)
@@ -96,16 +102,16 @@ def popis_detail(pid):
             if dev is None:
                 flash(f"ГРЕШКА: {code} не постои.", "danger")
             else:
-                res = popis_svc.scan(pid, dev["AssetID"])
+                res = popis_svc.scan(pid, dev["AssetID"], performed_by=_who())
                 if res is True:
                     flash(f"✔ {dev['AssetID']} евидентиран.", "success")
                 elif res is False:
                     flash(f"⚠ {dev['AssetID']} не припаѓа на овој попис.", "warning")
             return redirect(url_for("popis.popis_detail", pid=pid))
-        result = popis_svc.finish(pid)
-        if result is None:
+        preview = popis_svc.preview_finish(pid)
+        if preview is None:
             abort(404)
-        missing = result["missing"]
+        missing = preview["missing"]
         scope_name = rec["Scope"] or ""
         rec_name = rec["Name"] or ""
         doc_rel = fill_template(
@@ -113,28 +119,14 @@ def popis_detail(pid):
             {
                 "«ОПФАТ»": f"{scope_name}: {rec_name}",
                 "«ДАТУМ»": mk_date(),
-                "«ОЧЕКУВАНИ»": str(len(result["expected"])),
-                "«НАЈДЕНИ»": str(len(result["found"])),
+                "«ОЧЕКУВАНИ»": str(len(preview["expected"])),
+                "«НАЈДЕНИ»": str(len(preview["found"])),
                 "«НЕДОСТАСУВААТ»": ", ".join(missing) if missing else "—",
             },
             f"Popis_{pid}.docx",
             "popis",
         )
-        popis_svc.finish(pid, doc_rel)
-        for aid in missing:
-            dev = devices.find("AssetID", aid)
-            history.log(
-                "POPIS_MISSING",
-                aid,
-                dev.get("Status", "") if dev else "",
-                dev.get("Status", "") if dev else "",
-                dev.get("EmployeeID", "") if dev else "",
-                "",
-                f"Попис {pid}",
-                "",
-                "admin",
-                doc_rel,
-            )
+        popis_svc.finish(pid, doc_rel, performed_by=_who(), devices=devices)
         flash(
             f"Попис {pid} завршен. Недостасуваат: {len(missing)}.",
             "success" if not missing else "warning",
@@ -176,7 +168,7 @@ def popis_scan(pid):
 
 @bp.route("/popis/<pid>/found", methods=["POST"])
 def popis_found(pid):
-    from app import devices, popis_svc
+    from app import devices, history, popis_svc
     from services.popis_service import mark_scanned
 
     rec = popis_svc.get(pid)
@@ -186,7 +178,7 @@ def popis_found(pid):
     code = str(data.get("asset_id", "")).strip()
     if not code:
         return jsonify(ok=False, error="Недостасува asset_id."), 400
-    res = popis_svc.scan(pid, code)
+    res = popis_svc.scan(pid, code, performed_by=_who())
     if res is None:
         return jsonify(ok=False, error="Пописот е затворен."), 404
     if res is False:
@@ -195,7 +187,7 @@ def popis_found(pid):
     if rec2 is None:
         return jsonify(ok=False, error="Пописот е затворен."), 404
     if devices.find("AssetID", code) is not None:
-        mark_scanned(devices, code)
+        mark_scanned(devices, code, history=history, performed_by=_who())
     return jsonify(
         ok=True,
         asset_id=code,

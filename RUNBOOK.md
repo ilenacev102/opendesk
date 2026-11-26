@@ -78,3 +78,27 @@ Restore-проба: неделно на тест-машина — snapshot → �
 | 429 насекаде | `SERVICEDESK_RATELIMIT` режим; `file` за повеќе workers |
 | Заклучена SQLite | само еден writer; WAL + `busy_timeout=5000` се default |
 | Празна база по рестарт | дали `data/` е монтиран volume, не ефемерен слој |
+
+## 4. Observability
+
+- Секое барање (освен `/health` и `/static/*`) пишува една JSON линија во
+  `logs/app.log` и на stdout: `ts`, `request_id`, `method`, `route`, `status`,
+  `duration_ms`, `role`. Query string, headers, тела, кориснички имиња и IP
+  адреси не се логaат.
+- `X-Request-ID` од барањето се почитува (≤64 знаци, alnum/-/_); инаку се
+  генерира. Рефот на 500-страницата е истиот `request_id`.
+- Ротација: 10 MB × 5 за `logs/app.log`; во Docker stdout го собира и ротира
+  `json-file` driver-от. `SERVICEDESK_LOG_FILE=` (празно) го исклучува
+  фајл-ханлерот — `workers` профилот го прави тоа намерно.
+- Панел: `/system/observability` (само admin). Бројачите се **по процес** и се
+  ресетираат при рестарт; p95 е проценка (горна граница на бакет).
+- Низ работници/рестарти:
+
+```bash
+python3 scripts/log_report.py --log logs/app.log --top 10
+docker compose logs --no-log-prefix | python3 scripts/log_report.py --log -
+python3 scripts/log_report.py --log logs/app.log --since 2026-11-16T08:00:00
+```
+
+- Ако 5xx расте: земи `request_id` од панелот, па
+  `grep <request_id> logs/app.log` — линијата носи `exc` со трагата.

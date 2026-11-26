@@ -20,6 +20,9 @@ services:
       SERVICEDESK_SECRET: ${SERVICEDESK_SECRET:?Set SERVICEDESK_SECRET in .env or your shell}
       SERVICEDESK_DB_URL: ${SERVICEDESK_DB_URL:-}
       SERVICEDESK_RATELIMIT: file
+      # stdout is the single writer under multiple workers (Docker rotates it);
+      # a shared RotatingFileHandler would lose lines across processes.
+      SERVICEDESK_LOG_FILE: ""
     volumes:
       - ./data:/app/data
       - ./documents:/app/documents

@@ -95,7 +95,7 @@
           <td><b><code>{{ p.ProblemID }}</code></b></td>
           <td>
             <div class="fw-bold">{{ p.Title }}</div>
-            {% if p.Description %}<div class="small text-muted text-truncate" style="max-width:300px;">{{ p.Description }}</div>{% endif %}
+            {% if p.Description %}<div class="small text-muted text-truncate sd-col-300">{{ p.Description }}</div>{% endif %}
             {% if p.Workaround %}<div class="small text-info">Workaround: {{ p.Workaround }}</div>{% endif %}
             {% if p.RootCause %}<div class="small text-success">Root Cause: <b>{{ p.RootCause }}</b></div>{% endif %}
           </td>

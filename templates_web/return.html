@@ -15,12 +15,12 @@
 <div class="mb-3"><label><b>1. Инвентарен број</b> (или сериски ако нема)</label>
 <input class="form-control form-control-lg" id="inv" placeholder="нпр. LAP002" autofocus>
 <div id="invHint" class="form-text"></div></div>
-<div id="devCard" style="display:none;" class="alert alert-info">
+<div id="devCard" class="alert alert-info sd-hidden-init">
 <b id="dcTitle"></b><br><span id="dcSub"></span><br>
 Носител: <b id="dcHolder"></b> | Статус: <b id="dcStatus"></b>
 </div>
 </div></div>
-<form method="post" id="retForm" style="display:none;"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<form method="post" id="retForm" class="sd-hidden-init"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="mode" value="single">
 <input type="hidden" id="assetHidden" name="asset_id" value="{{ preset_asset }}">
 <input type="hidden" id="empHidden" name="emp_id" value="">

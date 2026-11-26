@@ -188,7 +188,7 @@ def _ui_env(monkeypatch):
     import app as app_mod
     from services.db_service import DbStore
     from services.history_service import HISTORY_COLS, HistoryService
-    from services.schemas import ISSUE_TYPE_COLS, PROJECT_COLS
+    from services.schemas import ISSUE_TYPE_COLS, PROJECT_COLS, SPRINT_COLS
 
     tmp = tempfile.mkdtemp()
     db = os.path.join(tmp, "sprintui.db")
@@ -197,6 +197,7 @@ def _ui_env(monkeypatch):
         app_mod, "project_types", DbStore(db, "issue_types", ISSUE_TYPE_COLS)
     )
     monkeypatch.setattr(app_mod, "incidents", DbStore(db, "incidents", INCIDENT_COLS))
+    monkeypatch.setattr(app_mod, "sprints", DbStore(db, "sprints", SPRINT_COLS))
     monkeypatch.setattr(
         app_mod,
         "history",
@@ -262,6 +263,7 @@ def test_backlog_route_200_and_role_guard(monkeypatch):
         sid = next(
             s["SprintID"] for s in app_mod.sprints.records() if s["Name"] == "SP1"
         )
+        assert "SPRINT_CREATE" in [h["Action"] for h in app_mod.history.store.records()]
         r = a.get(f"/sprints/{sid}")
         assert r.status_code == 200
         assert "SP1" in r.get_data(as_text=True)

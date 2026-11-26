@@ -7,17 +7,7 @@ from services.document_service import fill_zadolzenie, fill_zadolzenie_multi
 from utils.helpers import backup_all, next_id_in, stamp
 from utils.validators import ValidationError, require_assignable, require_employee
 
-ASSIGN_COLS = [
-    "TransactionID",
-    "DateTime",
-    "AssetID",
-    "EmployeeID",
-    "Reason",
-    "Notes",
-    "PerformedBy",
-    "DocumentPath",
-    "SignaturePath",
-]
+from services.schemas import ASSIGN_COLS
 
 
 class AssignmentService:

@@ -1,4 +1,10 @@
 {% extends "base.html" %}
+{% block head %}
+<style nonce="{{ csp_nonce }}">
+  #rack-usage { width: {{ usage_pct }}%; }
+  {% for slot in slots %}{% if slot.state == "top" %}#rack-slot-{{ loop.index }} { min-height: {{ slot.item.height_units * 36 }}px; }{% endif %}{% endfor %}
+</style>
+{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
@@ -68,8 +74,8 @@
       <div class="display-6 fw-bold {% if usage_pct > 85 %}text-danger{% elif usage_pct > 60 %}text-warning{% else %}text-info{% endif %}">
         {{ usage_pct }}%
       </div>
-      <div class="progress mt-1" style="height: 6px;">
-        <div class="progress-bar {% if usage_pct > 85 %}bg-danger{% elif usage_pct > 60 %}bg-warning{% else %}bg-info{% endif %}" style="width: {{ usage_pct }}%;"></div>
+      <div class="progress mt-1 sd-progress-sm">
+        <div class="progress-bar {% if usage_pct > 85 %}bg-danger{% elif usage_pct > 60 %}bg-warning{% else %}bg-info{% endif %}" id="rack-usage"></div>
       </div>
     </div>
   </div>
@@ -89,15 +95,15 @@
       </div>
 
       <!-- Rack Chassis Outer -->
-      <div class="rack-cabinet p-2 bg-dark rounded border shadow-sm" style="background-color: #1a1e24 !important;">
+      <div class="rack-cabinet p-2 bg-dark rounded border shadow-sm sd-rack-cabinet">
         <div class="rack-rails border border-secondary rounded p-1 bg-black">
           {% for slot in slots %}
             {% set u = slot.u %}
             {% if slot.state == "top" %}
               {% set it = slot.item %}
               {% set dev = it.device %}
-              <div class="rack-slot occupied-top border border-primary rounded-1 mb-1 p-2 text-white d-flex justify-content-between align-items-center"
-                   style="background: linear-gradient(90deg, #1f2a37 0%, #111827 100%); min-height: {{ it.height_units * 36 }}px;">
+              <div class="rack-slot occupied-top border border-primary rounded-1 mb-1 p-2 text-white d-flex justify-content-between align-items-center sd-rack-occupied"
+                   id="rack-slot-{{ loop.index }}">
                 <div class="d-flex align-items-center gap-2">
                   <span class="badge bg-secondary font-monospace">U{{ it.start_unit }}..U{{ it.start_unit + it.height_units - 1 }}</span>
                   <span class="badge bg-primary">{{ it.height_units }}U</span>
@@ -128,8 +134,7 @@
             {% elif slot.state == "body" %}
               <!-- Sub-unit of a multi-U server (visually merged) -->
             {% else %}
-              <div class="rack-slot empty border border-secondary border-opacity-25 rounded-1 mb-1 px-2 py-1 d-flex justify-content-between align-items-center text-muted"
-                   style="background-color: #0d1117; min-height: 32px; font-size: 0.8rem;">
+              <div class="rack-slot empty border border-secondary border-opacity-25 rounded-1 mb-1 px-2 py-1 d-flex justify-content-between align-items-center text-muted sd-rack-empty">
                 <span class="font-monospace text-secondary">U{{ u }}</span>
                 <span class="text-secondary opacity-50 small">-- слободен слот --</span>
                 <span class="font-monospace text-secondary">U{{ u }}</span>

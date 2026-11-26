@@ -9,7 +9,11 @@ from utils.validators import ValidationError
 
 bp = Blueprint("sprints", __name__)
 
-_POINTS_CHOICES = ("1", "2", "3", "5", "8", "13")
+
+def _who():
+    from flask_login import current_user as _cu
+
+    return str(getattr(_cu, "id", "admin")) if _cu else "admin"
 
 
 def _bootstrap():
@@ -44,27 +48,29 @@ def backlog_view(pid):
         sprints=project_sprints,
         openable=openable,
         can_plan=_can_plan(),
-        points_choices=_POINTS_CHOICES,
+        points_choices=sprint_service.POINTS,
     )
 
 
 @bp.route("/projects/<pid>/backlog/reorder", methods=["POST"])
 @require("admin", "magacioner")
 def backlog_reorder(pid):
-    from app import incidents
+    from app import history, incidents
 
     incident_id = request.form.get("incident", "").strip()
     raw_rank = request.form.get("rank", "").strip()
     try:
         if not incident_id:
             raise ValidationError("Изберете тикет.")
-        rank = int(raw_rank)
-        if rank < 0:
-            raise ValidationError("Рангот мора да биде нула или поголем.")
-        issue = incidents.find("IncidentID", incident_id)
-        if issue is None or issue.get("ProjectID") != pid:
-            raise ValidationError("Тикетот не припаѓа на овој проект.")
-        incidents.update_where("IncidentID", incident_id, {"Rank": str(rank)})
+        rank = sprint_service.set_rank(
+            incidents,
+            pid,
+            incident_id,
+            raw_rank,
+            history=history,
+            performed_by=_who(),
+            db_path=getattr(incidents, "db_path", None),
+        )
         flash(f"Тикетот {incident_id} е преместен на позиција {rank}.", "success")
     except (ValidationError, ValueError):
         flash("ГРЕШКА: невалиден ранг.", "danger")
@@ -74,17 +80,20 @@ def backlog_reorder(pid):
 @bp.route("/projects/<pid>/backlog/points", methods=["POST"])
 @require("admin", "magacioner")
 def backlog_points(pid):
-    from app import incidents
+    from app import history, incidents
 
     incident_id = request.form.get("incident", "").strip()
     points = request.form.get("story_points", "").strip()
     try:
-        if points not in _POINTS_CHOICES:
-            raise ValidationError("Изберете поени од листата.")
-        issue = incidents.find("IncidentID", incident_id)
-        if issue is None or issue.get("ProjectID") != pid:
-            raise ValidationError("Тикетот не припаѓа на овој проект.")
-        incidents.update_where("IncidentID", incident_id, {"StoryPoints": points})
+        points = sprint_service.set_points(
+            incidents,
+            pid,
+            incident_id,
+            points,
+            history=history,
+            performed_by=_who(),
+            db_path=getattr(incidents, "db_path", None),
+        )
         flash(f"Поените на {incident_id} се {points}.", "success")
     except ValidationError as exc:
         flash(f"ГРЕШКА: {exc}", "danger")
@@ -94,7 +103,7 @@ def backlog_points(pid):
 @bp.route("/projects/<pid>/sprints", methods=["POST"])
 @require("admin", "magacioner")
 def sprint_create(pid):
-    from app import sprints
+    from app import history, sprints
 
     try:
         row = sprint_service.create(
@@ -104,6 +113,9 @@ def sprint_create(pid):
             request.form.get("start_date", ""),
             request.form.get("end_date", ""),
             goal=request.form.get("goal", ""),
+            history=history,
+            performed_by=_who(),
+            db_path=getattr(sprints, "db_path", None),
         )
         flash(f"Спринтот {row['Name']} е креиран.", "success")
         return redirect(url_for("sprints.sprint_detail", sid=row["SprintID"]))
@@ -115,10 +127,17 @@ def sprint_create(pid):
 @bp.route("/sprints/<sid>/start", methods=["POST"])
 @require("admin", "magacioner")
 def sprint_start(sid):
-    from app import incidents, sprints
+    from app import history, incidents, sprints
 
     try:
-        bound = sprint_service.start(sprints, incidents, sid)
+        bound = sprint_service.start(
+            sprints,
+            incidents,
+            sid,
+            history=history,
+            performed_by=_who(),
+            db_path=getattr(sprints, "db_path", None),
+        )
         flash(f"Спринтот е активиран ({bound} тикети врзани).", "success")
     except ValidationError as exc:
         flash(f"ГРЕШКА: {exc}", "danger")
@@ -128,10 +147,17 @@ def sprint_start(sid):
 @bp.route("/sprints/<sid>/complete", methods=["POST"])
 @require("admin", "magacioner")
 def sprint_complete(sid):
-    from app import incidents, sprints
+    from app import history, incidents, sprints
 
     try:
-        back = sprint_service.complete(sprints, incidents, sid)
+        back = sprint_service.complete(
+            sprints,
+            incidents,
+            sid,
+            history=history,
+            performed_by=_who(),
+            db_path=getattr(sprints, "db_path", None),
+        )
         flash(f"Спринтот е завршен ({back} тикети назад во backlog).", "success")
     except ValidationError as exc:
         flash(f"ГРЕШКА: {exc}", "danger")
@@ -141,11 +167,19 @@ def sprint_complete(sid):
 @bp.route("/sprints/<sid>/move", methods=["POST"])
 @require("admin", "magacioner")
 def sprint_move(sid):
-    from app import incidents, sprints
+    from app import history, incidents, sprints
 
     incident_id = request.form.get("incident", "").strip()
     try:
-        sprint_service.move_to_sprint(incidents, sprints, incident_id, sid)
+        sprint_service.move_to_sprint(
+            incidents,
+            sprints,
+            incident_id,
+            sid,
+            history=history,
+            performed_by=_who(),
+            db_path=getattr(sprints, "db_path", None),
+        )
         flash(f"Тикетот {incident_id} е додаден во спринтот.", "success")
     except ValidationError as exc:
         flash(f"ГРЕШКА: {exc}", "danger")

@@ -6,7 +6,7 @@ inside the same transaction as the write, so audit can never diverge.
 
 import datetime
 
-from services.db_service import db_transaction
+from services.db_service import store_transaction
 from utils.helpers import next_id_in, stamp
 
 PRIORITIES = ("low", "medium", "high", "urgent")
@@ -45,11 +45,7 @@ class IncidentService:
         self.db_path = db_path
 
     def _tx(self):
-        if self.db_path:
-            return db_transaction(self.db_path)
-        from contextlib import nullcontext
-
-        return nullcontext(None)
+        return store_transaction(self.store, fallback_path=self.db_path)
 
     def create(
         self,

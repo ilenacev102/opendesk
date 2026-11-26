@@ -1,9 +1,9 @@
 """IT ServiceDesk - Flask app (phased build, runnable after every phase)."""
 
 import logging
-import logging.handlers
 import os
 import secrets
+import time
 import uuid
 
 from flask import (
@@ -18,17 +18,12 @@ from flask import (
 import config
 
 os.makedirs(config.LOG_DIR, exist_ok=True)
-_handler = logging.handlers.RotatingFileHandler(
-    os.path.join(config.LOG_DIR, "app.log"),
-    maxBytes=2_000_000,
-    backupCount=3,
-    encoding="utf-8",
-)
-logging.basicConfig(
-    handlers=[_handler],
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s",
-)
+from services.observability import configure_logging  # noqa: E402
+
+_log_file = os.environ.get(
+    "SERVICEDESK_LOG_FILE", os.path.join(config.LOG_DIR, "app.log")
+).strip()
+configure_logging(_log_file or None)
 log = logging.getLogger("servicedesk")
 
 app = Flask(__name__, template_folder="templates_web", static_folder="static")
@@ -36,6 +31,8 @@ app.secret_key = config.SECRET_KEY
 app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = config.TLS_ENABLED
+app.config["TLS_ENABLED"] = config.TLS_ENABLED
 app.config["CSRF_ENABLED"] = os.environ.get("SERVICEDESK_CSRF", "1") == "1"
 
 
@@ -46,14 +43,60 @@ def set_security_headers(resp):
     resp.headers["X-Request-ID"] = g.get("request_id", "")
     resp.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     resp.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    if app.config.get("TLS_ENABLED"):
+        resp.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
     resp.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         f"script-src 'self' 'nonce-{g.get('csp_nonce', '')}'; "
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-        "font-src 'self' https://fonts.gstatic.com; "
+        f"style-src 'self' 'nonce-{g.get('csp_nonce', '')}'; "
+        "font-src 'self'; "
         "img-src 'self' data:; "
         "object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
     )
+    return resp
+
+
+@app.after_request
+def record_request(resp):
+    """One access record per request; ``/health`` and static stay out of metrics."""
+    path = request.path or ""
+    if path.startswith("/static/") or path == "/health":
+        return resp
+    started = getattr(g, "_obs_started", None)
+    duration_ms = (
+        (time.perf_counter() - started) if started is not None else 0.0
+    ) * 1000
+    rule = getattr(request.url_rule, "rule", None) or "unmatched"
+    role = "anonymous"
+    if current_user is not None and getattr(current_user, "is_authenticated", False):
+        role = getattr(current_user, "role", "citac")
+    request_id = g.get("request_id", "")
+    g.role = role
+
+    from services.observability import record as _record
+
+    _record(request.method, rule, resp.status_code, duration_ms, request_id)
+    extra = {
+        "request_id": request_id,
+        "method": request.method,
+        "path": request.path,
+        "route": rule,
+        "status": resp.status_code,
+        "duration_ms": round(duration_ms, 1),
+        "role": role,
+    }
+    exc_text = getattr(g, "_obs_exc", "")
+    if exc_text:
+        extra["exc_info_text"] = exc_text
+    if resp.status_code >= 500:
+        level = logging.ERROR
+    elif resp.status_code == 429:
+        level = logging.WARNING
+    else:
+        level = logging.INFO
+    log.log(level, "request", extra=extra)
     return resp
 
 
@@ -81,6 +124,17 @@ def inject_unread_count():
     except Exception:
         count = 0
     return {"unread_count": count}
+
+
+@app.context_processor
+def inject_i18n():
+    from services.i18n import get_current_locale, translate
+
+    return {
+        "_": translate,
+        "t": translate,
+        "current_locale": get_current_locale(),
+    }
 
 
 from services.schemas import (
@@ -206,12 +260,13 @@ repair_svc = RepairService(PATHS, devices, employees, history)
 repair_close_svc = RepairClosureService(PATHS, devices, history)
 dispose_svc = DisposalService(PATHS, devices, history)
 popis_svc = PopisService(
-    PATHS["db"], os.path.join(config.TRANSACTIONS_DIR, "Popis.csv")
+    PATHS["db"], os.path.join(config.TRANSACTIONS_DIR, "Popis.csv"), history=history
 )
 auth_svc = AuthService(
     open_store(
         PATHS["db"], "users", os.path.join(config.DATA_DIR, "Users.csv"), USER_COLS
-    )
+    ),
+    history=history,
 )
 token_svc = ApiTokenService(
     open_store(
@@ -219,7 +274,8 @@ token_svc = ApiTokenService(
         "api_tokens",
         os.path.join(config.DATA_DIR, "ApiTokens.csv"),
         TOKEN_COLS,
-    )
+    ),
+    history=history,
 )
 
 try:
@@ -304,8 +360,22 @@ _RATE_LIMITS = (
 )
 
 
+def _rate_bucket(path: str) -> str | None:
+    """Match a rate-limit prefix on a path-segment boundary.
+
+    ``/api/v1foo`` and ``/loginx`` must not inherit the ``/api/v1`` or
+    ``/login`` budgets; only the exact path or a ``prefix/`` subtree does.
+    """
+    path = path or ""
+    for prefix, _limit, _window in _RATE_LIMITS:
+        if path == prefix or path.startswith(prefix + "/"):
+            return prefix
+    return None
+
+
 @app.before_request
 def security_checks():
+    g._obs_started = time.perf_counter()
     g.csp_nonce = secrets.token_urlsafe(16)
     incoming = (request.headers.get("X-Request-ID") or "").strip()
     if (
@@ -323,10 +393,13 @@ def security_checks():
 
             if _urlparse(origin).netloc != request.host:
                 abort(403)
-    for prefix, limit, window in _RATE_LIMITS:
-        if (request.path or "").startswith(prefix):
-            if not _rate_ok(f"{request.remote_addr}|{prefix}", limit, window):
-                return "Too many requests", 429, {"Retry-After": "60"}
+    bucket = _rate_bucket(request.path or "")
+    if bucket is not None:
+        limit, window = next(
+            (lim, win) for prefix, lim, win in _RATE_LIMITS if prefix == bucket
+        )
+        if not _rate_ok(f"{request.remote_addr}|{bucket}", limit, window):
+            return "Too many requests", 429, {"Retry-After": "60"}
     return None
 
 
@@ -338,7 +411,10 @@ def enforce_auth():
         return None
     if getattr(current_user, "is_authenticated", False):
         if getattr(current_user, "role", "") == "citac" and request.method == "POST":
-            abort(403)
+            # Portal self-service is the citac role's purpose (VISION.md) —
+            # the global read-only block must not lock them out of it.
+            if request.blueprint != "portal":
+                abort(403)
         return None
     if (request.path or "").startswith("/api/v1"):
         from flask import jsonify as _jsonify
@@ -361,7 +437,7 @@ def csrf_protect():
         return
     from services.csrf import is_valid, should_enforce
 
-    if not should_enforce(request.path or ""):
+    if not should_enforce(request.path or "", request.headers.get("Authorization", "")):
         return
     if not is_valid(session, request):
         abort(403)
@@ -504,9 +580,11 @@ def warranty_level(days):
 
 @app.errorhandler(500)
 def internal_error(exc):
-    """Boundary handler: log traceback with reference, render friendly page."""
-    ref = uuid.uuid4().hex[:8]
-    log.exception("Unhandled error ref=%s path=%s", ref, request.path)
+    """Boundary handler: correlate the page reference with the access record."""
+    import traceback
+
+    ref = g.get("request_id") or uuid.uuid4().hex[:8]
+    g._obs_exc = traceback.format_exc()
     return render_template("500.html", ref=ref), 500
 
 

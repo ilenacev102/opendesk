@@ -3,10 +3,32 @@
 import datetime
 
 from services.board_service import _points
-from utils.helpers import next_id, stamp
+from services.db_service import store_transaction
+from utils.helpers import next_id, next_id_in, stamp
 from utils.validators import ValidationError
 
 _STATUSES = ("planned", "active", "completed")
+POINTS = ("1", "2", "3", "5", "8", "13")
+
+
+def _tx(*stores, history=None, db_path=None):
+    live = [s for s in stores if s is not None]
+    if history is not None and getattr(history, "store", None) is not None:
+        live.append(history.store)
+    return store_transaction(*live, fallback_path=db_path)
+
+
+def _new_id(store, col, prefix, con):
+    if con is not None:
+        return next_id_in(store, col, prefix, con)
+    return next_id(store, col, prefix)
+
+
+def _log(
+    history, action, ref, old="", new="", notes="", performed_by="admin", con=None
+):
+    if history is not None:
+        history.log(action, ref, old, new, "", "", notes, "", performed_by, "", con=con)
 
 
 def _parse_day(raw, label):
@@ -23,7 +45,18 @@ def _sprint(sprints, sprint_id):
     return row
 
 
-def create(sprints, project_id, name, start, end, goal=""):
+def create(
+    sprints,
+    project_id,
+    name,
+    start,
+    end,
+    goal="",
+    *,
+    history=None,
+    performed_by="admin",
+    db_path=None,
+):
     """Create a planned sprint; end must be strictly after start."""
     name = (name or "").strip()
     if not name:
@@ -34,85 +67,234 @@ def create(sprints, project_id, name, start, end, goal=""):
     end_day = _parse_day(end, "завршен")
     if end_day <= start_day:
         raise ValidationError("Завршниот датум мора да е после почетниот.")
-    row = {
-        "SprintID": next_id(sprints, "SprintID", "SP"),
-        "ProjectID": project_id.strip(),
-        "Name": name,
-        "Goal": (goal or "").strip(),
-        "StartDate": start_day.isoformat(),
-        "EndDate": end_day.isoformat(),
-        "Status": "planned",
-        "Created": stamp(),
-    }
-    sprints.append_row(row)
+    with _tx(sprints, history=history, db_path=db_path) as con:
+        sid = _new_id(sprints, "SprintID", "SP", con)
+        row = {
+            "SprintID": sid,
+            "ProjectID": project_id.strip(),
+            "Name": name,
+            "Goal": (goal or "").strip(),
+            "StartDate": start_day.isoformat(),
+            "EndDate": end_day.isoformat(),
+            "Status": "planned",
+            "Created": stamp(),
+        }
+        sprints.append_row(row, con=con)
+        _log(
+            history,
+            "SPRINT_CREATE",
+            sid,
+            "",
+            "planned",
+            notes=f"{name} [{row['ProjectID']}]",
+            performed_by=performed_by,
+            con=con,
+        )
     return row
 
 
-def start(sprints, incidents, sprint_id):
+def start(
+    sprints,
+    incidents,
+    sprint_id,
+    *,
+    history=None,
+    performed_by="admin",
+    db_path=None,
+):
     """Activate a sprint and bind the project's open backlog by Rank.
 
     Raises:
         ValidationError: unknown/finished sprint or another active sprint
             exists in the same project.
     """
-    row = _sprint(sprints, sprint_id)
-    if row.get("Status") != "planned":
-        raise ValidationError("Само планиран спринт може да се започне.")
-    for other in sprints.records():
-        if (
-            other.get("ProjectID") == row.get("ProjectID")
-            and other.get("Status") == "active"
-            and other.get("SprintID") != sprint_id
-        ):
-            raise ValidationError("Веќе постои активен спринт во проектот.")
-    sprints.update_where("SprintID", sprint_id, {"Status": "active"})
-
-    backlog_rows = [
-        r
-        for r in incidents.records()
-        if (r.get("SprintID") or "") == ""
-        and r.get("ProjectID") == row.get("ProjectID")
-        and r.get("Status") in ("open", "in-progress")
-    ]
-    backlog_rows.sort(key=_rank_key)
-    for r in backlog_rows:
-        incidents.update_where(
-            "IncidentID", r.get("IncidentID", ""), {"SprintID": sprint_id}
+    with _tx(sprints, incidents, history=history, db_path=db_path) as con:
+        row = _sprint(sprints, sprint_id)
+        if row.get("Status") != "planned":
+            raise ValidationError("Само планиран спринт може да се започне.")
+        for other in sprints.records():
+            if (
+                other.get("ProjectID") == row.get("ProjectID")
+                and other.get("Status") == "active"
+                and other.get("SprintID") != sprint_id
+            ):
+                raise ValidationError("Веќе постои активен спринт во проектот.")
+        sprints.update_where("SprintID", sprint_id, {"Status": "active"}, con=con)
+        _log(
+            history,
+            "SPRINT_START",
+            sprint_id,
+            "planned",
+            "active",
+            notes=row.get("Name", ""),
+            performed_by=performed_by,
+            con=con,
         )
+
+        backlog_rows = [
+            r
+            for r in incidents.records()
+            if (r.get("SprintID") or "") == ""
+            and r.get("ProjectID") == row.get("ProjectID")
+            and r.get("Status") in ("open", "in-progress")
+        ]
+        backlog_rows.sort(key=_rank_key)
+        for r in backlog_rows:
+            iid = r.get("IncidentID", "")
+            incidents.update_where("IncidentID", iid, {"SprintID": sprint_id}, con=con)
+            _log(
+                history,
+                "INC_SPRINT_ADD",
+                iid,
+                notes=f"Спринт {sprint_id}",
+                performed_by=performed_by,
+                con=con,
+            )
     return len(backlog_rows)
 
 
-def complete(sprints, incidents, sprint_id):
+def complete(
+    sprints,
+    incidents,
+    sprint_id,
+    *,
+    history=None,
+    performed_by="admin",
+    db_path=None,
+):
     """Finish a sprint; unresolved tickets return to backlog, none are lost."""
-    row = _sprint(sprints, sprint_id)
-    if row.get("Status") != "active":
-        raise ValidationError("Само активен спринт може да се заврши.")
-    sprints.update_where("SprintID", sprint_id, {"Status": "completed"})
-    moved = 0
-    for r in incidents.records():
-        if r.get("SprintID") != sprint_id:
-            continue
-        if r.get("Status") == "resolved":
-            continue
-        incidents.update_where("IncidentID", r.get("IncidentID", ""), {"SprintID": ""})
-        moved += 1
+    with _tx(sprints, incidents, history=history, db_path=db_path) as con:
+        row = _sprint(sprints, sprint_id)
+        if row.get("Status") != "active":
+            raise ValidationError("Само активен спринт може да се заврши.")
+        sprints.update_where("SprintID", sprint_id, {"Status": "completed"}, con=con)
+        _log(
+            history,
+            "SPRINT_COMPLETE",
+            sprint_id,
+            "active",
+            "completed",
+            notes=row.get("Name", ""),
+            performed_by=performed_by,
+            con=con,
+        )
+        moved = 0
+        for r in incidents.records():
+            if r.get("SprintID") != sprint_id:
+                continue
+            if r.get("Status") == "resolved":
+                continue
+            iid = r.get("IncidentID", "")
+            incidents.update_where("IncidentID", iid, {"SprintID": ""}, con=con)
+            _log(
+                history,
+                "INC_SPRINT_REMOVE",
+                iid,
+                notes=f"Спринт {sprint_id} завршен",
+                performed_by=performed_by,
+                con=con,
+            )
+            moved += 1
     return moved
 
 
-def move_to_sprint(incidents, sprints, issue_id, sprint_id):
+def move_to_sprint(
+    incidents,
+    sprints,
+    issue_id,
+    sprint_id,
+    *,
+    history=None,
+    performed_by="admin",
+    db_path=None,
+):
     """Bind an open ticket of the same project to a planned/active sprint."""
-    sprint = _sprint(sprints, sprint_id)
-    if sprint.get("Status") not in ("planned", "active"):
-        raise ValidationError("Тикети не може да се додаваат во завршен спринт.")
-    issue = incidents.find("IncidentID", issue_id)
-    if issue is None:
-        raise ValidationError("Тикетот не постои.")
-    if issue.get("ProjectID") != sprint.get("ProjectID"):
-        raise ValidationError("Тикетот не припаѓа на проектот на спринтот.")
-    if issue.get("Status") != "open":
-        raise ValidationError("Само отворен тикет може да се стави во спринт.")
-    incidents.update_where("IncidentID", issue_id, {"SprintID": sprint_id})
+    with _tx(incidents, sprints, history=history, db_path=db_path) as con:
+        sprint = _sprint(sprints, sprint_id)
+        if sprint.get("Status") not in ("planned", "active"):
+            raise ValidationError("Тикети не може да се додаваат во завршен спринт.")
+        issue = incidents.find("IncidentID", issue_id)
+        if issue is None:
+            raise ValidationError("Тикетот не постои.")
+        if issue.get("ProjectID") != sprint.get("ProjectID"):
+            raise ValidationError("Тикетот не припаѓа на проектот на спринтот.")
+        if issue.get("Status") != "open":
+            raise ValidationError("Само отворен тикет може да се стави во спринт.")
+        incidents.update_where("IncidentID", issue_id, {"SprintID": sprint_id}, con=con)
+        _log(
+            history,
+            "INC_SPRINT_ADD",
+            issue_id,
+            notes=f"Спринт {sprint_id}",
+            performed_by=performed_by,
+            con=con,
+        )
     return issue
+
+
+def set_rank(
+    incidents,
+    project_id,
+    incident_id,
+    rank,
+    *,
+    history=None,
+    performed_by="admin",
+    db_path=None,
+):
+    """Set a backlog rank; the ticket must belong to the project."""
+    try:
+        value = int(str(rank).strip())
+    except (TypeError, ValueError):
+        raise ValidationError("Рангот мора да биде цел број.")
+    if value < 0:
+        raise ValidationError("Рангот мора да биде нула или поголем.")
+    with _tx(incidents, history=history, db_path=db_path) as con:
+        issue = incidents.find("IncidentID", incident_id)
+        if issue is None or issue.get("ProjectID") != project_id:
+            raise ValidationError("Тикетот не припаѓа на овој проект.")
+        incidents.update_where("IncidentID", incident_id, {"Rank": str(value)}, con=con)
+        _log(
+            history,
+            "INC_RANK",
+            incident_id,
+            notes=f"{issue.get('Rank', '') or '-'} -> {value}",
+            performed_by=performed_by,
+            con=con,
+        )
+    return value
+
+
+def set_points(
+    incidents,
+    project_id,
+    incident_id,
+    points,
+    *,
+    history=None,
+    performed_by="admin",
+    db_path=None,
+):
+    """Set story points from the allowed scale; project must match."""
+    points = str(points or "").strip()
+    if points not in POINTS:
+        raise ValidationError("Изберете поени од листата.")
+    with _tx(incidents, history=history, db_path=db_path) as con:
+        issue = incidents.find("IncidentID", incident_id)
+        if issue is None or issue.get("ProjectID") != project_id:
+            raise ValidationError("Тикетот не припаѓа на овој проект.")
+        incidents.update_where(
+            "IncidentID", incident_id, {"StoryPoints": points}, con=con
+        )
+        _log(
+            history,
+            "INC_POINTS",
+            incident_id,
+            notes=f"{issue.get('StoryPoints', '') or '-'} -> {points}",
+            performed_by=performed_by,
+            con=con,
+        )
+    return points
 
 
 def _rank_key(row):

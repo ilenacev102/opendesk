@@ -8,17 +8,7 @@ from services.return_documents import multi_return_items, single_return_doc, tod
 from utils.helpers import backup_all, next_id_in, stamp
 from utils.validators import ValidationError, require_employee, require_returnable
 
-RETURN_COLS = [
-    "TransactionID",
-    "DateTime",
-    "AssetID",
-    "EmployeeID",
-    "Reason",
-    "Condition",
-    "Notes",
-    "PerformedBy",
-    "DocumentPath",
-]
+from services.schemas import RETURN_COLS
 
 CONDITION_STATUS = {
     "Good": "Available",

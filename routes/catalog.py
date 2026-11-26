@@ -13,6 +13,13 @@ from utils.validators import ValidationError
 
 bp = Blueprint("catalog", __name__)
 
+
+def _who():
+    from flask_login import current_user as _cu
+
+    return str(getattr(_cu, "id", "admin")) if _cu else "admin"
+
+
 log = __import__("logging").getLogger("servicedesk")
 
 
@@ -26,53 +33,80 @@ def _parse_seats(raw):
     return val
 
 
-def _license_seat_change(lid, delta, emp_id, action, assigned_to_type="employee", notes=""):
+def _tx(*stores, history=None):
+    from services.db_service import store_transaction
+
+    live = [s for s in stores if s is not None]
+    if history is not None and getattr(history, "store", None) is not None:
+        live.append(history.store)
+    return store_transaction(*live)
+
+
+def _license_seat_change(
+    lid, delta, emp_id, action, assigned_to_type="employee", notes=""
+):
     import app as app_mod
     import config
     from app import backup_all, history, licenses
-    from utils.helpers import next_id, stamp
-
-    row = licenses.find("LicenseID", lid)
-    if row is None:
-        raise ValidationError(f"Лиценцата {lid} не постои.")
-    seats = _parse_seats(row.get("Seats", "0"))
-    used = _parse_seats(row.get("SeatsUsed", "0"))
-    new_used = used + delta
-    if new_used < 0 or new_used > seats:
-        raise ValidationError(f"Недозволено: зафатени {used} од {seats} седишта.")
-    licenses.update_where("LicenseID", lid, {"SeatsUsed": str(new_used)})
+    from utils.helpers import next_id, next_id_in, stamp
 
     seats_store = getattr(app_mod, "license_seats", None)
-    if seats_store is not None:
-        if delta > 0:
-            sid = next_id(seats_store, "SeatID", "SEAT")
-            seats_store.append_row(
-                {
-                    "SeatID": sid,
-                    "LicenseID": lid,
-                    "AssignedToType": assigned_to_type or "employee",
-                    "AssignedToID": emp_id or "Unassigned",
-                    "AssignedDate": stamp().split(" ")[0],
-                    "Notes": notes or "",
-                }
-            )
-            if config.BACKUP_ON_WRITE:
-                backup_all([licenses, seats_store])
-        elif delta < 0:
-            matching = [
-                s for s in seats_store.records()
-                if s.get("LicenseID") == lid and (not emp_id or s.get("AssignedToID") == emp_id)
-            ]
-            if matching:
-                target_sid = matching[-1].get("SeatID")
-                seats_store.delete_where("SeatID", target_sid)
-            if config.BACKUP_ON_WRITE:
-                backup_all([licenses, seats_store])
-    else:
-        if config.BACKUP_ON_WRITE:
-            backup_all([licenses])
+    with _tx(licenses, seats_store, history=history) as con:
+        row = licenses.find("LicenseID", lid)
+        if row is None:
+            raise ValidationError(f"Лиценцата {lid} не постои.")
+        seats = _parse_seats(row.get("Seats", "0"))
+        used = _parse_seats(row.get("SeatsUsed", "0"))
+        new_used = used + delta
+        if new_used < 0 or new_used > seats:
+            raise ValidationError(f"Недозволено: зафатени {used} од {seats} седишта.")
+        licenses.update_where("LicenseID", lid, {"SeatsUsed": str(new_used)}, con=con)
 
-    history.log(action, lid, str(used), str(new_used), emp_id, "", "", "", "admin", "")
+        if seats_store is not None:
+            if delta > 0:
+                sid = (
+                    next_id_in(seats_store, "SeatID", "SEAT", con)
+                    if con is not None
+                    else next_id(seats_store, "SeatID", "SEAT")
+                )
+                seats_store.append_row(
+                    {
+                        "SeatID": sid,
+                        "LicenseID": lid,
+                        "AssignedToType": assigned_to_type or "employee",
+                        "AssignedToID": emp_id or "Unassigned",
+                        "AssignedDate": stamp().split(" ")[0],
+                        "Notes": notes or "",
+                    },
+                    con=con,
+                )
+            elif delta < 0:
+                matching = [
+                    s
+                    for s in seats_store.records()
+                    if s.get("LicenseID") == lid
+                    and (not emp_id or s.get("AssignedToID") == emp_id)
+                ]
+                if matching:
+                    target_sid = matching[-1].get("SeatID")
+                    seats_store.delete_where("SeatID", target_sid, con=con)
+
+        history.log(
+            action,
+            lid,
+            str(used),
+            str(new_used),
+            emp_id,
+            "",
+            "",
+            "",
+            _who(),
+            "",
+            con=con,
+        )
+
+    if config.BACKUP_ON_WRITE:
+        backup_all([licenses] + ([seats_store] if seats_store is not None else []))
     return new_used
 
 
@@ -88,7 +122,7 @@ def _parse_day(raw, label):
 @bp.route("/consumables", methods=["GET", "POST"])
 def consumables_view():
     import config
-    from app import _parse_qty, backup_all, consumables
+    from app import _parse_qty, backup_all, consumables, history
 
     if request.method == "POST":
         cid = request.form.get("ConsumableID", "").strip()
@@ -97,17 +131,32 @@ def consumables_view():
                 raise ValidationError("ID е задолжителен.")
             if consumables.find("ConsumableID", cid):
                 raise ValidationError(f"{cid} веќе постои.")
-            consumables.append_row(
-                {
-                    "ConsumableID": cid,
-                    "Name": request.form.get("Name", "").strip(),
-                    "Category": request.form.get("Category", "").strip(),
-                    "Quantity": str(_parse_qty(request.form.get("Quantity", "0"))),
-                    "MinLevel": str(_parse_qty(request.form.get("MinLevel", "0"))),
-                    "Location": request.form.get("Location", "").strip(),
-                    "Notes": request.form.get("Notes", "").strip(),
-                }
-            )
+            with _tx(consumables, history=history) as con:
+                consumables.append_row(
+                    {
+                        "ConsumableID": cid,
+                        "Name": request.form.get("Name", "").strip(),
+                        "Category": request.form.get("Category", "").strip(),
+                        "Quantity": str(_parse_qty(request.form.get("Quantity", "0"))),
+                        "MinLevel": str(_parse_qty(request.form.get("MinLevel", "0"))),
+                        "Location": request.form.get("Location", "").strip(),
+                        "Notes": request.form.get("Notes", "").strip(),
+                    },
+                    con=con,
+                )
+                history.log(
+                    "CONSUMABLE_CREATE",
+                    cid,
+                    "",
+                    str(_parse_qty(request.form.get("Quantity", "0"))),
+                    "",
+                    "",
+                    "",
+                    request.form.get("Name", "").strip(),
+                    _who(),
+                    "",
+                    con=con,
+                )
             if config.BACKUP_ON_WRITE:
                 backup_all([consumables])
             flash(f"Материјалот {cid} е внесен.", "success")
@@ -132,31 +181,35 @@ def consumables_issue():
 
     cid = request.form.get("consumable_id", "").strip()
     try:
-        row = consumables.find("ConsumableID", cid)
-        if row is None:
-            raise ValidationError(f"Материјалот {cid} не постои.")
-        qty = _parse_qty(request.form.get("qty", "0"))
-        if qty <= 0:
-            raise ValidationError("Количината мора да е позитивна.")
-        stock = _parse_qty(row.get("Quantity", "0"))
-        if qty > stock:
-            raise ValidationError(f"Нема доволно залиха (достапно: {stock}).")
-        new_stock = stock - qty
-        consumables.update_where("ConsumableID", cid, {"Quantity": str(new_stock)})
+        with _tx(consumables, history=history) as con:
+            row = consumables.find("ConsumableID", cid)
+            if row is None:
+                raise ValidationError(f"Материјалот {cid} не постои.")
+            qty = _parse_qty(request.form.get("qty", "0"))
+            if qty <= 0:
+                raise ValidationError("Количината мора да е позитивна.")
+            stock = _parse_qty(row.get("Quantity", "0"))
+            if qty > stock:
+                raise ValidationError(f"Нема доволно залиха (достапно: {stock}).")
+            new_stock = stock - qty
+            consumables.update_where(
+                "ConsumableID", cid, {"Quantity": str(new_stock)}, con=con
+            )
+            history.log(
+                "CONSUME",
+                cid,
+                str(stock),
+                str(new_stock),
+                request.form.get("emp_id", "").strip(),
+                "",
+                request.form.get("notes", "").strip(),
+                "",
+                _who(),
+                "",
+                con=con,
+            )
         if config.BACKUP_ON_WRITE:
             backup_all([consumables])
-        history.log(
-            "CONSUME",
-            cid,
-            str(stock),
-            str(new_stock),
-            request.form.get("emp_id", "").strip(),
-            "",
-            request.form.get("notes", "").strip(),
-            "",
-            "admin",
-            "",
-        )
         flash(f"Издадени {qty} од {cid}. Преостанато: {new_stock}.", "success")
     except ValidationError as exc:
         flash(f"ГРЕШКА: {exc}", "danger")
@@ -166,7 +219,7 @@ def consumables_issue():
 @bp.route("/licenses", methods=["GET", "POST"])
 def licenses_view():
     import config
-    from app import backup_all, licenses
+    from app import backup_all, history, licenses
 
     if request.method == "POST":
         lid = request.form.get("LicenseID", "").strip()
@@ -175,18 +228,33 @@ def licenses_view():
                 raise ValidationError("ID е задолжителен.")
             if licenses.find("LicenseID", lid):
                 raise ValidationError(f"{lid} веќе постои.")
-            licenses.append_row(
-                {
-                    "LicenseID": lid,
-                    "Software": request.form.get("Software", "").strip(),
-                    "LicenseKey": request.form.get("LicenseKey", "").strip(),
-                    "Seats": str(_parse_seats(request.form.get("Seats", "1"))),
-                    "SeatsUsed": "0",
-                    "ExpiryDate": request.form.get("ExpiryDate", "").strip(),
-                    "Supplier": request.form.get("Supplier", "").strip(),
-                    "Notes": request.form.get("Notes", "").strip(),
-                }
-            )
+            with _tx(licenses, history=history) as con:
+                licenses.append_row(
+                    {
+                        "LicenseID": lid,
+                        "Software": request.form.get("Software", "").strip(),
+                        "LicenseKey": request.form.get("LicenseKey", "").strip(),
+                        "Seats": str(_parse_seats(request.form.get("Seats", "1"))),
+                        "SeatsUsed": "0",
+                        "ExpiryDate": request.form.get("ExpiryDate", "").strip(),
+                        "Supplier": request.form.get("Supplier", "").strip(),
+                        "Notes": request.form.get("Notes", "").strip(),
+                    },
+                    con=con,
+                )
+                history.log(
+                    "LICENSE_CREATE",
+                    lid,
+                    "",
+                    "0",
+                    "",
+                    "",
+                    "",
+                    request.form.get("Software", "").strip(),
+                    _who(),
+                    "",
+                    con=con,
+                )
             if config.BACKUP_ON_WRITE:
                 backup_all([licenses])
             flash(f"Лиценцата {lid} е внесена.", "success")
@@ -276,28 +344,32 @@ def licenses_seat_revoke():
         seats_store = getattr(app_mod, "license_seats", None)
         if seats_store is None:
             raise ValidationError("Складиштето за седишта не е активно.")
-        seat = seats_store.find("SeatID", seat_id)
-        if not seat:
-            raise ValidationError(f"Седиштето {seat_id} не постои.")
-        lid = seat.get("LicenseID", "")
-        lic_row = licenses.find("LicenseID", lid)
-        if lic_row:
-            used = _parse_seats(lic_row.get("SeatsUsed", "0"))
-            new_used = max(0, used - 1)
-            licenses.update_where("LicenseID", lid, {"SeatsUsed": str(new_used)})
-            history.log(
-                "LIC_REVOKE",
-                lid,
-                str(used),
-                str(new_used),
-                seat.get("AssignedToID", ""),
-                "",
-                f"Seat {seat_id} revoked",
-                "",
-                "admin",
-                "",
-            )
-        seats_store.delete_where("SeatID", seat_id)
+        with _tx(licenses, seats_store, history=history) as con:
+            seat = seats_store.find("SeatID", seat_id)
+            if not seat:
+                raise ValidationError(f"Седиштето {seat_id} не постои.")
+            lid = seat.get("LicenseID", "")
+            lic_row = licenses.find("LicenseID", lid)
+            if lic_row:
+                used = _parse_seats(lic_row.get("SeatsUsed", "0"))
+                new_used = max(0, used - 1)
+                licenses.update_where(
+                    "LicenseID", lid, {"SeatsUsed": str(new_used)}, con=con
+                )
+                history.log(
+                    "LIC_REVOKE",
+                    lid,
+                    str(used),
+                    str(new_used),
+                    seat.get("AssignedToID", ""),
+                    "",
+                    f"Seat {seat_id} revoked",
+                    "",
+                    _who(),
+                    "",
+                    con=con,
+                )
+            seats_store.delete_where("SeatID", seat_id, con=con)
         if config.BACKUP_ON_WRITE:
             backup_all([licenses, seats_store])
         flash(f"Седиштето {seat_id} е успешно ослободено.", "success")
@@ -309,7 +381,7 @@ def licenses_seat_revoke():
 @bp.route("/contracts", methods=["GET", "POST"])
 def contracts_view():
     import config
-    from app import backup_all, contracts
+    from app import backup_all, contracts, history
 
     if request.method == "POST":
         cid = request.form.get("ContractID", "").strip()
@@ -318,16 +390,31 @@ def contracts_view():
                 raise ValidationError("ID е задолжителен.")
             if contracts.find("ContractID", cid):
                 raise ValidationError(f"{cid} веќе постои.")
-            contracts.append_row(
-                {
-                    "ContractID": cid,
-                    "Title": request.form.get("Title", "").strip(),
-                    "Supplier": request.form.get("Supplier", "").strip(),
-                    "ValidUntil": request.form.get("ValidUntil", "").strip(),
-                    "Value": request.form.get("Value", "").strip(),
-                    "Notes": request.form.get("Notes", "").strip(),
-                }
-            )
+            with _tx(contracts, history=history) as con:
+                contracts.append_row(
+                    {
+                        "ContractID": cid,
+                        "Title": request.form.get("Title", "").strip(),
+                        "Supplier": request.form.get("Supplier", "").strip(),
+                        "ValidUntil": request.form.get("ValidUntil", "").strip(),
+                        "Value": request.form.get("Value", "").strip(),
+                        "Notes": request.form.get("Notes", "").strip(),
+                    },
+                    con=con,
+                )
+                history.log(
+                    "CONTRACT_CREATE",
+                    cid,
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    request.form.get("Title", "").strip(),
+                    _who(),
+                    "",
+                    con=con,
+                )
             if config.BACKUP_ON_WRITE:
                 backup_all([contracts])
             flash(f"Договорот {cid} е внесен.", "success")
@@ -352,7 +439,7 @@ def contracts_view():
 @bp.route("/reservations", methods=["GET", "POST"])
 def reservations_view():
     import config
-    from app import backup_all, devices, reservations
+    from app import backup_all, devices, history, reservations
 
     if request.method == "POST":
         try:
@@ -363,14 +450,18 @@ def reservations_view():
             end = _parse_day(request.form.get("ToDate", ""), "до")
             from services.reservation_service import create as _reserv_create
 
-            rid = _reserv_create(
-                reservations,
-                asset_id,
-                start.isoformat(),
-                end.isoformat(),
-                employee_id=request.form.get("EmployeeID", ""),
-                notes=request.form.get("Notes", ""),
-            )
+            with _tx(reservations, history=history) as con:
+                rid = _reserv_create(
+                    reservations,
+                    asset_id,
+                    start.isoformat(),
+                    end.isoformat(),
+                    employee_id=request.form.get("EmployeeID", ""),
+                    notes=request.form.get("Notes", ""),
+                    history=history,
+                    performed_by=_who(),
+                    con=con,
+                )
             if config.BACKUP_ON_WRITE:
                 backup_all([reservations])
             flash(f"Резервацијата {rid} е внесена.", "success")
@@ -384,13 +475,29 @@ def reservations_view():
 @bp.route("/reservations/cancel", methods=["POST"])
 def reservations_cancel():
     import config
-    from app import backup_all, reservations
+    from app import backup_all, history, reservations
 
     rid = request.form.get("reservation_id", "").strip()
     if reservations.find("ReservationID", rid) is None:
         flash(f"ГРЕШКА: резервацијата {rid} не постои.", "danger")
     else:
-        reservations.update_where("ReservationID", rid, {"Status": "cancelled"})
+        with _tx(reservations, history=history) as con:
+            reservations.update_where(
+                "ReservationID", rid, {"Status": "cancelled"}, con=con
+            )
+            history.log(
+                "RES_CANCEL",
+                rid,
+                "active",
+                "cancelled",
+                "",
+                "",
+                "",
+                "",
+                _who(),
+                "",
+                con=con,
+            )
         if config.BACKUP_ON_WRITE:
             backup_all([reservations])
         flash(f"Резервацијата {rid} е откажана.", "success")
@@ -434,27 +541,40 @@ def reservations_calendar():
 @bp.route("/requests", methods=["GET", "POST"])
 def requests_view():
     import config
-    from app import backup_all, requests
-    from utils.helpers import stamp
+    from app import backup_all, history, requests
+    from utils.helpers import next_id_in, stamp
 
     if request.method == "POST":
         try:
             need = request.form.get("NeedText", "").strip()
             if not need:
                 raise ValidationError("Опишете што ви треба.")
-            from utils.helpers import next_id as _next_id
-
-            qid = _next_id(requests, "RequestID", "Q")
-            requests.append_row(
-                {
-                    "RequestID": qid,
-                    "EmployeeID": request.form.get("EmployeeID", "").strip(),
-                    "NeedText": need,
-                    "Status": "open",
-                    "Created": stamp().split(" ")[0],
-                    "DecidedBy": "",
-                }
-            )
+            with _tx(requests, history=history) as con:
+                qid = next_id_in(requests, "RequestID", "Q", con)
+                requests.append_row(
+                    {
+                        "RequestID": qid,
+                        "EmployeeID": request.form.get("EmployeeID", "").strip(),
+                        "NeedText": need,
+                        "Status": "open",
+                        "Created": stamp().split(" ")[0],
+                        "DecidedBy": "",
+                    },
+                    con=con,
+                )
+                history.log(
+                    "REQ_CREATE",
+                    qid,
+                    "",
+                    "open",
+                    request.form.get("EmployeeID", "").strip(),
+                    "",
+                    "",
+                    need,
+                    _who(),
+                    "",
+                    con=con,
+                )
             if config.BACKUP_ON_WRITE:
                 backup_all([requests])
             flash(f"Барањето {qid} е заведено.", "success")
@@ -469,21 +589,36 @@ def requests_view():
 @require("admin", "magacioner")
 def requests_decide():
     import config
-    from app import backup_all, requests
+    from app import backup_all, history, requests
 
     qid = request.form.get("request_id", "").strip()
     decision = request.form.get("decision", "").strip()
     try:
-        if requests.find("RequestID", qid) is None:
-            raise ValidationError(f"Барањето {qid} не постои.")
-        if decision not in ("approved", "rejected"):
-            raise ValidationError("Невалидна одлука.")
-        from flask_login import current_user as _cu
-
-        who = getattr(_cu, "id", "admin") if _cu else "admin"
-        requests.update_where(
-            "RequestID", qid, {"Status": decision, "DecidedBy": str(who)}
-        )
+        with _tx(requests, history=history) as con:
+            if requests.find("RequestID", qid) is None:
+                raise ValidationError(f"Барањето {qid} не постои.")
+            if decision not in ("approved", "rejected"):
+                raise ValidationError("Невалидна одлука.")
+            who = _who()
+            requests.update_where(
+                "RequestID",
+                qid,
+                {"Status": decision, "DecidedBy": str(who)},
+                con=con,
+            )
+            history.log(
+                "REQ_DECIDE",
+                qid,
+                "open",
+                decision,
+                "",
+                "",
+                "",
+                "",
+                who,
+                "",
+                con=con,
+            )
         if config.BACKUP_ON_WRITE:
             backup_all([requests])
         flash(f"Барањето {qid}: {decision}.", "success")
@@ -496,7 +631,7 @@ def requests_decide():
 @require("admin", "magacioner")
 def field_defs_view():
     import config
-    from app import backup_all, field_defs, field_values
+    from app import backup_all, field_defs, field_values, history
 
     if request.method == "POST":
         action = request.form.get("action", "add")
@@ -507,21 +642,45 @@ def field_defs_view():
                     raise ValidationError("Името е задолжително.")
                 if any(d.get("FieldName") == name for d in field_defs.records()):
                     raise ValidationError(f"Полето {name} веќе постои.")
-                from utils.helpers import next_id as _next_id
+                from utils.helpers import next_id_in
 
-                fid = _next_id(field_defs, "FieldID", "F")
-                field_defs.append_row({"FieldID": fid, "FieldName": name})
+                with _tx(field_defs, history=history) as con:
+                    fid = next_id_in(field_defs, "FieldID", "F", con)
+                    field_defs.append_row({"FieldID": fid, "FieldName": name}, con=con)
+                    history.log(
+                        "FIELD_CREATE",
+                        fid,
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        name,
+                        _who(),
+                        "",
+                        con=con,
+                    )
                 if config.BACKUP_ON_WRITE:
                     backup_all([field_defs])
                 flash(f"Полето {name} е додадено.", "success")
             elif action == "delete":
                 fid = request.form.get("field_id", "").strip()
-                field_defs.replace_all(
-                    [d for d in field_defs.records() if d.get("FieldID") != fid]
-                )
-                field_values.replace_all(
-                    [v for v in field_values.records() if v.get("FieldID") != fid]
-                )
+                with _tx(field_defs, field_values, history=history) as con:
+                    field_values.delete_where("FieldID", fid, con=con)
+                    field_defs.delete_where("FieldID", fid, con=con)
+                    history.log(
+                        "FIELD_DELETE",
+                        fid,
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        _who(),
+                        "",
+                        con=con,
+                    )
                 if config.BACKUP_ON_WRITE:
                     backup_all([field_defs, field_values])
                 flash("Полето е избришано.", "success")
@@ -535,22 +694,36 @@ def field_defs_view():
 @require("admin", "magacioner")
 def device_fields_save(asset_id):
     import config
-    from app import backup_all, devices, field_defs, field_values
+    from app import backup_all, devices, field_defs, field_values, history
 
     dev = devices.find("AssetID", asset_id)
     if dev is None:
         abort(404)
     defs = {d.get("FieldID", ""): d for d in field_defs.records()}
-    kept = [
-        v
-        for v in field_values.records()
-        if not (v.get("AssetID") == asset_id and v.get("FieldID") in defs)
-    ]
-    for fid in defs:
-        val = request.form.get(f"field_{fid}", "").strip()
-        if val:
-            kept.append({"AssetID": asset_id, "FieldID": fid, "Value": val})
-    field_values.replace_all(kept)
+    with _tx(field_values, history=history) as con:
+        for fid in defs:
+            field_values.delete_where_all(
+                {"AssetID": asset_id, "FieldID": fid}, con=con
+            )
+        for fid in defs:
+            val = request.form.get(f"field_{fid}", "").strip()
+            if val:
+                field_values.append_row(
+                    {"AssetID": asset_id, "FieldID": fid, "Value": val}, con=con
+                )
+        history.log(
+            "FIELD_SAVE",
+            asset_id,
+            "",
+            "",
+            "",
+            "",
+            "",
+            f"{len(defs)} полиња",
+            _who(),
+            "",
+            con=con,
+        )
     if config.BACKUP_ON_WRITE:
         backup_all([field_values])
     flash("Дополнителните полиња се зачувани.", "success")

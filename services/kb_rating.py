@@ -3,11 +3,12 @@
 from utils.validators import ValidationError
 
 
-def vote(store, article_id, username, score):
+def vote(store, article_id, username, score, *, history=None, performed_by="admin"):
     """Record the user's 1-5 score for an article (upsert per user).
 
     Returns the stored row. Blank article/user and out-of-range scores raise
-    ValidationError.
+    ValidationError. Only the caller's row is touched, inside one transaction,
+    so concurrent votes never overwrite each other.
     """
     article_id = (article_id or "").strip()
     username = (username or "").strip()
@@ -21,14 +22,35 @@ def vote(store, article_id, username, score):
         raise ValidationError(f"Невалидна оценка: {score}.")
     if not 1 <= score <= 5:
         raise ValidationError(f"Оцената мора да е од 1 до 5: {score}.")
-    rows = store.records()
-    for r in rows:
-        if r.get("ArticleID") == article_id and r.get("UserName") == username:
-            r["Score"] = str(score)
-            store.replace_all(rows)
-            return r
-    row = {"ArticleID": article_id, "UserName": username, "Score": str(score)}
-    store.append_row(row)
+
+    from services.db_service import store_transaction
+
+    live = [store]
+    if history is not None and getattr(history, "store", None) is not None:
+        live.append(history.store)
+    with store_transaction(*live) as con:
+        changed = store.update_where_all(
+            {"ArticleID": article_id, "UserName": username},
+            {"Score": str(score)},
+            con=con,
+        )
+        row = {"ArticleID": article_id, "UserName": username, "Score": str(score)}
+        if not changed:
+            store.append_row(row, con=con)
+        if history is not None:
+            history.log(
+                "KB_RATE",
+                article_id,
+                "",
+                str(score),
+                "",
+                "",
+                "",
+                username,
+                performed_by,
+                "",
+                con=con,
+            )
     return row
 
 

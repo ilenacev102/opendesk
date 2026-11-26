@@ -7,17 +7,7 @@ from services.document_service import fill_template, mk_date
 from utils.helpers import backup_all, next_id_in, stamp
 from utils.validators import ValidationError, require_disposable
 
-DISPOSAL_COLS = [
-    "TransactionID",
-    "DateTime",
-    "AssetID",
-    "EmployeeID",
-    "Reason",
-    "DisposalMethod",
-    "Notes",
-    "PerformedBy",
-    "DocumentPath",
-]
+from services.schemas import DISPOSAL_COLS
 
 
 class DisposalService:

@@ -2,6 +2,7 @@
 data/
 documents/
 backup/
+transactions/
 .servicedesk_secret
 .env
 logs/
@@ -9,18 +10,27 @@ logs/
 *.db-wal
 *.db-shm
 *.pid
+
 # python
 __pycache__/
 *.pyc
 .venv/
 .pytest_cache/
-# session journals
+
+# session journals & caches
 .omo/
 .codegraph
-# CI workflow is added separately (needs 'workflow' scope):
-#   gh auth refresh -s workflow && git add -f .github/workflows/tests.yml
-.github/
-# stray root-level template duplicate (canonical copy lives in templates/)
+.coverage
+htmlcov/
+
+# stray duplicates & outputs
 /Zadolzuvanje_Template.docx
-# misc
 nohup.out
+# Internal planning & draft documents (do not publish)
+JIRA-LIKE-PLAN.md
+REVISION.md
+SPEC-FEATURES-2.md
+SPRINT-6-PLAN.md
+docs/
+.playwright-mcp/
+.github/workflows/

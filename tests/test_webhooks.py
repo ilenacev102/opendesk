@@ -230,6 +230,90 @@ def test_dispatch_unknown_event_no_targets(monkeypatch):
     assert webhook_service.dispatch(webhooks, "incident.critical_created", {}) == []
 
 
+def test_webhook_create_rejects_private_and_local_targets():
+    """M1: loopback/link-local/RFC1918/metadata targets must be rejected at create."""
+    from services import webhook_service
+    from utils.validators import ValidationError
+
+    for bad in (
+        "http://127.0.0.1:9000/hook",
+        "http://169.254.169.254/latest/meta-data",
+        "http://10.0.0.5/hook",
+        "http://192.168.1.10/hook",
+        "http://localhost:5000/hook",
+    ):
+        with pytest.raises(ValidationError):
+            webhook_service.create({}, "Slack", bad, events="incident.critical_created")
+
+
+def test_webhook_create_allows_public_target(monkeypatch):
+    from services import webhook_service
+
+    monkeypatch.setattr(webhook_service, "_resolve", lambda url: ["93.184.216.34"])
+    webhooks = _store(_db(), "webhooks", WEBHOOK_COLS)
+    row = webhook_service.create(
+        webhooks, "Slack", "https://hooks.example.com/x", events="problem.resolved"
+    )
+    assert row["Url"] == "https://hooks.example.com/x"
+
+
+def test_webhook_dispatch_skips_private_target(monkeypatch):
+    """Dispatch re-checks the URL (DNS rebinding / legacy rows); private → skip."""
+    from services import webhook_service
+
+    webhooks = _store(_db(), "webhooks", WEBHOOK_COLS)
+    webhook_service.create(
+        webhooks, "Hook", "https://hooks.example.com/x", events="problem.resolved"
+    )
+    monkeypatch.setattr(webhook_service, "_resolve", lambda url: ["127.0.0.1"])
+    delivered = []
+    monkeypatch.setattr(
+        webhook_service, "_deliver", lambda url, body, headers: delivered.append(url)
+    )
+    scheduled = webhook_service.dispatch(
+        webhooks, "problem.resolved", {"ProblemID": "P-1"}
+    )
+    assert scheduled == []  # skipped, not scheduled
+    assert delivered == []
+
+
+def test_webhook_dispatch_never_raises_on_private_target(monkeypatch):
+    from services import webhook_service
+
+    webhooks = _store(_db(), "webhooks", WEBHOOK_COLS)
+    webhook_service.create(
+        webhooks, "Hook", "https://hooks.example.com/x", events="problem.resolved"
+    )
+    monkeypatch.setattr(webhook_service, "_resolve", lambda url: ["127.0.0.1"])
+    monkeypatch.setattr(webhook_service, "_deliver", lambda *a: None)
+    # fire-and-forget: validation must never escape dispatch
+    assert webhook_service.dispatch(webhooks, "problem.resolved", {}) == []
+
+
+def test_webhook_opener_does_not_follow_redirects():
+    """M2: a redirect must never re-send X-Signature to a new host."""
+    import urllib.request
+
+    from services import webhook_service
+
+    no_redirect = [
+        h for h in webhook_service._opener.handlers if type(h).__name__ == "_NoRedirect"
+    ]
+    assert no_redirect, "opener must install a no-redirect handler"
+    h = no_redirect[0]
+    assert (
+        h.redirect_request(None, None, 302, "Moved", {}, "http://evil.example/") is None
+    )
+    # sanity: default handler would follow
+    dummy = urllib.request.Request("http://evil.example/")
+    assert (
+        urllib.request.HTTPRedirectHandler().redirect_request(
+            dummy, None, 302, "Moved", {}, "http://evil.example/"
+        )
+        is not None
+    )
+
+
 @pytest.fixture()
 def hooks_env(monkeypatch):
     import app as app_mod

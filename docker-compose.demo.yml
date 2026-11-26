@@ -1,0 +1,21 @@
+services:
+  servicedesk:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      SERVICEDESK_SECRET: "demo-secret-key-change-me-in-production-12345678"
+      SERVICEDESK_ADMIN_USER: "admin"
+      SERVICEDESK_ADMIN_PASS: "Admin123!"
+      SERVICEDESK_ADMIN_EMAIL: "admin@example.local"
+      SERVICEDESK_HOST: "0.0.0.0"
+    volumes:
+      - demo_data:/app/data
+      - demo_documents:/app/documents
+      - demo_backup:/app/backup
+    restart: unless-stopped
+
+volumes:
+  demo_data:
+  demo_documents:
+  demo_backup:

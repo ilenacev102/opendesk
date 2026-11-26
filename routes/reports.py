@@ -112,6 +112,8 @@ def reports():
         import csv
         import io
 
+        from services.finance import book_value
+
         def _safe(v):
             s = str(v or "")
             if s[:1] in ("=", "+", "-", "@", "\t", "\r"):
@@ -132,10 +134,11 @@ def reports():
                 "Location",
                 "PurchasePrice",
                 "Supplier",
+                "BookValue",
             ]
         )
         for r in devs:
-            w.writerow(
+            values = [
                 _safe(r.get(c, ""))
                 for c in [
                     "AssetID",
@@ -149,7 +152,10 @@ def reports():
                     "PurchasePrice",
                     "Supplier",
                 ]
-            )
+            ]
+            value = book_value(r.get("PurchasePrice", ""), r.get("PurchaseDate", ""))
+            values.append("" if value is None else value)
+            w.writerow(values)
         return Response(
             buf.getvalue(),
             mimetype="text/csv",
@@ -447,7 +453,7 @@ def import_bulk():
                                         "",
                                         "Bulk import",
                                         "",
-                                        "admin",
+                                        _who(),
                                         "",
                                         con=con,
                                     )

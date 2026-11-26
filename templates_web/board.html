@@ -64,9 +64,9 @@
 </div>
 </div>
 </div>
-<div class="kanban-dropzone" style="min-height: 120px;">
+<div class="kanban-dropzone sd-dropzone">
 {% for i in col.issues %}
-<a class="card sd-card mb-2 d-block text-decoration-none kanban-card" draggable="true" data-incident-id="{{ i.IncidentID }}" data-status="{{ col.name }}" href="/incidents/{{ i.IncidentID }}" title="{{ i.Title }}" style="cursor: grab;">
+<a class="card sd-card mb-2 d-block text-decoration-none kanban-card sd-kanban-card" draggable="true" data-incident-id="{{ i.IncidentID }}" data-status="{{ col.name }}" href="/incidents/{{ i.IncidentID }}" title="{{ i.Title }}">
 <div class="card-body py-2">
 <div class="small text-muted">{{ i.IncidentID }}</div>
 <div class="fw-bold">{{ i.Title }}</div>

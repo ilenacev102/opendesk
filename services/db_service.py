@@ -1,8 +1,59 @@
 """SQLite storage with CsvStore-compatible interface (drop-in swap)."""
 
+import logging
 import os
 import sqlite3
 from contextlib import contextmanager
+
+log = logging.getLogger("servicedesk")
+
+# One unique index per identity: either a single ID column or a natural key.
+# Empty strings stay allowed so legacy rows without an ID never block startup.
+IDENTITY_COLUMNS = {
+    "devices": (("AssetID",),),
+    "employees": (("EmployeeID",),),
+    "history": (("HistoryID",),),
+    "popis": (("PopisID",),),
+    "incidents": (("IncidentID",),),
+    "projects": (("ProjectID",),),
+    "issue_types": (("TypeID",),),
+    "consumables": (("ConsumableID",),),
+    "licenses": (("LicenseID",),),
+    "license_seats": (("SeatID",),),
+    "field_defs": (("FieldID",),),
+    "field_values": (("AssetID", "FieldID"),),
+    "contracts": (("ContractID",),),
+    "reservations": (("ReservationID",),),
+    "requests": (("RequestID",),),
+    "onboard": (("RequestID",),),
+    "notifications": (("NotifID",),),
+    "transit": (("TransitID",),),
+    "ldapmap": (("UserName",),),
+    "sla_policies": (("PolicyID",),),
+    "macros": (("MacroID",),),
+    "webhooks": (("WebhookID",),),
+    "kb_articles": (("ArticleID",),),
+    "comments": (("CommentID",),),
+    "kb_links": (("ArticleID", "IncidentID"),),
+    "kb_ratings": (("ArticleID", "UserName"),),
+    "watchers": (("IncidentID", "UserName"),),
+    "worklogs": (("WorklogID",),),
+    "versions": (("VersionID",),),
+    "sprints": (("SprintID",),),
+    "racks": (("RackID",),),
+    "rack_items": (("ItemID",),),
+    "maintenance_schedules": (("ScheduleID",),),
+    "problems": (("ProblemID",),),
+    "changes": (("ChangeID",),),
+    "cmdb_relations": (("RelID",),),
+    "users": (("UserID",),),
+    "api_tokens": (("TokenID",),),
+}
+
+
+def identity_columns(table):
+    """Unique identity definitions for a table (empty when it has none)."""
+    return IDENTITY_COLUMNS.get(table, ())
 
 
 class DbStore:
@@ -39,20 +90,23 @@ class DbStore:
                     )
             # Application checks are friendly, but these indexes are the final
             # guard when two requests race each other. Empty legacy fields stay valid.
-            identity_columns = {
-                "devices": ("AssetID",),
-                "employees": ("EmployeeID",),
-                "history": ("HistoryID",),
-                "popis": ("PopisID",),
-                "incidents": ("IncidentID",),
-                "projects": ("ProjectID",),
-                "issue_types": ("TypeID",),
-            }.get(table, ("TransactionID",))
-            for unique_col in identity_columns:
-                if unique_col in columns:
+            for unique_cols in identity_columns(table):
+                if not all(c in columns for c in unique_cols):
+                    continue
+                cond = " AND ".join(f"\"{c}\" <> ''" for c in unique_cols)
+                idx_name = "uq_{}_{}".format(table, "_".join(unique_cols))
+                cols_sql = ", ".join(f'"{c}"' for c in unique_cols)
+                try:
                     con.execute(
-                        f'CREATE UNIQUE INDEX IF NOT EXISTS "uq_{table}_{unique_col}" '
-                        f'ON "{table}"("{unique_col}") WHERE "{unique_col}" <> ""'
+                        f'CREATE UNIQUE INDEX IF NOT EXISTS "{idx_name}" '
+                        f'ON "{table}"({cols_sql}) WHERE {cond}'
+                    )
+                except sqlite3.IntegrityError as exc:
+                    log.warning(
+                        "duplicate %s rows in %s; unique index skipped: %s",
+                        unique_cols,
+                        table,
+                        exc,
                     )
             if table == "devices" and "SerialNumber" in columns:
                 con.execute(
@@ -161,6 +215,48 @@ class DbStore:
             connection.commit()
             return cur.rowcount
 
+    def update_where_all(self, conditions, updates, con=None):
+        """Update rows matching every column/value in ``conditions``."""
+        clean = {k: v for k, v in updates.items() if k in self.columns}
+        where_cols = {k: v for k, v in conditions.items() if k in self.columns}
+        if not clean or not where_cols:
+            return 0
+        stmt = ", ".join(f'"{k}" = ?' for k in clean)
+        where = " AND ".join(f'"{k}" = ?' for k in where_cols)
+        params = (*clean.values(), *where_cols.values())
+        if con is not None:
+            return con.execute(
+                f'UPDATE "{self.table}" SET {stmt} WHERE {where}', params
+            ).rowcount
+        with self._connect() as connection:
+            cur = connection.execute(
+                f'UPDATE "{self.table}" SET {stmt} WHERE {where}', params
+            )
+            connection.commit()
+            return cur.rowcount
+
+    def delete_where_all(self, conditions, con=None):
+        """Delete rows matching every column/value in ``conditions``.
+
+        Targeted replacement for read-modify-write flows that used to rewrite
+        whole tables (custom fields, watchers).
+        """
+        clean = {k: v for k, v in conditions.items() if k in self.columns}
+        if not clean:
+            return 0
+        where = " AND ".join(f'"{k}" = ?' for k in clean)
+        params = tuple(clean.values())
+        if con is not None:
+            return con.execute(
+                f'DELETE FROM "{self.table}" WHERE {where}', params
+            ).rowcount
+        with self._connect() as connection:
+            cur = connection.execute(
+                f'DELETE FROM "{self.table}" WHERE {where}', params
+            )
+            connection.commit()
+            return cur.rowcount
+
     def replace_all(self, rows):
         with self._connect() as con:
             con.execute(f'DELETE FROM "{self.table}"')
@@ -233,6 +329,61 @@ def db_transaction(db_path):
         raise
     finally:
         con.close()
+
+
+@contextmanager
+def store_transaction(*stores, fallback_path=None):
+    """One write transaction spanning every given store.
+
+    Backend-aware: SQLite stores share ``db_transaction``; Postgres stores
+    share one psycopg2 connection. All stores must live in the same database,
+    otherwise the write would silently escape the transaction.
+
+    ``fallback_path`` keeps legacy callers that only know a db path working
+    when the store exposes no backend attribute.
+    """
+    live = [s for s in stores if s is not None]
+    if not live:
+        if fallback_path:
+            with db_transaction(fallback_path) as con:
+                yield con
+            return
+        yield None
+        return
+
+    pg = [s for s in live if getattr(s, "dsn", None)]
+    sqlite = [s for s in live if not getattr(s, "dsn", None)]
+
+    if pg and sqlite:
+        raise RuntimeError("Cannot mix Postgres and SQLite stores in one transaction.")
+    if pg:
+        dsns = {s.dsn for s in pg}
+        if len(dsns) != 1:
+            raise RuntimeError("All stores must share one Postgres DSN.")
+        import psycopg2
+
+        con = psycopg2.connect(dsns.pop())
+        try:
+            con.autocommit = False
+            yield con
+            con.commit()
+        except Exception:
+            con.rollback()
+            raise
+        finally:
+            con.close()
+        return
+
+    paths = {getattr(s, "db_path", None) for s in sqlite}
+    paths.discard(None)
+    if len(paths) > 1:
+        raise RuntimeError("All stores must share one SQLite database file.")
+    path = paths.pop() if paths else fallback_path
+    if not path:
+        yield None
+        return
+    with db_transaction(path) as con:
+        yield con
 
 
 def open_store(db_path, table, csv_path, cols):

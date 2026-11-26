@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}{{ inc.IncidentID }} – Портал{% endblock %}
+{% block content %}
+<div class="portal-ticket-head d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+  <div>
+    <div class="text-muted small mb-1">
+      <a href="/portal" class="text-decoration-none">Портал</a>
+      <span class="mx-1">/</span>
+      <a href="/portal/tickets" class="text-decoration-none">Мои тикети</a>
+      <span class="mx-1">/</span>
+      <span>{{ inc.IncidentID }}</span>
+    </div>
+    <h2 class="mb-1 text-break">{{ inc.Title }}</h2>
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      {% if inc.Status == "open" %}
+        <span class="badge badge-st st-Assigned">отворен</span>
+      {% elif inc.Status == "in-progress" %}
+        <span class="badge badge-st st-Repair">во тек</span>
+      {% else %}
+        <span class="badge badge-st st-Repaired">решен</span>
+      {% endif %}
+      <span class="badge bg-secondary">{{ inc.Priority }}</span>
+      {% if inc.AssetID %}<span class="badge bg-light text-dark border">{{ inc.AssetID }}</span>{% endif %}
+    </div>
+  </div>
+  <a class="btn btn-outline-secondary btn-sm" href="/portal/tickets">
+    <svg class="ic me-1" aria-hidden="true"><use href="#i-clock"/></svg>Назад
+  </a>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-8">
+    <div class="card sd-card border h-100">
+      <div class="card-header bg-transparent fw-bold py-2">
+        <svg class="ic me-1" aria-hidden="true"><use href="#i-file"/></svg>Опис
+      </div>
+      <div class="card-body">
+        <p class="mb-0 sd-pre-wrap">{{ inc.Notes or "Нема дополнителен опис." }}</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card sd-card border h-100">
+      <div class="card-header bg-transparent fw-bold py-2">Детали</div>
+      <div class="card-body small">
+        <div class="d-flex justify-content-between py-1 border-bottom">
+          <span class="text-muted">Пријавен</span><span>{{ inc.Created }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-1 border-bottom">
+          <span class="text-muted">Рок</span><span>{{ inc.DueDate or "—" }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-1 border-bottom">
+          <span class="text-muted">Техничар</span><span>{{ inc.Assignee or "—" }}</span>
+        </div>
+        <div class="d-flex justify-content-between py-1">
+          <span class="text-muted">Затворен</span><span>{{ inc.ClosedAt or "—" }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card sd-card border mb-4">
+  <div class="card-header bg-transparent fw-bold py-2 d-flex justify-content-between align-items-center">
+    <span><svg class="ic me-1" aria-hidden="true"><use href="#i-clip"/></svg>Разговор</span>
+    <span class="badge bg-secondary">{{ thread|length }}</span>
+  </div>
+  <div class="card-body">
+    {% if thread %}
+      <div class="list-group list-group-flush mb-3">
+        {% for c in thread %}
+          <div class="list-group-item px-0">
+            <div class="d-flex justify-content-between small text-muted mb-1">
+              <span class="fw-bold">{{ c.Author }}</span>
+              <span>{{ c.Created }}</span>
+            </div>
+            <div class="sd-pre-wrap">{{ c.Body }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-muted mb-3">Се уште нема коментари. Додајте детали за да помогнете со решавање.</p>
+    {% endif %}
+
+    <form method="post" action="/portal/ticket/{{ inc.IncidentID }}/comment">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+      <label class="form-label fw-bold" for="portalCommentBody">Нов коментар</label>
+      <textarea class="form-control mb-2" id="portalCommentBody" name="body" rows="3" maxlength="2000" required placeholder="Опишете што се случува, кога почна, дали има порака за грешка..."></textarea>
+      <button class="btn btn-primary btn-sm" type="submit">Испрати коментар</button>
+    </form>
+  </div>
+</div>
+
+{% if attachments %}
+<div class="card sd-card border mb-4">
+  <div class="card-header bg-transparent fw-bold py-2">
+    <svg class="ic me-1" aria-hidden="true"><use href="#i-download"/></svg>Прилози
+  </div>
+  <div class="card-body">
+    <ul class="list-group list-group-flush">
+      {% for name in attachments %}
+        <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+          <span class="text-truncate me-2">{{ name }}</span>
+          <a class="btn btn-outline-secondary btn-sm" href="/portal/ticket/{{ inc.IncidentID }}/attach/{{ name|urlencode }}">Преземи</a>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+
+{% if inc.Status == "resolved" %}
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card sd-card border h-100">
+      <div class="card-header bg-transparent fw-bold py-2">Оценка на услугата</div>
+      <div class="card-body">
+        {% if inc.Satisfaction %}
+          <p class="mb-0">Ваша оценка: <b>{{ inc.Satisfaction }}/5</b>. Ви благодариме.</p>
+        {% else %}
+          <form method="post" action="/portal/ticket/{{ inc.IncidentID }}/rate" class="d-flex flex-wrap gap-2 align-items-end">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+            <div>
+              <label class="form-label small fw-bold" for="portalScore">Колку бевте задоволни?</label>
+              <select class="form-select form-select-sm" id="portalScore" name="score" required>
+                <option value="5">5 — одлично</option>
+                <option value="4">4 — добро</option>
+                <option value="3">3 — во ред</option>
+                <option value="2">2 — слабо</option>
+                <option value="1">1 — многу слабо</option>
+              </select>
+            </div>
+            <button class="btn btn-success btn-sm" type="submit">Оцени</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card sd-card border h-100">
+      <div class="card-header bg-transparent fw-bold py-2">Проблемот не е решен?</div>
+      <div class="card-body">
+        <p class="text-muted small">Отворете го тикетот повторно ако проблемот се вратил. Дозволено е еднаш на 7 дена.</p>
+        <form method="post" action="/portal/ticket/{{ inc.IncidentID }}/reopen">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+          <button class="btn btn-outline-warning btn-sm" type="submit">Отвори повторно</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

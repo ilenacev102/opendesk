@@ -41,6 +41,26 @@ def test_verify_valid_and_wrong(svc):
     assert tokens.verify("nepostecki-token", auth) is None
 
 
+def test_verify_uses_constant_time_compare(svc, monkeypatch):
+    """Security property: the TokenHash comparison must go through
+    hmac.compare_digest, never plain ==."""
+    from services import api_token_service as ats
+
+    auth, tokens = svc
+    plain = tokens.create("apiuser", "skripta")
+
+    real = ats.hmac.compare_digest
+    calls = []
+
+    def spy(a, b):
+        calls.append((a, b))
+        return real(a, b)
+
+    monkeypatch.setattr(ats.hmac, "compare_digest", spy)
+    assert tokens.verify(plain, auth) is not None
+    assert any(h == ats._hash(plain) for h, _ in calls)
+
+
 def test_revoke_kills_token(svc):
     auth, tokens = svc
     plain = tokens.create("apiuser", "staro")

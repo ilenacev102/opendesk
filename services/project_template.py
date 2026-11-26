@@ -3,7 +3,7 @@
 from typing import Any, TypedDict
 
 from services.project_service import WORKFLOWS, create_project
-from utils.helpers import next_id
+from utils.helpers import next_id, next_id_in
 from utils.validators import ValidationError
 
 
@@ -89,28 +89,40 @@ def import_project(
         normalized = [("Incident", "incident", "medium")]
 
     key = _unique_key(projects, str(data.get("key") or "").strip().upper() or "PRJ")
-    project = create_project(
-        projects,
-        history,
-        name,
-        key,
-        lead=str(data.get("lead") or ""),
-        description=str(data.get("description") or ""),
-        performed_by=performed_by,
-        db_path=db_path,
-    )
+    from services.db_service import store_transaction
+
+    live = [projects, types]
+    if history is not None and getattr(history, "store", None) is not None:
+        live.append(history.store)
     created = 0
-    for tname, workflow, priority in normalized:
-        types.append_row(
-            {
-                "TypeID": next_id(types, "TypeID", "TY"),
-                "ProjectID": project["ProjectID"],
-                "Name": tname,
-                "Icon": "",
-                "DefaultPriority": priority,
-                "Workflow": workflow,
-                "Active": "YES",
-            }
+    with store_transaction(*live, fallback_path=db_path) as con:
+        project = create_project(
+            projects,
+            history,
+            name,
+            key,
+            lead=str(data.get("lead") or ""),
+            description=str(data.get("description") or ""),
+            performed_by=performed_by,
+            con=con,
         )
-        created += 1
+        for tname, workflow, priority in normalized:
+            type_id = (
+                next_id_in(types, "TypeID", "TY", con)
+                if con is not None
+                else next_id(types, "TypeID", "TY")
+            )
+            types.append_row(
+                {
+                    "TypeID": type_id,
+                    "ProjectID": project["ProjectID"],
+                    "Name": tname,
+                    "Icon": "",
+                    "DefaultPriority": priority,
+                    "Workflow": workflow,
+                    "Active": "YES",
+                },
+                con=con,
+            )
+            created += 1
     return {"project": project, "types_created": created}

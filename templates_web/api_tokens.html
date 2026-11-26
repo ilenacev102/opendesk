@@ -4,6 +4,7 @@
 {% if plain %}
 <div class="alert alert-warning">Новиот токен (се прикажува еднаш): <code>{{ plain }}</code></div>
 {% endif %}
+<div class="table-responsive">
 <table class="table">
 <thead><tr><th>ID</th><th>Корисник</th><th>Име</th><th>Креиран</th><th>Активен</th><th>Акција</th></tr></thead>
 <tbody>
@@ -27,6 +28,7 @@
 {% endfor %}
 </tbody>
 </table>
+</div>
 <h4>Нов токен</h4>
 <form method="post"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="action" value="create">

@@ -1,0 +1,26 @@
+<div id="sdDrawerBackdrop" class="sd-drawer-backdrop" aria-hidden="true"></div>
+<aside id="sdDrawer" class="sd-drawer" role="dialog" aria-modal="true" aria-labelledby="sdDrawerTitle" aria-hidden="true">
+  <div class="sd-drawer-header">
+    <div class="d-flex align-items-center gap-2">
+      <span id="sdDrawerBadge" class="badge badge-st st-Assigned">Тикет</span>
+      <h5 id="sdDrawerTitle" class="m-0 fs-6 fw-bold">Инспекција на тикет</h5>
+    </div>
+    <button type="button" id="sdDrawerClose" class="btn-close" aria-label="Затвори панел"></button>
+  </div>
+  <div id="sdDrawerBody" class="sd-drawer-body">
+    <div class="sd-drawer-loading d-none">
+      <div class="sd-skeleton sd-skeleton-text mb-3 sd-skeleton-w60"></div>
+      <div class="sd-skeleton sd-skeleton-text mb-2 sd-skeleton-w90"></div>
+      <div class="sd-skeleton sd-skeleton-text mb-4 sd-skeleton-w75"></div>
+      <div class="sd-skeleton sd-skeleton-card mb-3"></div>
+      <div class="sd-skeleton sd-skeleton-card"></div>
+    </div>
+    <div id="sdDrawerContent">
+      <!-- Динамичка содржина вчитана преку JavaScript -->
+    </div>
+  </div>
+  <div class="sd-drawer-footer">
+    <a id="sdDrawerFullLink" href="#" class="btn btn-sm btn-outline-secondary">Отвори целосно досие</a>
+    <button type="button" class="btn btn-sm btn-primary" id="sdDrawerActionBtn">Во ред</button>
+  </div>
+</aside>

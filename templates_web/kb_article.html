@@ -14,7 +14,7 @@
 {% if current_user and current_user.is_authenticated and current_user.role in ('admin', 'magacioner') %}
 <form method="post" action="/kb/{{ art.ArticleID }}/rate" class="d-flex gap-2 align-items-center">
 <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-<select class="form-select form-select-sm" name="score" style="max-width: 100px">
+<select class="form-select form-select-sm sd-input-score" name="score">
 {% for s in [1, 2, 3, 4, 5] %}<option value="{{ s }}" {% if my_score == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
 </select>
 <button class="btn btn-sm btn-primary" type="submit">Оцени</button>

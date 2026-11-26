@@ -75,6 +75,142 @@ def test_upload_listed_and_downloadable(monkeypatch):
         _wipe_users()
 
 
+def test_upload_same_name_never_overwrites(monkeypatch):
+    """Duplicate attachment name must be renamed (screen_1.png), not clobbered."""
+    app_mod, iid, docs = _env(monkeypatch)
+    try:
+        c = app_mod.app.test_client()
+        _login(c, "mag")
+        c.post(
+            "/incidents/attach",
+            data={"incident_id": iid, "file": (io.BytesIO(b"first"), "a.txt")},
+        )
+        c.post(
+            "/incidents/attach",
+            data={"incident_id": iid, "file": (io.BytesIO(b"second"), "a.txt")},
+        )
+        with open(os.path.join(docs, "incidents", iid, "a.txt"), "rb") as fh:
+            assert fh.read() == b"first"
+        with open(os.path.join(docs, "incidents", iid, "a_1.txt"), "rb") as fh:
+            assert fh.read() == b"second"
+    finally:
+        _wipe_users()
+
+
+def test_upload_writes_history_row(monkeypatch):
+    """INC_ATTACH history row must accompany every saved attachment."""
+    app_mod, iid, docs = _env(monkeypatch)
+    try:
+        c = app_mod.app.test_client()
+        _login(c, "mag")
+        c.post(
+            "/incidents/attach",
+            data={"incident_id": iid, "file": (io.BytesIO(b"x"), "b.png")},
+        )
+        rows = [
+            h
+            for h in app_mod.history.store.records()
+            if h.get("Action") == "INC_ATTACH"
+        ]
+        assert len(rows) == 1
+        assert rows[0].get("AssetID") == iid
+    finally:
+        _wipe_users()
+
+
+def test_portal_upload_unique_and_audited(monkeypatch):
+    """Portal self-service attachment: same guarantees as staff upload."""
+    from unittest import mock
+
+    from services.schemas import (
+        COMMENT_COLS,
+        DEV_COLS,
+        EMP_COLS,
+        INCIDENT_COLS,
+        KB_COLS,
+        REQUEST_COLS,
+    )
+
+    import app as app_mod
+    from services.db_service import DbStore
+    from services.history_service import HISTORY_COLS, HistoryService
+
+    tmp = tempfile.mkdtemp()
+    db = os.path.join(tmp, "portal_att.db")
+    emp_store = DbStore(db, "employees", EMP_COLS)
+    inc_store = DbStore(db, "incidents", INCIDENT_COLS)
+    hist = HistoryService(DbStore(db, "history", HISTORY_COLS))
+    emp_store.append_row(
+        {
+            "EmployeeID": "EMP-001",
+            "FirstName": "Александар",
+            "LastName": "Македонски",
+            "Department": "IT",
+            "UserName": "cit",
+            "Email": "cit@example.com",
+        }
+    )
+    docs = os.path.join(tmp, "documents")
+    os.makedirs(docs, exist_ok=True)
+
+    monkeypatch.setenv("SERVICEDESK_DB", os.path.join(tmp, "users.db"))
+    app_mod.auth_svc.create_user("cit", "dolgapass123", role="citac")
+    try:
+        with (
+            mock.patch.object(app_mod, "devices", DbStore(db, "devices", DEV_COLS)),
+            mock.patch.object(app_mod, "employees", emp_store),
+            mock.patch.object(
+                app_mod, "requests", DbStore(db, "requests", REQUEST_COLS)
+            ),
+            mock.patch.object(app_mod, "incidents", inc_store),
+            mock.patch.object(
+                app_mod, "comments", DbStore(db, "comments", COMMENT_COLS)
+            ),
+            mock.patch.object(app_mod, "history", hist),
+            mock.patch.object(
+                app_mod, "kb_articles", DbStore(db, "kb_articles", KB_COLS)
+            ),
+            mock.patch.object(app_mod, "backup_all", lambda stores: None),
+            mock.patch.dict(app_mod.PATHS, {"db": db}),
+            mock.patch("config.DOCUMENTS_DIR", docs),
+        ):
+            c = app_mod.app.test_client()
+            _login(c, "cit")
+            for n, content in enumerate((b"portal-bytes", b"portal-bytes-2")):
+                c.post(
+                    "/portal/incident",
+                    data={
+                        "title": f"Портал прилог {n}",
+                        "asset_id": "AST-100",
+                        "priority": "medium",
+                        "file": (io.BytesIO(content), "note.txt"),
+                    },
+                    follow_redirects=True,
+                )
+            incs = inc_store.records()
+            assert len(incs) == 2, [(i["IncidentID"], i["Title"]) for i in incs]
+            for inc, content in zip(
+                sorted(incs, key=lambda i: i["IncidentID"]),
+                (b"portal-bytes", b"portal-bytes-2"),
+            ):
+                iid = inc["IncidentID"]
+                rows = [
+                    h
+                    for h in hist.store.records()
+                    if h.get("Action") == "INC_ATTACH" and h.get("AssetID") == iid
+                ]
+                assert len(rows) == 1, iid
+                with open(os.path.join(docs, "incidents", iid, "note.txt"), "rb") as fh:
+                    assert fh.read() == content
+    finally:
+        import sqlite3
+
+        con = sqlite3.connect(app_mod.DB_PATH)
+        con.execute("DELETE FROM users")
+        con.commit()
+        con.close()
+
+
 def test_traversal_blocked(monkeypatch):
     app_mod, iid, docs = _env(monkeypatch)
     try:

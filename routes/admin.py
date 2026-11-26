@@ -15,6 +15,12 @@ bp = Blueprint("admin", __name__)
 log = __import__("logging").getLogger("servicedesk")
 
 
+def _who():
+    from flask_login import current_user as _cu
+
+    return str(getattr(_cu, "id", "system")) if _cu else "system"
+
+
 def _admin_only(fn):
     from functools import wraps
 
@@ -43,6 +49,7 @@ def api_tokens():
                 plain = token_svc.create(
                     owner,
                     request.form.get("name", "").strip(),
+                    performed_by=_who(),
                 )
                 flash(
                     "Токенот е креиран. Копирајте го сега — нема повторно прикажување.",
@@ -53,7 +60,7 @@ def api_tokens():
                 tid = request.form.get("token_id", "").strip()
                 rows = token_svc.store.filter_eq("TokenID", tid)
                 owner = rows[0].get("UserName", "") if rows else ""
-                token_svc.revoke(tid, owner)
+                token_svc.revoke(tid, owner, performed_by=_who())
                 flash("Токенот е отповикан.", "success")
             except ValueError as exc:
                 flash(f"ГРЕШКА: {exc}", "danger")
@@ -74,6 +81,7 @@ def setup():
                 request.form.get("username", ""),
                 request.form.get("password", ""),
                 role="admin",
+                performed_by=_who(),
             )
             flash("Администраторот е креиран. Најавете се.", "success")
             return redirect(url_for("admin.login"))
@@ -96,6 +104,8 @@ def login():
             login_user(AppUser(user))
             log.info("Login user=%s", user.get("UserName", ""))
             nxt = request.args.get("next") or url_for("system.dashboard")
+            if not nxt.startswith("/") or nxt.startswith("//"):
+                nxt = url_for("system.dashboard")
             return redirect(nxt)
     from services import oidc_service as oidc
 
@@ -167,16 +177,22 @@ def users():
                     request.form.get("username", ""),
                     request.form.get("password", ""),
                     request.form.get("role", "magacioner"),
+                    performed_by=_who(),
                 )
                 flash("Корисникот е креиран.", "success")
             elif action == "deactivate":
-                auth_svc.set_active(request.form.get("username", ""), False)
+                auth_svc.set_active(
+                    request.form.get("username", ""), False, performed_by=_who()
+                )
             elif action == "activate":
-                auth_svc.set_active(request.form.get("username", ""), True)
+                auth_svc.set_active(
+                    request.form.get("username", ""), True, performed_by=_who()
+                )
             elif action == "role":
                 auth_svc.set_role(
                     request.form.get("username", ""),
                     request.form.get("role", "citac"),
+                    performed_by=_who(),
                 )
         except ValueError as exc:
             flash(f"ГРЕШКА: {exc}", "danger")
@@ -242,9 +258,7 @@ def sso_callback():
         for cand in auth_svc.list_users():
             if (cand.get("Email", "") or "").strip().lower() == email:
                 user = cand
-                auth_svc.store.update_where(
-                    "UserName", cand["UserName"], {"OIDCSubject": subject}
-                )
+                auth_svc.link_sso(cand["UserName"], subject, performed_by="sso")
                 break
     if user is None:
         if auth_svc.get(username) is not None:
@@ -253,7 +267,9 @@ def sso_callback():
         if role not in ROLES:
             role = "citac"
         try:
-            user = auth_svc.create_sso_user(username, email, subject, role)
+            user = auth_svc.create_sso_user(
+                username, email, subject, role, performed_by="sso"
+            )
         except ValueError as exc:
             flash(f"ГРЕШКА: {exc}", "danger")
             return redirect(url_for("admin.login"))

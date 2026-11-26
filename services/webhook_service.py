@@ -2,8 +2,10 @@
 
 import hashlib
 import hmac
+import ipaddress
 import json
 import logging
+import socket
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlparse
@@ -48,7 +50,8 @@ def create(webhooks, name, url, events="", secret=""):
     """Create an outgoing webhook target.
 
     Raises:
-        ValidationError: empty name, non-http(s) URL, or unknown events.
+        ValidationError: empty name, non-http(s) URL, private/loopback target,
+            or unknown events.
     """
     name = (name or "").strip()
     url = (url or "").strip()
@@ -61,6 +64,7 @@ def create(webhooks, name, url, events="", secret=""):
         or any(ch.isspace() for ch in url)
     ):
         raise ValidationError("URL мора да е валиден http(s) адреса со host.")
+    _assert_public_url(url)
     parsed = _parse_events(events)
     row = {
         "WebhookID": next_id(webhooks, "WebhookID", "WH"),
@@ -109,8 +113,47 @@ def for_event(webhooks, event):
     ]
 
 
+def _resolve(url):
+    """Resolve the URL host to IP addresses; [] when unresolvable (allowed —
+    delivery fails gracefully; LAN hosts may resolve later)."""
+    try:
+        host = urlparse(url).hostname or ""
+        return sorted({info[4][0] for info in socket.getaddrinfo(host, None)})
+    except (OSError, ValueError):
+        return []
+
+
+def _assert_public_url(url):
+    """SSRF guard: reject loopback/link-local/private/metadata targets.
+
+    Raises:
+        ValidationError: the host resolves to a non-public address.
+    """
+    for ip in _resolve(url):
+        addr = ipaddress.ip_address(ip)
+        if (
+            addr.is_loopback
+            or addr.is_private
+            or addr.is_link_local
+            or addr.is_multicast
+            or addr.is_reserved
+            or addr.is_unspecified
+        ):
+            raise ValidationError("URL не сме да покажува на приватна/локална адреса.")
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Redirects are never followed: a 30x must not leak X-Signature."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_opener = urllib.request.build_opener(_NoRedirect())
+
+
 def _urlopen(req, timeout):
-    return urllib.request.urlopen(req, timeout=timeout)
+    return _opener.open(req, timeout=timeout)
 
 
 def _deliver(url, body, headers):
@@ -138,6 +181,11 @@ def dispatch(webhooks, event, data):
     scheduled = []
     pool = _get_pool()
     for wh in targets:
+        try:
+            _assert_public_url(wh.get("Url", ""))
+        except ValidationError as exc:
+            log.warning("Webhook %s skipped: %s", wh.get("WebhookID", ""), exc)
+            continue
         headers = {
             "Content-Type": "application/json",
             "User-Agent": "servicedesk-webhook/1.0",

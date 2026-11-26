@@ -112,3 +112,38 @@ def test_hotkeys_and_palette_wired():
     assert "instant-filter.js" in html
     assert "palette.js" in html
 
+
+def test_sd_drawer_interpolations_escaped():
+    """H1: peek-drawer HTML built from /incidents/<id>?format=json data must
+    escape every server field before innerHTML (stored-XSS guard)."""
+    with open(os.path.join(BASE, "static", "js", "motion.js"), encoding="utf-8") as fh:
+        js = fh.read()
+    assert "function escSd(" in js, "escape helper missing"
+    for field in (
+        "data.Title",
+        "data.Notes",
+        "data.Assignee",
+        "data.EmployeeID",
+        "data.AssetID",
+        "data.Status",
+        "data.StoryPoints",
+        "data.Created",
+        "data.DueDate",
+        "data.IncidentID",
+        "c.Author",
+        "c.Created",
+        "c.Body",
+    ):
+        assert f"${{escSd({field})" in js, f"{field} interpolated unescaped"
+        # no direct interpolation of the raw field anywhere
+        # no direct interpolation of the raw field in HTML content;
+        # ternary conditions and fullLink URLs are DOM-safe, not innerHTML
+        raw = [
+            m
+            for m in re.finditer(re.escape("${" + field) + r"(?!\))", js)
+            if "? `" not in js[m.start() : m.start() + 120]
+            and "fullLink" not in js[max(0, m.start() - 200) : m.start()]
+        ]
+        assert not raw, (
+            f"{field} used raw in HTML interpolation at {[m.start() for m in raw]}"
+        )

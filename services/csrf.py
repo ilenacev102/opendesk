@@ -1,8 +1,9 @@
 """Session-based CSRF protection for cookie-authenticated POSTs.
 
 No external dependencies: token lives in the Flask session, forms carry a
-hidden field (or clients may send ``X-CSRF-Token``). Bearer API paths under
-``/api/`` are exempt — they do not rely on ambient cookie auth.
+hidden field (or clients may send ``X-CSRF-Token``). ``/api/`` requests that
+authenticate with ``Authorization: Bearer`` are exempt — they do not rely on
+ambient cookie auth. A cookie-authenticated ``/api/`` POST is *not* exempt.
 """
 
 import hmac
@@ -38,6 +39,8 @@ def is_valid(session, request) -> bool:
     return hmac.compare_digest(expected, got)
 
 
-def should_enforce(path: str) -> bool:
-    """CSRF applies to browser POSTs, not to /api/ Bearer clients."""
-    return not (path or "").startswith(API_PREFIX)
+def should_enforce(path: str, authorization: str = "") -> bool:
+    """CSRF applies to browser POSTs; only Bearer /api/ clients are exempt."""
+    if not (path or "").startswith(API_PREFIX):
+        return True
+    return not (authorization or "").strip().lower().startswith("bearer ")

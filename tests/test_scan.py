@@ -46,14 +46,19 @@ def test_quick_return_scan_toggle(monkeypatch):
 def _pwa_env(monkeypatch):
     import app as app_mod
     from services.db_service import DbStore
+    from services.history_service import HISTORY_COLS, HistoryService
     from services.popis_service import PopisService
     from services.schemas import DEV_COLS
 
     tmp = tempfile.mkdtemp()
     db = os.path.join(tmp, "pwa.db")
     monkeypatch.setattr(app_mod, "devices", DbStore(db, "devices", DEV_COLS))
+    history = HistoryService(DbStore(db, "history", HISTORY_COLS))
+    monkeypatch.setattr(app_mod, "history", history)
     monkeypatch.setattr(
-        app_mod, "popis_svc", PopisService(db, os.path.join(tmp, "Popis.csv"))
+        app_mod,
+        "popis_svc",
+        PopisService(db, os.path.join(tmp, "Popis.csv"), history=history),
     )
     monkeypatch.setattr(app_mod, "backup_all", lambda stores: None)
     for aid in ("AST001", "AST002", "AST003"):

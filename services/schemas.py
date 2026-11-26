@@ -325,3 +325,98 @@ CMDB_REL_COLS = [
     "TargetID",
     "Notes",
 ]
+
+# Service-owned transactional tables. They live here so every column list has
+# one home; services import the name instead of re-declaring it.
+USER_COLS = [
+    "UserID",
+    "UserName",
+    "PasswordHash",
+    "Role",
+    "Active",
+    "Email",
+    "OIDCSubject",
+]
+TOKEN_COLS = ["TokenID", "UserName", "TokenHash", "Name", "Created", "Active"]
+HISTORY_COLS = [
+    "HistoryID",
+    "DateTime",
+    "Action",
+    "AssetID",
+    "OldStatus",
+    "NewStatus",
+    "EmployeeID",
+    "EmployeeName",
+    "Reason",
+    "Notes",
+    "PerformedBy",
+    "DocumentPath",
+]
+POPIS_COLS = [
+    "PopisID",
+    "DateTime",
+    "Scope",
+    "Name",
+    "Expected",
+    "Found",
+    "Status",
+    "DocumentPath",
+]
+ASSIGN_COLS = [
+    "TransactionID",
+    "DateTime",
+    "AssetID",
+    "EmployeeID",
+    "Reason",
+    "Notes",
+    "PerformedBy",
+    "DocumentPath",
+    "SignaturePath",
+]
+REPAIR_COLS = [
+    "TransactionID",
+    "DateTime",
+    "AssetID",
+    "EmployeeID",
+    "Problem",
+    "RepairStatus",
+    "ServiceProvider",
+    "ServiceDate",
+    "ReturnDate",
+    "Notes",
+    "PerformedBy",
+    "DocumentPath",
+]
+RETURN_COLS = [
+    "TransactionID",
+    "DateTime",
+    "AssetID",
+    "EmployeeID",
+    "Reason",
+    "Condition",
+    "Notes",
+    "PerformedBy",
+    "DocumentPath",
+]
+REPLACE_COLS = [
+    "TransactionID",
+    "DateTime",
+    "OldAssetID",
+    "NewAssetID",
+    "EmployeeID",
+    "Reason",
+    "Notes",
+    "PerformedBy",
+    "DocumentPath",
+]
+DISPOSAL_COLS = [
+    "TransactionID",
+    "DateTime",
+    "AssetID",
+    "EmployeeID",
+    "Reason",
+    "DisposalMethod",
+    "Notes",
+    "PerformedBy",
+    "DocumentPath",
+]

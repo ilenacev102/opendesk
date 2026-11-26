@@ -196,3 +196,50 @@ def test_portal_kb_deflection():
         resp_none = client.get("/portal/kb-suggest?q=nonexistentkwxyz")
         assert resp_none.status_code == 200
         assert resp_none.get_json().get("results") == []
+
+
+def test_portal_incident_with_attachment_and_stepper():
+    import io
+
+    env = _setup_portal_env()
+    app_mod = env["app_mod"]
+
+    with (
+        mock.patch.object(app_mod, "devices", env["devices"]),
+        mock.patch.object(app_mod, "employees", env["employees"]),
+        mock.patch.object(app_mod, "requests", env["requests"]),
+        mock.patch.object(app_mod, "incidents", env["incidents"]),
+        mock.patch.object(app_mod, "history", env["history"]),
+        mock.patch.object(app_mod, "kb_articles", env["kb"]),
+        mock.patch.object(app_mod, "backup_all", lambda stores: None),
+        mock.patch.dict(app_mod.PATHS, {"db": env["db"]}),
+    ):
+        client = app_mod.app.test_client()
+        resp = client.post(
+            "/portal/incident",
+            data={
+                "title": "Грешка при стартување на програма",
+                "asset_id": "AST-100",
+                "priority": "medium",
+                "notes": "Погледнете го скриншотот.",
+                "file": (io.BytesIO(b"PNG_MOCK_BYTES"), "error_screenshot.png"),
+            },
+            follow_redirects=True,
+        )
+        assert resp.status_code == 200
+        recs = env["incidents"].records()
+        assert len(recs) == 1
+        iid = recs[0]["IncidentID"]
+
+        # Verify attachment file saved
+        from routes.incidents import _attach_dir
+        attach_path = os.path.join(_attach_dir(iid), "error_screenshot.png")
+        assert os.path.exists(attach_path)
+        with open(attach_path, "rb") as fh:
+            assert fh.read() == b"PNG_MOCK_BYTES"
+
+        # Verify portal renders ticket stepper and dropzone
+        home_resp = client.get("/portal")
+        html = home_resp.get_data(as_text=True)
+        assert "ticket-stepper" in html
+        assert "portal-dropzone" in html

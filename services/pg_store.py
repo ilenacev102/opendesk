@@ -5,17 +5,11 @@ app stays on SQLite. Schema mirrors DbStore: TEXT columns, partial unique
 indexes that ignore empty strings, first-column lookup indexes.
 """
 
-IDENTITY_COLUMNS = {
-    "devices": ("AssetID",),
-    "employees": ("EmployeeID",),
-    "history": ("HistoryID",),
-    "popis": ("PopisID",),
-    "incidents": ("IncidentID",),
-}
+import logging
 
+from services.db_service import identity_columns as _identity
 
-def _identity(table):
-    return IDENTITY_COLUMNS.get(table, ("TransactionID",))
+log = logging.getLogger("servicedesk")
 
 
 class PgStore:
@@ -49,12 +43,23 @@ class PgStore:
                             f'CREATE INDEX IF NOT EXISTS "idx_{table}_{idx_col}" '
                             f'ON "{table}"("{idx_col}")'
                         )
-                for unique_col in _identity(table):
-                    if unique_col in self.columns:
+                for unique_cols in _identity(table):
+                    if not all(c in self.columns for c in unique_cols):
+                        continue
+                    cond = " AND ".join(f"\"{c}\" <> ''" for c in unique_cols)
+                    idx_name = "uq_{}_{}".format(table, "_".join(unique_cols))
+                    cols_sql = ", ".join(f'"{c}"' for c in unique_cols)
+                    try:
                         cur.execute(
-                            f'CREATE UNIQUE INDEX IF NOT EXISTS "uq_{table}_{unique_col}" '
-                            f'ON "{table}"("{unique_col}") '
-                            f"WHERE \"{unique_col}\" <> ''"
+                            f'CREATE UNIQUE INDEX IF NOT EXISTS "{idx_name}" '
+                            f'ON "{table}"({cols_sql}) WHERE {cond}'
+                        )
+                    except Exception as exc:  # noqa: BLE001
+                        log.warning(
+                            "duplicate %s rows in %s; unique index skipped: %s",
+                            unique_cols,
+                            table,
+                            exc,
                         )
                 if table == "devices" and "SerialNumber" in self.columns:
                     cur.execute(
@@ -186,9 +191,47 @@ class PgStore:
         con = self._connect() if own else con
         try:
             with con.cursor() as cur:
-                cur.execute(
-                    f'DELETE FROM "{self.table}" WHERE "{col}" = %s', (value,)
-                )
+                cur.execute(f'DELETE FROM "{self.table}" WHERE "{col}" = %s', (value,))
+                cnt = cur.rowcount
+            if own:
+                con.commit()
+            return cnt
+        finally:
+            if own:
+                con.close()
+
+    def update_where_all(self, conditions, updates, con=None):
+        clean = {k: v for k, v in updates.items() if k in self.columns}
+        where_cols = {k: v for k, v in conditions.items() if k in self.columns}
+        if not clean or not where_cols:
+            return 0
+        stmt = ", ".join(f'"{k}" = %s' for k in clean)
+        where = " AND ".join(f'"{k}" = %s' for k in where_cols)
+        params = (*clean.values(), *where_cols.values())
+        own = con is None
+        con = self._connect() if own else con
+        try:
+            with con.cursor() as cur:
+                cur.execute(f'UPDATE "{self.table}" SET {stmt} WHERE {where}', params)
+                cnt = cur.rowcount
+            if own:
+                con.commit()
+            return cnt
+        finally:
+            if own:
+                con.close()
+
+    def delete_where_all(self, conditions, con=None):
+        clean = {k: v for k, v in conditions.items() if k in self.columns}
+        if not clean:
+            return 0
+        where = " AND ".join(f'"{k}" = %s' for k in clean)
+        params = tuple(clean.values())
+        own = con is None
+        con = self._connect() if own else con
+        try:
+            with con.cursor() as cur:
+                cur.execute(f'DELETE FROM "{self.table}" WHERE {where}', params)
                 cnt = cur.rowcount
             if own:
                 con.commit()

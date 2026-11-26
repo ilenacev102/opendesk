@@ -18,6 +18,7 @@ from flask import (
 from routes._roles import require
 from services import duplicate_service, macro_service
 from services.incident_service import PRIORITIES, STATUSES
+from utils.validators import ValidationError
 
 bp = Blueprint("incidents", __name__)
 
@@ -170,6 +171,7 @@ def incident_list():
 
 
 @bp.route("/incident/<iid>")
+@bp.route("/incidents/<iid>")
 def incident_detail(iid):
     from app import comments, history, incidents, macros
     from services.comment_service import CommentService
@@ -193,6 +195,35 @@ def incident_detail(iid):
         )
         else []
     )
+    if (
+        request.is_json
+        or request.args.get("format") == "json"
+        or request.headers.get("Accept") == "application/json"
+    ):
+        return jsonify(
+            {
+                "IncidentID": inc.get("IncidentID"),
+                "Title": inc.get("Title"),
+                "Status": inc.get("Status"),
+                "Priority": inc.get("Priority"),
+                "Assignee": inc.get("Assignee") or "",
+                "AssetID": inc.get("AssetID") or "",
+                "EmployeeID": inc.get("EmployeeID") or "",
+                "DueDate": inc.get("DueDate") or "",
+                "Created": inc.get("Created") or "",
+                "Satisfaction": inc.get("Satisfaction") or "",
+                "Notes": inc.get("Notes") or "",
+                "StoryPoints": inc.get("StoryPoints") or "",
+                "thread": [
+                    {
+                        "Author": c.get("Author"),
+                        "Created": c.get("Created"),
+                        "Body": c.get("Body"),
+                    }
+                    for c in thread[-5:]
+                ],
+            }
+        )
     return render_template(
         "incident.html",
         inc=inc,
@@ -220,6 +251,45 @@ def _attach_dir(iid):
     return os.path.join(os.path.abspath(config.DOCUMENTS_DIR), "incidents", iid)
 
 
+def save_attachment(iid, file, performed_by):
+    """Validate + store an attachment under a collision-safe name; write INC_ATTACH.
+
+    Shared by the staff attach route and the portal self-service flow.
+    Returns the saved filename.
+
+    Raises:
+        ValidationError: empty file or disallowed extension.
+    """
+    import os
+
+    import config
+    from app import history
+
+    if file is None or not file.filename:
+        raise ValidationError("Изберете фајл.")
+    name = os.path.basename(file.filename.strip())
+    ext = (name.rsplit(".", 1)[-1] if "." in name else "").lower()
+    if not name or f".{ext}" not in ALLOWED_ATTACH_EXTS:
+        raise ValidationError("Дозволени се само png, jpg, pdf, log, txt фајлови.")
+    target_dir = _attach_dir(iid)
+    os.makedirs(target_dir, exist_ok=True)
+    stem, dot, ext_s = name.rpartition(".")
+    if not dot:
+        stem, ext_s = name, ""
+    candidate = name
+    n = 0
+    while os.path.exists(os.path.join(target_dir, candidate)):
+        n += 1
+        candidate = f"{stem}_{n}{dot}{ext_s}"
+    full = os.path.abspath(os.path.join(target_dir, candidate))
+    base = os.path.abspath(config.DOCUMENTS_DIR)
+    if os.path.commonpath([base, full]) != base:
+        raise ValidationError("Невалидна патека за прилог.")
+    file.save(full)
+    history.log("INC_ATTACH", iid, "", "", "", "", candidate, "", performed_by, "")
+    return candidate
+
+
 def _attachments(iid):
     import os
 
@@ -234,22 +304,16 @@ def _attachments(iid):
 @bp.route("/incidents/attach", methods=["POST"])
 @require("admin", "magacioner")
 def incident_attach():
-    import os
-
-    import config
-    from app import backup_all, history, incidents
-
     iid = request.form.get("incident_id", "").strip()
+    from app import incidents
+
     if incidents.find("IncidentID", iid) is None:
         abort(404)
     file = request.files.get("file")
-    if not file or not file.filename:
-        flash("ГРЕШКА: избери фајл.", "danger")
-        return redirect(url_for("incidents.incident_detail", iid=iid))
-    name = os.path.basename(file.filename.strip())
-    ext = (name.rsplit(".", 1)[-1] if "." in name else "").lower()
-    if not name or f".{ext}" not in ALLOWED_ATTACH_EXTS:
-        flash("ГРЕШКА: дозволени се само png, jpg, pdf, log, txt фајлови.", "danger")
+    try:
+        save_attachment(iid, file, performed_by=_who())
+    except ValidationError as exc:
+        flash(f"ГРЕШКА: {exc}", "danger")
         inc = incidents.find("IncidentID", iid)
         return render_template(
             "incident.html",
@@ -262,17 +326,12 @@ def incident_attach():
             reopened=_service().reopen_count(iid),
             **_collab_ctx(inc),
         )
-    target_dir = _attach_dir(iid)
-    os.makedirs(target_dir, exist_ok=True)
-    full = os.path.abspath(os.path.join(target_dir, name))
-    base = os.path.abspath(config.DOCUMENTS_DIR)
-    if os.path.commonpath([base, full]) != base:
-        abort(400)
-    file.save(full)
-    history.log("INC_ATTACH", iid, "", "", "", "", name, "", _who(), "")
+    import config
+    from app import backup_all
+
     if config.BACKUP_ON_WRITE:
         backup_all([incidents])
-    flash(f"Прилогот {name} е зачуван.", "success")
+    flash(f"Прилогот {file.filename} е зачуван.", "success")
     return redirect(url_for("incidents.incident_detail", iid=iid))
 
 
@@ -390,11 +449,23 @@ def incident_transition():
 @require("admin", "magacioner")
 def incident_rate(iid):
     """MS-8: CSAT rating 1-5 for resolved incidents."""
+    is_ajax = (
+        request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.is_json
+    )
+    score = (
+        (request.get_json(silent=True) or {}).get("score", "")
+        if request.is_json
+        else request.form.get("score", "")
+    )
     svc = _service()
     try:
-        svc.rate(iid, request.form.get("score", ""), performed_by=_who())
+        svc.rate(iid, score, performed_by=_who())
+        if is_ajax:
+            return jsonify({"ok": True, "incident_id": iid, "score": score})
         flash("Оцената е запишана.", "success")
     except ValueError as exc:
+        if is_ajax:
+            return jsonify({"ok": False, "error": str(exc)}), 400
         flash(f"ГРЕШКА: {exc}", "danger")
     return redirect(url_for("incidents.incident_detail", iid=iid))
 

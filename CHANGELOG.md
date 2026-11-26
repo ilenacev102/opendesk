@@ -631,10 +631,142 @@
   `test_duplicate_detection.py` (14), `test_webhooks.py` (18).
 - **Suite: 516 passed, 0 failed, 3 skipped (вкупно 519).**
 
+## Набљудување (observability) — 2026-11-16
+
+- **JSON access-лог (`services/observability.py`, `app.py`)**: по едно барање
+  една JSON линија (`ts`, `request_id`, `method`, `route`, `status`,
+  `duration_ms`, `role`) во `logs/app.log` (10 MB × 5) и на stdout; без query
+  string, headers, тела, имиња и IP. `/health` и `/static/*` се изоставени.
+- **Корелација**: 500-страницата го прикажува `request_id` од хедерот, а
+  пристапната линија ја носи истата вредност и `exc` со трагата — еден запис
+  по барање, без дупликат `log.exception`.
+- **Панел (`/system/observability`, admin)**: 5xx/429 по рута, p95 (проценка
+  од хистограм), последни 100 бавни/паднати барања; бројачите се по процес.
+- **CLI (`scripts/log_report.py`)**: агрегација низ workers/рестарти, вклучно
+  `--log -` од `docker compose logs`; чист излез при лош `--since`/фајл.
+- **Тестови**: `test_observability.py` (17), `test_observability_cli.py` (6);
+  auth-матрицата го покрива панелот.
+- **Suite: 539 passed, 0 failed, 3 skipped (вкупно 542).**
+
+## P1 — транзакциски интегритет (2026-11-19)
+
+Секоја мутација во опфатот е атомична и остава audit ред.
+
+- **`store_transaction(*stores)`** (`services/db_service.py`): една
+  backend-aware трансакција за SQLite и Postgres; одбива мешање на бази или
+  различни DSN-и; `fallback_path` за legacy повикувачи. Мигрирани
+  `IncidentService`, `CommentService`, `PopisService`, `project_service`.
+  PG режимот повеќе не отвора SQLite конекција врз PgStore.
+- **Нови store методи**: `update_where_all`, `delete_where_all` (SQLite + PG) —
+  targeted замена за read-modify-write врз цела табела.
+- **Спринтови**: `create/start/complete/move_to_sprint` во една трансакција со
+  `SPRINT_CREATE|START|COMPLETE`, `INC_SPRINT_ADD|REMOVE`; ранг и поени
+  преселени од рутите во `set_rank`/`set_points` (`INC_RANK`, `INC_POINTS`).
+- **Каталог**: лиценцни седишта (`SeatsUsed` + seat ред + audit) во една
+  трансакција; материјали, договори, барања, резервации и полиња повеќе не
+  прават `replace_all`; одлуките `REQ_DECIDE`/`RES_CANCEL` се аудитирани.
+- **KB оценки**: `vote` прави targeted upsert на еден ред (`KB_RATE`), без
+  губење гласови при паралелни гласања.
+- **Auth и токени**: сите мутации во трансакција со audit
+  (`USER_CREATE|SSO_CREATE|ROLE|ACTIVATE|DEACTIVATE|PASS|SSO_LINK`,
+  `TOKEN_CREATE|REVOKE`); лозинка и хеш никогаш не влегуваат во историја.
+- **Попис**: `preview_finish` (read-only) → документ → еден `finish` со
+  `POPIS_CLOSE` + `POPIS_MISSING`; `POPIS_START|SCAN` и `AUDIT_SCAN` се
+  аудитирани; пад при генерирање документ го остава пописот `OPEN`.
+- **Останати**: `onboard.submit`, `project_template.import_project`,
+  `watcher_service.watch/unwatch`, `notify_center.push/mark_read` атомични;
+  ID-ата одат низ `next_id_in`.
+- **Уникатни индекси** за сите 36 табели (композитни за `field_values`,
+  `kb_ratings`, `watchers`, `kb_links`); legacy дупликати не го блокираат
+  стартувањето (лог + прескокнат индекс). `scripts/check_duplicate_ids.py`
+  е read-only проверка пред миграција.
+- **Guard тестови**: `test_store_transaction.py`, `test_sprint_tx.py`,
+  `test_catalog_tx.py`, `test_auth_tx.py`, `test_popis_tx.py`,
+  `test_atomic_secondary.py`, `test_identity_indexes.py`,
+  `test_transaction_guards.py` (забрана за `replace_all` во доменски код и за
+  `history.log` без `con` во трансакција).
+- **Suite: 600 passed, 4 skipped**, ruff clean.
+
+## P2 — безбедносна хигиена (2026-11-20)
+
+- **CSRF за API**: `services/csrf.py` го дели `should_enforce(path,
+  authorization)`; session-cookie `POST /api/*` бара токен (403 без него),
+  `Authorization: Bearer …` останува exempt за машина-клиенти.
+- **TLS преку env**: `config.tls_enabled()` / `SERVICEDESK_TLS=1` вклучува
+  `SESSION_COOKIE_SECURE` и `Strict-Transport-Security`
+  (`max-age=31536000; includeSubDomains`); default останува LAN-безбеден.
+- **Стриктен CSP за стилови**: Google Fonts е отстранет; Inter/Sora woff2
+  подмножества се вендорвани во `static/fonts/` (`scripts/vendor_fonts.py`,
+  `static/css/fonts.css`). CSP е `style-src 'self' 'nonce-…'`, `font-src
+  'self'`; сите inline `style=` атрибути се заменети со класи во
+  `static/css/app.css`, а динамичните ширини/висини одат во nonce-заштитен
+  `<style>` блок (`racks.html`, `licenses.html`).
+- **Rate-limit граници**: `_rate_bucket` бара точен префикс или
+  `prefix + "/"`, па `/api/v1foo` и `/loginx` повеќе не паѓаат во туѓа корпа.
+- **Тајни споредби**: потврдено `hmac.compare_digest` во CSRF и API-токени,
+  werkzeug хешеви за лозинки; додаден guard-тест против `==` врз тајни.
+- **Auth-matrix**: 10 blueprints (chatops, sprints, itsm, maintenance, racks,
+  cmdb, popis, portal, system, boards) × admin/magacioner/citac/anon, плус
+  `tests/test_chatops.py` (макроа CRUD, `/api/v1/macros`, admin-only).
+- **Одлука за мртви модули**: `finance.py` вратен во употреба — CSV извозот
+  на уреди сега содржи пресметана `BookValue` колона
+  (`test_reports_book_value.py`). `snmp_service.py` добива оперативен
+  read-only влез `scripts/snmp_sweep.py` (`test_snmp_cli.py`); без `pysnmp`
+  излегува со код 2 и јасна порака, без записи во база.
+- **Схема документација**: `AGENTS.md` поправен — миграциите се во
+  `services/db_service.py` / `services/pg_store.py`, не во `app.py`;
+  service-сопствените `*_COLS` се преселени во `services/schemas.py` и
+  ре-експортирани (`test_schema_columns.py`).
+- **Suite: 631 passed, 4 skipped**, ruff clean.
+
+## P3 — Портал: детаљ на тикет (2026-11-23)
+
+- **Детал `/portal/ticket/<iid>`**: сопственикот гледа наслов, статус,
+  приоритет, рок, техничар, thread од јавни коментари и прилози. Туѓ тикет →
+  403, непостоечки → 404, анонимен → најава. Сопственост = `EmployeeID` на
+  тикетот наспроти поврзаниот вработен или корисничкото име
+  (`services/portal_service.py`).
+- **Коментари**: `POST /portal/ticket/<iid>/comment` пишува во `comments` и
+  аудитот со `PORTAL_COMMENT`; празен или предолг коментар се одбива;
+  лимит 10/мин по корисник (429).
+- **CSAT**: `POST /portal/ticket/<iid>/rate` (1–5), истите правила како staff
+  CSAT (`resolved` само), но исклучиво сопственик; аудит `INC_RATE`.
+- **Reopen**: `POST /portal/ticket/<iid>/reopen` само за `resolved`, еднаш на
+  7 дена, статус → `open`, аудит `INC_REOPEN` и нотификација до assignee.
+- **Мои тикети `/portal/tickets`**: филтер по статус, пагинација 10/страна,
+  бројачи по статус и празна состојба.
+- **Прилози**: `/portal/ticket/<iid>/attach/<name>` со истата traversal
+  заштита, но со проверка на сопственост (staff рутата не се користи).
+- **Тестови**: `test_portal_service.py` (ownership, reopen прозорец,
+  пагинација, traversal), `test_portal_tickets.py` (сопственик vs туѓ 403,
+  rate-limit, CSAT само на решен, reopen лимит, цел тек пријава → коментар →
+  решавање → оценка → reopen); auth-матрицата покрива портал-тикет рутите.
+- **Suite: 646 passed, 4 skipped**, ruff clean.
+
+## P4 — Портал: идентитет и мобилност (2026-11-23)
+
+- **ADR-07**: корисничките сметки ги креира администратор; нема
+  саморегистрација ниту покани по e-mail, освен ако партнерот експлицитно
+  побара (`ARCHITECTURE.md` §8).
+- **Врзување корисник↔вработен**: citac без Employee ред гледа јасна порака
+  на порталот со линк `/employees`; admin/magacioner не добиваат предупредување
+  (нивните сметки по дизајн немаат вработен).
+- **Известувања во порталот**: панел со badge, листа и „Прочитај“/„Прочитај
+  сите“ (`POST /portal/notifications/read`); без нова страница.
+- **Мобилен pass**: sticky CTA на `/portal`, скриени секундарни колони во
+  табелите под 576/768px, `text-break` за долги наслови, auth-shell CSS за
+  најава/сетуп (една колона под 768px, без хоризонтален скрол).
+- **Доказ**: Playwright на 390×844 — `scrollWidth == innerWidth` за `/login`,
+  `/portal`, `/portal/ticket/<iid>` и `/portal/tickets`; screenshot-и
+  `docs/screenshots/p4-{login,portal,ticket,tickets}-390.png`.
+- **Тестови**: `test_portal_mobile.py` (6) — мобилни маркери, CSS правила,
+  mapping порака само за citac, notification read (едно/сите).
+- **Suite: 652 passed, 4 skipped**, ruff clean.
+
 ## Стартување
 
 ```bash
 bash start.sh             # стартува со .venv и отвора порта 5000
-python3 -m pytest tests/  # целосен suite (465 passed)
+python3 -m pytest tests/  # целосен suite (652 passed, 4 skipped)
 ```
 

@@ -1,12 +1,47 @@
 {% extends "base.html" %}
-{% block content %}
+{% block title %}Почетно поставување – IT ServiceDesk{% endblock %}
+{% block topbar %}{% endblock %}
+{% block footer %}{% endblock %}
+{% block page %}
+<main id="main" class="auth-shell">
+<section class="auth-aside" aria-label="За системот">
+<div>
+<a class="auth-brand" href="/">
+<svg class="ic brand-mark" aria-hidden="true"><use href="#i-nexus"/></svg>
+<span>IT ServiceDesk</span>
+</a>
+<h1>Првиот администратор го отвора системот.</h1>
+<p>По ова најавувањето станува задолжително. Лозинката останува само на овој сервер.</p>
+</div>
+<p class="auth-aside-foot">Локален систем</p>
+</section>
+<section class="auth-panel">
+<button id="themeToggle" class="nav-icon-btn auth-theme" type="button" title="Темна/светла тема" aria-label="Темна/светла тема">
+<svg class="ic icon-moon" aria-hidden="true"><use href="#i-moon"/></svg>
+<svg class="ic icon-sun d-none" aria-hidden="true"><use href="#i-sun"/></svg>
+</button>
+<div class="auth-card anim-in">
 <h2>Почетно поставување</h2>
-<p class="text-muted">Создајте го првиот администратор. По ова најавувањето станува задолжително.</p>
-<form method="post"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-<div class="mb-3"><label>Корисничко име</label>
-<input class="form-control" name="username" required autocomplete="username"></div>
-<div class="mb-3"><label>Лозинка (мин. 8 знаци)</label>
-<input class="form-control" type="password" name="password" required autocomplete="new-password"></div>
-<button class="btn btn-primary" type="submit">Креирај администратор</button>
+<p class="auth-lead">Создајте го првиот администратор.</p>
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% for category, message in messages %}
+<div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">{{ message }}
+<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Затвори"></button></div>
+{% endfor %}
+{% endwith %}
+<form method="post" class="auth-form">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<div class="mb-3">
+<label for="username">Корисничко име</label>
+<input class="form-control" id="username" name="username" required autocomplete="username" autofocus>
+</div>
+<div class="mb-3">
+<label for="password">Лозинка (мин. 8 знаци)</label>
+<input class="form-control" id="password" type="password" name="password" required autocomplete="new-password">
+</div>
+<button class="btn btn-primary auth-submit" type="submit" data-pending="Се зачувува...">Креирај администратор</button>
 </form>
+</div>
+</section>
+</main>
 {% endblock %}

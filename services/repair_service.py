@@ -7,20 +7,7 @@ from services.document_service import fill_template, mk_date
 from utils.helpers import backup_all, next_id_in, stamp
 from utils.validators import ValidationError, require_device
 
-REPAIR_COLS = [
-    "TransactionID",
-    "DateTime",
-    "AssetID",
-    "EmployeeID",
-    "Problem",
-    "RepairStatus",
-    "ServiceProvider",
-    "ServiceDate",
-    "ReturnDate",
-    "Notes",
-    "PerformedBy",
-    "DocumentPath",
-]
+from services.schemas import REPAIR_COLS
 
 FLOW = {"Broken": "Repair", "Repair": "Repaired", "Repaired": "Available"}
 

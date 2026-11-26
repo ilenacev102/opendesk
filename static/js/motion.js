@@ -248,4 +248,232 @@
     });
   }
 
+  /* ==========================================================================
+     7. Slide-Over Peek Drawer Controller (Linear Style)
+     ========================================================================== */
+  // Escape server-provided strings before any innerHTML interpolation (XSS guard).
+  function escSd(v) {
+    return String(v == null ? "" : v)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  const drawerEl = document.getElementById("sdDrawer");
+  const drawerBackdrop = document.getElementById("sdDrawerBackdrop");
+  const drawerCloseBtn = document.getElementById("sdDrawerClose");
+  const drawerTitle = document.getElementById("sdDrawerTitle");
+  const drawerBadge = document.getElementById("sdDrawerBadge");
+  const drawerLoading = document.querySelector(".sd-drawer-loading");
+  const drawerContent = document.getElementById("sdDrawerContent");
+  const drawerFullLink = document.getElementById("sdDrawerFullLink");
+  const drawerActionBtn = document.getElementById("sdDrawerActionBtn");
+
+  function sdOpenDrawer(opts = {}) {
+    if (!drawerEl || !drawerBackdrop) return;
+    if (opts.title && drawerTitle) drawerTitle.textContent = opts.title;
+    if (opts.badge && drawerBadge) {
+      drawerBadge.textContent = opts.badge;
+      drawerBadge.className = `badge badge-st ${opts.badgeClass || "st-Assigned"}`;
+    }
+    if (drawerFullLink) {
+      if (opts.fullLink) {
+        drawerFullLink.href = opts.fullLink;
+        drawerFullLink.classList.remove("d-none");
+      } else {
+        drawerFullLink.classList.add("d-none");
+      }
+    }
+
+    if (opts.loading) {
+      if (drawerLoading) drawerLoading.classList.remove("d-none");
+      if (drawerContent) drawerContent.innerHTML = "";
+    } else if (opts.content) {
+      if (drawerLoading) drawerLoading.classList.add("d-none");
+      if (drawerContent) drawerContent.innerHTML = opts.content;
+    }
+
+    drawerBackdrop.classList.add("show");
+    drawerEl.classList.add("open");
+    drawerEl.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+  }
+
+  function sdCloseDrawer() {
+    if (!drawerEl || !drawerBackdrop) return;
+    drawerEl.classList.remove("open");
+    drawerBackdrop.classList.remove("show");
+    drawerEl.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+  }
+
+  if (drawerCloseBtn) drawerCloseBtn.addEventListener("click", sdCloseDrawer);
+  if (drawerBackdrop) drawerBackdrop.addEventListener("click", sdCloseDrawer);
+  if (drawerActionBtn) drawerActionBtn.addEventListener("click", sdCloseDrawer);
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && drawerEl && drawerEl.classList.contains("open")) {
+      sdCloseDrawer();
+    }
+  });
+
+  window.sdOpenDrawer = sdOpenDrawer;
+  window.sdCloseDrawer = sdCloseDrawer;
+
+  /* ==========================================================================
+     8. Kanban Card Peek Integration
+     ========================================================================== */
+  document.addEventListener("click", (e) => {
+    const card = e.target.closest(".kanban-card");
+    if (!card) return;
+    if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    e.preventDefault();
+
+    const incidentId = card.dataset.incidentId;
+    const currentStatus = card.dataset.status || "open";
+    if (!incidentId) return;
+
+    sdOpenDrawer({
+      title: `${incidentId} — Вчитување...`,
+      badge: currentStatus,
+      fullLink: `/incidents/${incidentId}`,
+      loading: true
+    });
+
+    fetch(`/incidents/${incidentId}?format=json`, {
+      headers: { "Accept": "application/json", "X-Requested-With": "XMLHttpRequest" }
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data || !data.IncidentID) {
+          throw new Error("Невалидни податоци");
+        }
+        let priorityBadge = "";
+        if (data.Priority === "urgent") {
+          priorityBadge = '<span class="badge badge-st st-Broken">urgent</span>';
+        } else if (data.Priority === "high") {
+          priorityBadge = '<span class="badge badge-st st-Repair">high</span>';
+        } else if (data.Priority === "medium") {
+          priorityBadge = '<span class="badge badge-st st-Assigned">medium</span>';
+        } else {
+          priorityBadge = '<span class="badge badge-st st-Repaired">low</span>';
+        }
+
+        let threadHtml = "";
+        if (data.thread && data.thread.length > 0) {
+          threadHtml = '<div class="mt-4"><h6 class="fw-bold mb-2">Последна активност</h6><ul class="list-group list-group-flush border-top border-bottom">';
+          data.thread.forEach((c) => {
+            threadHtml += `<li class="list-group-item px-0 py-2">
+              <div class="d-flex justify-content-between small text-muted"><strong>${escSd(c.Author)}</strong><span>${escSd(c.Created)}</span></div>
+              <div class="small mt-1">${escSd(c.Body)}</div>
+            </li>`;
+          });
+          threadHtml += "</ul></div>";
+        }
+
+        const html = `
+          <div class="mb-3">
+            <h5 class="fw-bold mb-2">${escSd(data.Title)}</h5>
+            <div class="d-flex align-items-center gap-2 flex-wrap mb-3">
+              ${priorityBadge}
+              <span class="badge badge-st st-Assigned">${escSd(data.Status) || "open"}</span>
+              ${data.StoryPoints ? `<span class="badge badge-st st-Assigned">${escSd(data.StoryPoints)}п</span>` : ""}
+            </div>
+            <dl class="row small g-2 mb-0">
+              <dt class="col-sm-4 text-muted">Носител</dt>
+              <dd class="col-sm-8 mb-1">${escSd(data.Assignee) || "—"}</dd>
+              <dt class="col-sm-4 text-muted">Уред</dt>
+              <dd class="col-sm-8 mb-1">${data.AssetID ? `<a href="/device/${escSd(data.AssetID)}">${escSd(data.AssetID)}</a>` : "—"}</dd>
+              <dt class="col-sm-4 text-muted">Вработен</dt>
+              <dd class="col-sm-8 mb-1">${escSd(data.EmployeeID) || "—"}</dd>
+              <dt class="col-sm-4 text-muted">Креиран</dt>
+              <dd class="col-sm-8 mb-1">${escSd(data.Created) || "—"}</dd>
+              <dt class="col-sm-4 text-muted">Рок</dt>
+              <dd class="col-sm-8 mb-1">${escSd(data.DueDate) || "—"}</dd>
+              <dt class="col-sm-4 text-muted">Забелешка</dt>
+              <dd class="col-sm-8 mb-1">${escSd(data.Notes) || "—"}</dd>
+            </dl>
+            ${threadHtml}
+          </div>
+        `;
+
+        sdOpenDrawer({
+          title: `${escSd(data.IncidentID)}`,
+          badge: data.Status,
+          fullLink: `/incidents/${data.IncidentID}`,
+          content: html
+        });
+      })
+      .catch((err) => {
+        sdOpenDrawer({
+          title: escSd(incidentId),
+          content: `<div class="alert alert-warning mb-0">Не може да се вчитаат деталите за инцидентот: ${escSd(err.message)}. <br><a href="/incidents/${escSd(incidentId)}">Отвори ја целата страна</a></div>`,
+          fullLink: `/incidents/${incidentId}`
+        });
+      });
+  });
+
+  /* ==========================================================================
+     9. Interactive CSAT Rating Controller
+     ========================================================================== */
+  document.addEventListener("click", (e) => {
+    const starBtn = e.target.closest(".csat-star-btn");
+    if (!starBtn) return;
+    const group = starBtn.closest(".csat-rating-group");
+    const form = starBtn.closest(".csat-form");
+    if (!group || !form) return;
+
+    e.preventDefault();
+    const score = parseInt(starBtn.dataset.score, 10);
+    const incidentId = form.dataset.incidentId;
+    const csrfToken = form.querySelector('input[name="_csrf_token"]')?.value || "";
+
+    // Highlight stars
+    group.querySelectorAll(".csat-star-btn").forEach((btn) => {
+      const s = parseInt(btn.dataset.score, 10);
+      if (s <= score) {
+        btn.classList.add("is-active");
+      } else {
+        btn.classList.remove("is-active");
+      }
+    });
+
+    const hiddenInput = form.querySelector('input[name="score"]');
+    if (hiddenInput) hiddenInput.value = score;
+
+    // Send async rating
+    fetch(`/incidents/${incidentId}/rate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "X-Requested-With": "XMLHttpRequest"
+      },
+      body: new URLSearchParams({
+        _csrf_token: csrfToken,
+        score: score
+      })
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.ok) {
+          const feedback = form.querySelector(".csat-feedback");
+          if (feedback) {
+            feedback.classList.remove("d-none");
+            setTimeout(() => feedback.classList.add("d-none"), 3500);
+          }
+          if (score >= 5) {
+            const rect = starBtn.getBoundingClientRect();
+            sdConfetti({
+              x: rect.left + rect.width / 2,
+              y: rect.top,
+              count: 45
+            });
+          }
+        }
+      })
+      .catch(() => {});
+  });
+
 })();

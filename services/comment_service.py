@@ -1,6 +1,6 @@
 """Incident comments: validated append + audit, listed oldest-first."""
 
-from services.db_service import db_transaction
+from services.db_service import store_transaction
 from utils.helpers import next_id_in, stamp
 
 MAX_BODY = 2000
@@ -14,13 +14,11 @@ class CommentService:
         self.db_path = db_path
 
     def _tx(self):
-        if self.db_path:
-            return db_transaction(self.db_path)
-        from contextlib import nullcontext
+        return store_transaction(self.comments, fallback_path=self.db_path)
 
-        return nullcontext(None)
-
-    def add(self, incident_id, author, body, performed_by="admin"):
+    def add(
+        self, incident_id, author, body, performed_by="admin", action="INC_COMMENT"
+    ):
         body = (body or "").strip()
         if not body:
             raise ValueError("Коментарот не може да биде празен.")
@@ -41,7 +39,7 @@ class CommentService:
                 con=con,
             )
             self.history.log(
-                "INC_COMMENT",
+                action,
                 incident_id,
                 "",
                 "",

@@ -7,17 +7,7 @@ from services.document_service import fill_template, mk_date
 from utils.helpers import backup_all, next_id_in, stamp
 from utils.validators import ValidationError, require_device, require_employee
 
-REPLACE_COLS = [
-    "TransactionID",
-    "DateTime",
-    "OldAssetID",
-    "NewAssetID",
-    "EmployeeID",
-    "Reason",
-    "Notes",
-    "PerformedBy",
-    "DocumentPath",
-]
+from services.schemas import REPLACE_COLS
 
 
 class ReplacementService:

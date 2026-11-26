@@ -8,7 +8,7 @@ legacy callers) each write falls back to its own connection.
 
 from contextlib import nullcontext
 
-from services.db_service import db_transaction
+from services.db_service import store_transaction
 from utils.helpers import next_id, next_id_in, stamp
 from utils.validators import ValidationError
 
@@ -31,8 +31,10 @@ DEFAULT_TYPES = (
 )
 
 
-def _tx(db_path):
-    return db_transaction(db_path) if db_path else nullcontext(None)
+def _tx(projects, history=None, db_path=None):
+    return store_transaction(
+        projects, getattr(history, "store", None), fallback_path=db_path
+    )
 
 
 def _normalize_key(key):
@@ -59,6 +61,7 @@ def create_project(
     description="",
     performed_by="admin",
     db_path=None,
+    con=None,
 ):
     """Create a project; key is normalized to uppercase and validated."""
     name = (name or "").strip()
@@ -68,10 +71,11 @@ def create_project(
     for row in projects.records():
         if (row.get("Key") or "").upper() == key:
             raise ValidationError(f"Проект со клуч {key} веќе постои.")
-    with _tx(db_path) as con:
+    ctx = nullcontext(con) if con is not None else _tx(projects, history, db_path)
+    with ctx as active:
         pid = (
-            next_id_in(projects, "ProjectID", "PRJ", con)
-            if con is not None
+            next_id_in(projects, "ProjectID", "PRJ", active)
+            if active is not None
             else next_id(projects, "ProjectID", "PRJ")
         )
         row = {
@@ -84,7 +88,7 @@ def create_project(
             "Created": stamp(),
             "Updated": stamp(),
         }
-        projects.append_row(row, con=con)
+        projects.append_row(row, con=active)
         if history is not None:
             history.log(
                 "PRJ_CREATE",
@@ -93,9 +97,9 @@ def create_project(
                 "active",
                 notes=f"{name} [{key}]",
                 performed_by=performed_by,
-                con=con,
+                con=active,
             )
-    return projects.find("ProjectID", pid)
+    return row
 
 
 def default_project(projects):

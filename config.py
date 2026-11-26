@@ -24,6 +24,14 @@ for _d in (
     os.makedirs(_d, exist_ok=True)
 
 HOST = os.environ.get("SERVICEDESK_HOST", "127.0.0.1")
+
+
+def tls_enabled() -> bool:
+    """TLS is opt-in: LAN installs keep working on plain HTTP by default."""
+    return os.environ.get("SERVICEDESK_TLS", "").strip() == "1"
+
+
+TLS_ENABLED = tls_enabled()
 _configured_secret = os.environ.get("SERVICEDESK_SECRET", "").strip()
 
 if _configured_secret:

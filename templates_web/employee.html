@@ -15,6 +15,7 @@
 <h4>Тековни уреди
 <a class="btn btn-sm btn-primary ms-2" href="/assign?emp={{ emp.EmployeeID }}">+ Дај уред</a></h4>
 {% if devices %}
+<div class="table-responsive">
 <table class="table table-striped">
 <tr><th>Asset</th><th>Тип</th><th>Модел</th><th>Сериски</th><th>Статус</th></tr>
 {% for d in devices %}
@@ -25,11 +26,13 @@
 <a class="btn btn-sm btn-outline-warning" href="/replace?old={{ d.AssetID }}&emp={{ emp.EmployeeID }}">Замени</a></td></tr>
 {% endfor %}
 </table>
+</div>
 {% else %}
 <div class="empty-state"><svg class="ic" aria-hidden="true"><use href="#i-monitor"/></svg>Нема задолжени уреди.</div>
 {% endif %}
 <h4 class="mt-4">Целосна историја ({{ hist|length }})</h4>
 {% if hist %}
+<div class="table-responsive">
 <table class="table table-striped">
 <tr><th>Датум</th><th>Акција</th><th>Уред</th><th>Стара</th><th>Нова</th><th>Причина</th><th>Документ</th></tr>
 {% for h in hist %}
@@ -39,6 +42,7 @@
 <td>{% if h.Action == "ASSIGN" %}<a class="btn btn-sm btn-outline-secondary" href="/return?asset={{ h.AssetID }}">Раздолжи</a> {% endif %}{% if h.DocumentPath %}<a class="btn btn-sm btn-outline-primary" href="/doc/{{ h.DocumentPath }}" download>Симни</a>{% endif %}</td></tr>
 {% endfor %}
 </table>
+</div>
 {% else %}
 <div class="empty-state"><svg class="ic" aria-hidden="true"><use href="#i-clip"/></svg>Нема операции.</div>
 {% endif %}

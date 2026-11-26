@@ -8,6 +8,8 @@ from collections import Counter
 
 from flask import Blueprint, redirect, render_template, request, url_for
 
+from routes._roles import require
+
 bp = Blueprint("system", __name__)
 
 log = __import__("logging").getLogger("servicedesk")
@@ -16,6 +18,15 @@ log = __import__("logging").getLogger("servicedesk")
 @bp.route("/health")
 def health():
     return {"status": "ok"}, 200
+
+
+@bp.route("/system/observability")
+@require("admin")
+def observability_view():
+    """Read-only per-process snapshot: 5xx/429 per route and estimated p95."""
+    from services.observability import snapshot
+
+    return render_template("observability.html", snap=snapshot())
 
 
 @bp.route("/")
@@ -197,3 +208,17 @@ def notifications_read():
     who = str(getattr(_cu, "id", "")) if _cu else ""
     mark_read(notifications, who, _request.form.get("notif_id", ""))
     return _redirect(_url_for("system.notifications_list"))
+
+
+@bp.route("/set-language/<locale>")
+def set_language(locale):
+    """Switch active locale (en / mk) and redirect back."""
+    from flask import redirect as _redirect
+    from flask import request as _request
+    from services.i18n import set_current_locale
+
+    set_current_locale(locale)
+    next_url = _request.referrer or "/"
+    resp = _redirect(next_url)
+    resp.set_cookie("servicedesk_locale", locale, max_age=30 * 86400, samesite="Lax")
+    return resp

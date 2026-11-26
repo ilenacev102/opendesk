@@ -7,7 +7,6 @@ date, no account on time. Packages must exist in Packages.json.
 import datetime as _dt
 from typing import Any
 
-from utils.helpers import next_id
 from utils.validators import ValidationError
 
 MIN_LEAD_DAYS = 2
@@ -60,27 +59,32 @@ class OnboardService:
         self, req: dict[str, Any], requested_by: str = "", today: Any = None
     ) -> dict[str, str]:
         """Validate, assign RequestID and store the request."""
+        from services.db_service import store_transaction
+        from utils.helpers import next_id_in
+
         clean = self.validate(req, today=today)
-        rid = str(req.get("RequestID", "")).strip() or next_id(
-            self.store, "RequestID", "OB"
-        )
-        if self.store.find("RequestID", rid) is not None:
-            raise ValidationError(f"Барањето {rid} веќе постои.")
-        row = {"RequestID": rid, **clean}
-        if not row["RequestedBy"]:
-            row["RequestedBy"] = (requested_by or "").strip()
-        self.store.append_row(row)
-        if self.history is not None:
-            self.history.log(
-                "ONBOARD_CREATE",
-                rid,
-                "",
-                clean["StartDate"],
-                "",
-                clean["FullName"],
-                clean["Package"],
-                "",
-                requested_by or "admin",
-                "",
+        with store_transaction(self.store, getattr(self.history, "store", None)) as con:
+            rid = str(req.get("RequestID", "")).strip() or next_id_in(
+                self.store, "RequestID", "OB", con
             )
+            if self.store.find("RequestID", rid) is not None:
+                raise ValidationError(f"Барањето {rid} веќе постои.")
+            row = {"RequestID": rid, **clean}
+            if not row["RequestedBy"]:
+                row["RequestedBy"] = (requested_by or "").strip()
+            self.store.append_row(row, con=con)
+            if self.history is not None:
+                self.history.log(
+                    "ONBOARD_CREATE",
+                    rid,
+                    "",
+                    clean["StartDate"],
+                    "",
+                    clean["FullName"],
+                    clean["Package"],
+                    "",
+                    requested_by or "admin",
+                    "",
+                    con=con,
+                )
         return row

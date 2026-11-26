@@ -1,85 +1,54 @@
-# ServiceDesk ARCHITECTURE — техничка вистина
+# OpenDesk Architecture & Technical Source of Truth
 
-> Статус: v1 (2026-09-28). Проверливо со: `routes/`, `services/`, `tests/`, `config.py`.
+> Verified against: `routes/`, `services/`, `tests/`, `config.py`.
 
-## 1. C4-накратко
+## 1. C4 Summary
 
-- **Контекст:** LAN-апликација. Актери: admin, magacioner, citac. Надворешни системи (сите read-only кон нас освен heartbeat): SMTP (испраќање), IMAP (читање), LDAP/AD (читање), Intune Graph (читање), SNMP (читање), OIDC провајдер (автентикација), LibreOffice (PDF).
-- **Контејнери:** еден Flask-процес (gunicorn во Docker) + SQLite датотека default / Postgres опција + `documents/` + `backup/` + `logs/`.
-- **Компоненти:** `app.py` (ядро: init, auth-гард, stores, services, headers) + `routes/` blueprints (admin, api, catalog, cmdb, files, incidents, inventory, kb, operations, popis, reports, system) + `services/` бизнис-логика + `templates_web/` + `static/`.
+- **Context:** Enterprise LAN & On-Premises Application.
+  - **Actors:** `admin`, `magacioner` (operator/inventory manager), `citac` (viewer/auditor).
+  - **External Systems (Read-Only integrations except heartbeat & SMTP):** SMTP (notifications), IMAP (email-to-ticket polling), LDAP/Active Directory (user sync), Intune Graph (device discovery), SNMP (printer/network sweep), OIDC Identity Provider (Entra ID, Google Workspace, Keycloak), LibreOffice (`soffice` for PDF compilation).
+- **Containers:** Single Flask process (gunicorn in Docker) + SQLite (default WAL-mode) or PostgreSQL (`SERVICEDESK_DB_URL`) + isolated storage directories (`documents/`, `backup/`, `logs/`).
+- **Components:** `app.py` (core initialization, auth guard, store factories, CSP headers) + Blueprints in `routes/` (admin, api, catalog, cmdb, files, incidents, inventory, kb, operations, popis, reports, system) + pure domain business rules in `services/` + pure Jinja templates in `templates_web/`.
 
-## 2. Слоеви и правила
+---
 
-```
-HTTP (routes/) → services/ (правила) → stores (db_service/open_store) → SQLite/Postgres
-```
-
-- Рутите не содржат SQL и не носат бизнис-одлуки; само валидација на влез, повик на сервис, render/redirect.
-- Сервисите не знаат за HTTP; враќаат резултат или фрлаат доменска грешка.
-- Шаблоните не носат логика; бои/токени само преку `DESIGN.md` CSS-варијабли.
-- Секоја мутација пишува audit-запис (history) во иста трансакција.
-
-## 3. Животен циклус на уред
+## 2. Layering & Architectural Rules
 
 ```
-Available ↔ Assigned → Broken → Repair → Repaired → Available
-Broken → Unrepairable → Disposed
+HTTP (routes/)  ──>  services/ (business rules)  ──>  stores/ (db_service/open_store)  ──>  SQLite / Postgres
 ```
 
-- Замена: `old_condition` одредува одредиште (Available→залиха, Broken→сервис, Disposed→расход).
-- Враќање: само вистински сопственик; забрана од `Repair` (мора сервисен тек).
-- Расход: блокада ако уредот е задолжен (порака кој е носител).
-- Bulk offboarding: повеќе уреди, еден документ.
+- **Routes:** Only validate user input, verify authentication, invoke domain services, and render templates or redirect. **No direct SQL and no business decisions inside routes.**
+- **Services:** Pure domain logic; unaware of HTTP requests or responses. Return typed results or raise explicit domain exceptions (`ValidationError`, `StoreError`).
+- **Templates:** Jinja only; design tokens via CSS variables in `static/css/app.css` (`DESIGN.md`).
+- **Audit Trails:** Every mutation writes an audit log (`History`) row inside the very same database transaction.
 
-## 4. Трансакции и конкуренција
+---
 
-- `BEGIN IMMEDIATE` за поврзани мутации (уред + трансакција + историја) со rollback.
-- `journal_mode=WAL` + `busy_timeout=5000` на секоја конекција.
-- ID-генерација внатре во трансакцијата (`next_id_in` + `max_suffix_con`); имиња на документи со uuid-суфикс.
-- Heartbeat-трки: губитникот паѓа на match-тек (IntegrityError-fallback), докажано со 8-нишки тест.
+## 3. Asset Lifecycle State Machine
 
-## 5. Складирање и миграции
+```
+Available  <──>  Assigned  ──>  Broken  ──>  Repair  ──>  Repaired  ──>  Available
+                   │
+                   └──> Broken  ──>  Unrepairable  ──>  Disposed
+```
 
-- `StoreProtocol` + `open_store()` фабрика; SQLite default (`SERVICEDESK_DB`), Postgres преку `SERVICEDESK_DB_URL`.
-- Миграции: `ALTER TABLE` за нови колони + partial unique индекси; proverka со `tests/test_migrate_check.py`.
-- SQLite→Postgres mover: `services/pg_mover.py` (`move_table`, `move_all`, `verify_all`, dry-run, `MoverError`). Употреба: копирај → верификувај броеви → дури тогаш префрли сообраќај.
-- Backup: конзистентни snapshots вклучително WAL; задржување 7 дена локално + надворешна копија (задолжително).
+- **Transitions:** Strictly guarded state engine. Devices under active repair cannot be reassigned without completing repair closure.
+- **Disposal Guard:** Assets cannot be disposed while assigned to an employee; assignment must be returned first.
+- **Bulk Operations:** Multi-asset offboarding and transfers execute under a single transaction and single unified handoff document.
 
-## 6. Auth, API, безбедност
+---
 
-- Сесии (Flask-Login) + улоги `admin/magacioner/citac`; празна users-табела = setup-режим (`/setup`).
-- REST v1: sha256 Bearer-токени (`/api-tokens`), 401 JSON (не редирект); `/api/` изземен од CSRF (Bearer, не cookie).
-- CSRF: session-токен, `hmac.compare_digest`, hidden `_csrf_token` или `X-CSRF-Token`.
-- Headers: CSP nonce-based, `X-Frame-Options: DENY`, `nosniff`, `MAX_CONTENT_LENGTH` 25MB, friendly 500 без истекување.
-- Rate-limit: sliding-window; `/login` 30/мин, `/pdf` 30/мин, `/api/v1/*` 120/мин → 429 + `Retry-After`; `memory` default, `file` за workers.
-- Прилози: `documents/incidents/<id>/`, `commonpath` traversal-заштита, png/jpg/pdf/log/txt.
-- Secrets: само env (`SECRET`, SMTP, LDAP, IMAP, OIDC, INTUNE, SNMP). Никогаш во логови и repo.
+## 4. Concurrency & Transactions
 
-## 7. Интеграции (сите недоверливи влезови)
+- `BEGIN IMMEDIATE` on SQLite for all multi-table mutations (device update + transaction record + history audit log) ensuring atomic commits or complete rollbacks.
+- Database connections enforce `journal_mode=WAL` and `busy_timeout=5000`.
+- Concurrent Heartbeat race handling: Secondary workers fail gracefully on integrity collisions and reconcile smoothly.
 
-| Интеграција | Насока | Правило |
-|---|---|---|
-| CSV discovery | влез | normalize + reconcile (new/match/conflict), preview, задолжените недопрени |
-| Heartbeat | влез | Bearer magacioner, hostname+serial задолжителни, full reconcile/confirm |
-| SNMP sweep | влез | read-only printer OIDs, clean-skip без lib/мрежа |
-| Intune Graph | влез | MSAL client-credentials, paginated fetch, ист reconcile/confirm како CSV |
-| LDAP/AD | влез | read-only, dry-run, без лозинки, без деактивација на локални корисници |
-| IMAP email-to-ticket | влез | read-only poll, рачен trigger, `[I-XXXXXX]` reply-детекција, Message-ID dedupe |
-| SMTP notify | излез | `send_email` никогаш не фрла; без SMTP тивко се прескокнува |
-| OIDC SSO | auth | JIT `citac`, link-по-email, улогата се чува, локална најава останува |
+---
 
-## 8. ADR-записи (одлуки што не се преиспитуваат тивко)
+## 5. Storage & Migrations
 
-- ADR-01: SQLite default, Postgres опција — offline LAN пред сè.
-- ADR-02: Монолит со blueprints, без микросервиси — еден deploy, еден backup.
-- ADR-03: Ниеден bulk-увоз без preview — грешка во увоз е полоша од бавен увоз.
-- ADR-04: LDAP read-only засекогаш — директориумот не е наш.
-- ADR-05: OIDC наместо SAML — ги покрива Entra ID/Google/Keycloak.
-- ADR-06: Bootstrap вендоран локално — офлајн LAN + строг CSP.
-
-## 9. Проверка (како се докажува)
-
-- `python3 -m pytest tests/` — 441 тест (438 passed, 3 skipped).
-- Auth-матрица: `tests/test_auth_matrix.py`. CSP: `tests/test_csp.py`. Конкуренција: integrity + heartbeat-flow + popis-concurrency.
-- Дизајн-гарда: `tests/test_ui.py` (без emoji, sprite-покриеност).
-
+- `StoreProtocol` with `open_store()` factory: Default SQLite (`SERVICEDESK_DB`), optional PostgreSQL via `SERVICEDESK_DB_URL`.
+- Seamless SQLite to PostgreSQL migration via `services/pg_mover.py` (dry-run, row verification, zero-loss transfer).
+- Consistent hot backups capturing write-ahead logs (WAL) cleanly.

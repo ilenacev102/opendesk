@@ -82,7 +82,7 @@
 <form method="post" action="/projects/{{ project.ProjectID }}/backlog/reorder" class="d-flex gap-1">
 <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="incident" value="{{ i.IncidentID }}">
-<input class="form-control form-control-sm" name="rank" style="width:5rem" value="{{ i.Rank or 0 }}" aria-label="Ранг">
+<input class="form-control form-control-sm sd-input-rank" name="rank" value="{{ i.Rank or 0 }}" aria-label="Ранг">
 <button class="btn btn-outline-secondary btn-sm" type="submit">Помести</button>
 </form>
 </td>

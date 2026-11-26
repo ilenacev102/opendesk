@@ -2,22 +2,8 @@
 
 from typing import Any
 
+from services.schemas import HISTORY_COLS as HISTORY_COLS
 from utils.helpers import next_id, next_id_in, stamp
-
-HISTORY_COLS = [
-    "HistoryID",
-    "DateTime",
-    "Action",
-    "AssetID",
-    "OldStatus",
-    "NewStatus",
-    "EmployeeID",
-    "EmployeeName",
-    "Reason",
-    "Notes",
-    "PerformedBy",
-    "DocumentPath",
-]
 
 
 class HistoryService:

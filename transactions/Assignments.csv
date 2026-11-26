@@ -1,4 +1,0 @@
-TransactionID,DateTime,AssetID,EmployeeID,Reason,Notes,PerformedBy,DocumentPath
-A000001,2026-09-17 07:34,LAP003,EMP002,Test,,admin,documents/assignments/Assignment_EMP002_LAP003_A000001.docx
-A000002,2026-09-17 07:39,LAP002,EMP001,Restore original state,,admin,documents/assignments/Assignment_EMP001_LAP002_A000002.docx
-A000003,2026-09-17 08:36,LAP009,EMP003,Test template,,admin,documents/assignments/Assignment_EMP003_LAP009_A000003.docx

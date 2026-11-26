@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Мои тикети – Портал{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <div>
+    <div class="text-muted small mb-1">
+      <a href="/portal" class="text-decoration-none">Портал</a>
+      <span class="mx-1">/</span>
+      <span>Мои тикети</span>
+    </div>
+    <h2 class="mb-0">Мои тикети</h2>
+  </div>
+  <a class="btn btn-outline-secondary btn-sm" href="/portal">
+    <svg class="ic me-1" aria-hidden="true"><use href="#i-monitor"/></svg>Кон порталот
+  </a>
+</div>
+
+<div class="d-flex flex-wrap gap-2 mb-3">
+  {% for key, label, count in [
+    ("", "Сите", counts.all),
+    ("open", "Отворени", counts.open),
+    ("in-progress", "Во тек", counts["in-progress"]),
+    ("resolved", "Решени", counts.resolved)
+  ] %}
+    <a class="btn btn-sm {% if status == key %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+       href="/portal/tickets{% if key %}?status={{ key }}{% endif %}">
+      {{ label }} <span class="badge bg-light text-dark ms-1">{{ count }}</span>
+    </a>
+  {% endfor %}
+</div>
+
+<div class="card sd-card border">
+  <div class="card-body p-0">
+    {% if rows %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Број</th>
+              <th class="w-50">Наслов</th>
+              <th>Статус</th>
+              <th class="d-none d-md-table-cell">Приоритет</th>
+              <th class="d-none d-md-table-cell">Пријавен</th>
+              <th class="d-none d-md-table-cell">Рок</th>
+              <th class="text-end">Акција</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for i in rows %}
+              <tr class="portal-ticket-row">
+                <td><b>{{ i.IncidentID }}</b></td>
+                <td class="text-break w-50">{{ i.Title }}</td>
+                <td>
+                  {% if i.Status == "open" %}
+                    <span class="badge badge-st st-Assigned">отворен</span>
+                  {% elif i.Status == "in-progress" %}
+                    <span class="badge badge-st st-Repair">во тек</span>
+                  {% else %}
+                    <span class="badge badge-st st-Repaired">решен</span>
+                  {% endif %}
+                </td>
+                <td class="small text-muted d-none d-md-table-cell">{{ i.Priority }}</td>
+                <td class="small text-muted d-none d-md-table-cell">{{ i.Created[:10] }}</td>
+                <td class="small text-muted d-none d-md-table-cell">{{ i.DueDate or "—" }}</td>
+                <td class="text-end">
+                  <a class="btn btn-outline-primary btn-sm" href="/portal/ticket/{{ i.IncidentID }}">Отвори</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="p-4 text-center text-muted">
+        <svg class="ic mb-2 icon-lg" aria-hidden="true"><use href="#i-check"/></svg>
+        <p class="mb-0">Нема тикети со овој статус.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if total_pages > 1 %}
+<nav class="mt-3" aria-label="Пагинација на тикети">
+  <ul class="pagination pagination-sm mb-0">
+    <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+      <a class="page-link" href="/portal/tickets?page={{ page - 1 }}{% if status %}&status={{ status }}{% endif %}">Претходна</a>
+    </li>
+    <li class="page-item disabled"><span class="page-link">{{ page }} / {{ total_pages }}</span></li>
+    <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+      <a class="page-link" href="/portal/tickets?page={{ page + 1 }}{% if status %}&status={{ status }}{% endif %}">Следна</a>
+    </li>
+  </ul>
+</nav>
+{% endif %}
+{% endblock %}

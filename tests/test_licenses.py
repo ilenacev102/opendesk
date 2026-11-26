@@ -11,11 +11,14 @@ def _lic_env(monkeypatch):
     import app as app_mod
     from services.db_service import DbStore
     from services.history_service import HISTORY_COLS, HistoryService
-    from services.schemas import DEV_COLS, EMP_COLS, LIC_COLS
+    from services.schemas import DEV_COLS, EMP_COLS, LIC_COLS, LIC_SEAT_COLS
 
     tmp = tempfile.mkdtemp()
     db = os.path.join(tmp, "l.db")
     monkeypatch.setattr(app_mod, "licenses", DbStore(db, "licenses", LIC_COLS))
+    monkeypatch.setattr(
+        app_mod, "license_seats", DbStore(db, "license_seats", LIC_SEAT_COLS)
+    )
     monkeypatch.setattr(app_mod, "devices", DbStore(db, "devices", DEV_COLS))
     monkeypatch.setattr(app_mod, "employees", DbStore(db, "employees", EMP_COLS))
     monkeypatch.setattr(

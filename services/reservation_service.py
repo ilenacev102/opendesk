@@ -39,7 +39,18 @@ def conflicts(existing, asset_id, frm, to):
     return None
 
 
-def create(store, asset_id, frm, to, employee_id="", notes=""):
+def create(
+    store,
+    asset_id,
+    frm,
+    to,
+    employee_id="",
+    notes="",
+    *,
+    history=None,
+    performed_by="admin",
+    con=None,
+):
     """Append an active reservation; ValidationError on inverted/conflicting range."""
     start, end = _d(frm), _d(to)
     if end < start:
@@ -50,9 +61,13 @@ def create(store, asset_id, frm, to, employee_id="", notes=""):
             f"Преклопување со {clash.get('ReservationID')} "
             f"({clash.get('FromDate')}–{clash.get('ToDate')})."
         )
-    from utils.helpers import next_id
+    from utils.helpers import next_id, next_id_in
 
-    rid = next_id(store, "ReservationID", "R")
+    rid = (
+        next_id_in(store, "ReservationID", "R", con)
+        if con is not None
+        else next_id(store, "ReservationID", "R")
+    )
     store.append_row(
         {
             "ReservationID": rid,
@@ -62,6 +77,21 @@ def create(store, asset_id, frm, to, employee_id="", notes=""):
             "ToDate": end.isoformat(),
             "Status": "active",
             "Notes": (notes or "").strip(),
-        }
+        },
+        con=con,
     )
+    if history is not None:
+        history.log(
+            "RES_CREATE",
+            rid,
+            "",
+            "active",
+            (employee_id or "").strip(),
+            "",
+            "",
+            (notes or "").strip(),
+            performed_by,
+            "",
+            con=con,
+        )
     return rid

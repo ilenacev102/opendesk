@@ -1,6 +1,9 @@
 # ServiceDesk ROADMAP — спринтови со излези
 
-> Статус: v1 (2026-09-28). Секој спринт завршува со демо + метрика. Без демо — не е завршен.
+> Статус: v1.1 (2026-11-20). Секој спринт завршува со демо + метрика. Без демо — не е завршен.
+> Активниот програм е `docs/superpowers/plans/2026-11-19-platform-program-5-months.md`;
+> P1 (транзакциски интегритет), P2 (безбедносна хигиена), P3 (портал-тикет) и
+> P4 (портал-идентитет и мобилност) се затворени.
 
 ## Definition of Done (важи за сè)
 
@@ -146,7 +149,10 @@
 5. Gunicorn multi-worker compose-профил + споделен rate-limit file.
 6. QR-налепници v2: bulk-print + `next_audit_date` (болка 6).
 7. LDAP закажан sync (сè уште со preview, никогаш daemon-запис).
-8. Observability: JSON-логови + корелациски ID + табла 5xx/429 по рута.
+8. ~~Observability: JSON-логови + корелациски ID + табла 5xx/429 по рута~~
+   — готово (2026-11-16): JSON access-лог, `request_id` корелација до
+   500-страницата, `/system/observability` (admin), `scripts/log_report.py`;
+   доказ `tests/test_observability.py` + `tests/test_observability_cli.py`.
 
 ## Ризици и одговори
 

@@ -100,13 +100,12 @@ class DevicePicker {
     chips.innerHTML = "";
     this.picked.forEach((d) => {
       const s = document.createElement("span");
-      s.className = "badge bg-primary me-2 mb-2 p-2";
-      s.style.fontSize = "0.9rem";
+      s.className = "badge bg-primary me-2 mb-2 p-2 fs-6";
       s.innerHTML =
         d.AssetID +
         " " +
         d.Model +
-        ' <a href="#" style="color:#fff;text-decoration:none;">✕</a>';
+        ' <a href="#" class="text-white text-decoration-none ms-1" aria-label="Отстрани">✕</a>';
       s.querySelector("a").addEventListener("click", (e) => {
         e.preventDefault();
         this.remove(d.AssetID);

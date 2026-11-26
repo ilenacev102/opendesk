@@ -1,15 +1,56 @@
 {% extends "base.html" %}
-{% block content %}
+{% block title %}Најава – IT ServiceDesk{% endblock %}
+{% block topbar %}{% endblock %}
+{% block footer %}{% endblock %}
+{% block page %}
+<main id="main" class="auth-shell">
+<section class="auth-aside" aria-label="За системот">
+<div>
+<a class="auth-brand" href="/">
+<svg class="ic brand-mark" aria-hidden="true"><use href="#i-nexus"/></svg>
+<span>IT ServiceDesk</span>
+</a>
+<h1>Евиденција на ИТ опрема, на едно место.</h1>
+<p>Задолжување, сервис, тикети и попис. Податоците остануваат на локалниот сервер.</p>
+<ul class="auth-points">
+<li><svg class="ic" aria-hidden="true"><use href="#i-user-plus"/></svg><span>Задолжување и враќање</span></li>
+<li><svg class="ic" aria-hidden="true"><use href="#i-wrench"/></svg><span>Тикети и сервис</span></li>
+<li><svg class="ic" aria-hidden="true"><use href="#i-clip"/></svg><span>Попис и историја</span></li>
+</ul>
+</div>
+<p class="auth-aside-foot">Локален систем</p>
+</section>
+<section class="auth-panel">
+<button id="themeToggle" class="nav-icon-btn auth-theme" type="button" title="Темна/светла тема" aria-label="Темна/светла тема">
+<svg class="ic icon-moon" aria-hidden="true"><use href="#i-moon"/></svg>
+<svg class="ic icon-sun d-none" aria-hidden="true"><use href="#i-sun"/></svg>
+</button>
+<div class="auth-card anim-in">
 <h2>Најава</h2>
-<form method="post"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-<div class="mb-3"><label>Корисничко име</label>
-<input class="form-control" name="username" required autocomplete="username"></div>
-<div class="mb-3"><label>Лозинка</label>
-<input class="form-control" type="password" name="password" required autocomplete="current-password"></div>
-<button class="btn btn-primary" type="submit">Најави се</button>
+<p class="auth-lead">Внесете ги податоците за пристап.</p>
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% for category, message in messages %}
+<div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">{{ message }}
+<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Затвори"></button></div>
+{% endfor %}
+{% endwith %}
+<form method="post" class="auth-form">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+<div class="mb-3">
+<label for="username">Корисничко име</label>
+<input class="form-control" id="username" name="username" required autocomplete="username" autofocus>
+</div>
+<div class="mb-3">
+<label for="password">Лозинка</label>
+<input class="form-control" id="password" type="password" name="password" required autocomplete="current-password">
+</div>
+<button class="btn btn-primary auth-submit" type="submit" data-pending="Се најавува...">Најави се</button>
 </form>
 {% if sso_enabled %}
-<hr>
-<a class="btn btn-outline-primary" href="/login/sso">Најави се со {{ sso_name }}</a>
+<div class="auth-or" role="separator">или</div>
+<a class="btn btn-outline-primary auth-sso" href="/login/sso">Најави се со {{ sso_name }}</a>
 {% endif %}
+</div>
+</section>
+</main>
 {% endblock %}

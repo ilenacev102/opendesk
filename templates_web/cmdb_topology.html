@@ -67,18 +67,18 @@
 <div class="row g-3">
   <!-- Visual Graph Canvas -->
   <div class="col-12 col-lg-8">
-    <div class="card sd-card border position-relative overflow-hidden" style="min-height: 560px;">
-      <canvas id="cmdbCanvas" data-root="{{ root_id }}" style="display: block; width: 100%; height: 560px;"></canvas>
+    <div class="card sd-card border position-relative overflow-hidden sd-topology-card">
+      <canvas id="cmdbCanvas" data-root="{{ root_id }}" class="sd-topology-canvas"></canvas>
     </div>
 
     <!-- Graph Legend -->
     <div class="d-flex flex-wrap gap-3 mt-2 px-2 small text-muted">
-      <span><span class="badge" style="background:#4f46e5;">&nbsp;</span> Сервер</span>
-      <span><span class="badge" style="background:#0d9488;">&nbsp;</span> Мрежа</span>
-      <span><span class="badge" style="background:#2563eb;">&nbsp;</span> Клиент</span>
-      <span><span class="badge" style="background:#16a34a;">&nbsp;</span> Корисник</span>
-      <span><span class="badge" style="background:#ea580c;">&nbsp;</span> Сервис</span>
-      <span><span class="badge" style="background:#475569;">&nbsp;</span> Ормар</span>
+      <span><span class="badge sd-badge-server">&nbsp;</span> Сервер</span>
+      <span><span class="badge sd-badge-network">&nbsp;</span> Мрежа</span>
+      <span><span class="badge sd-badge-client">&nbsp;</span> Клиент</span>
+      <span><span class="badge sd-badge-employee">&nbsp;</span> Корисник</span>
+      <span><span class="badge sd-badge-service">&nbsp;</span> Сервис</span>
+      <span><span class="badge sd-badge-rack">&nbsp;</span> Ормар</span>
       <span><span class="badge bg-danger">&nbsp;</span> Blast Radius (Влијание)</span>
     </div>
   </div>
@@ -90,7 +90,7 @@
       <h5 class="fw-bold mb-2">Избрана Конфигурациска Единица (CI)</h5>
 
       <div id="emptyCiCard" class="text-muted small py-3 text-center">
-        <svg class="ic mb-2" style="width:28px;height:28px;" aria-hidden="true"><use href="#i-network"/></svg>
+        <svg class="ic mb-2 icon-md" aria-hidden="true"><use href="#i-network"/></svg>
         <p class="mb-0">Кликнете на јазол во графот или изберете средство од пребарувањето погоре за приказ на детали и пресметка на Blast Radius.</p>
       </div>
 
@@ -129,21 +129,21 @@
       <!-- Impacted Devices -->
       <div class="mb-2">
         <label class="form-label small fw-bold mb-1">Засегната опрема и сервери:</label>
-        <ul class="list-group list-group-flush border rounded small" id="impactedDevicesList" style="max-height: 140px; overflow-y: auto;">
+        <ul class="list-group list-group-flush border rounded small sd-list-140" id="impactedDevicesList">
         </ul>
       </div>
 
       <!-- Impacted Employees -->
       <div class="mb-2">
         <label class="form-label small fw-bold mb-1">Засегнати корисници:</label>
-        <ul class="list-group list-group-flush border rounded small" id="impactedEmployeesList" style="max-height: 120px; overflow-y: auto;">
+        <ul class="list-group list-group-flush border rounded small sd-list-120" id="impactedEmployeesList">
         </ul>
       </div>
 
       <!-- Impacted Services -->
       <div class="mb-3">
         <label class="form-label small fw-bold mb-1">Засегнати софтверски сервиси:</label>
-        <ul class="list-group list-group-flush border rounded small" id="impactedServicesList" style="max-height: 100px; overflow-y: auto;">
+        <ul class="list-group list-group-flush border rounded small sd-list-100" id="impactedServicesList">
         </ul>
       </div>
 

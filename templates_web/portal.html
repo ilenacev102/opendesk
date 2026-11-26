@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="portal-header mb-4 p-4 rounded-3 sd-card border shadow-sm">
+<div class="portal-header mb-4 p-3 p-md-4 rounded-3 sd-card border shadow-sm">
   <div class="row align-items-center">
     <div class="col-md-8">
       <h2 class="display-6 fw-bold mb-1">
@@ -17,9 +17,56 @@
         <svg class="ic me-1" aria-hidden="true"><use href="#i-monitor"/></svg>
         {{ my_devices|length }} задолжени уреди
       </span>
+      <a class="btn btn-outline-primary btn-sm ms-2" href="/portal/tickets">
+        <svg class="ic me-1" aria-hidden="true"><use href="#i-clip"/></svg>Мои тикети
+      </a>
     </div>
   </div>
 </div>
+
+{% if needs_mapping %}
+<div class="alert alert-warning d-flex flex-wrap align-items-center gap-2" role="alert">
+  <svg class="ic" aria-hidden="true"><use href="#i-warn"/></svg>
+  <span class="flex-grow-1">Вашиот кориснички профил не е поврзан со вработен, затоа не гледате задолжена опрема и тикети. Побарајте од ИТ администраторот да го поврзе профилот.</span>
+  <a class="btn btn-sm btn-outline-dark" href="/employees">Кон вработени</a>
+</div>
+{% endif %}
+
+{% if notifications_rows %}
+<div class="card sd-card border mb-4 portal-notif-panel">
+  <div class="card-header bg-transparent fw-bold py-2 d-flex justify-content-between align-items-center">
+    <span><svg class="ic me-1" aria-hidden="true"><use href="#i-bell"/></svg>Известувања</span>
+    <span class="badge rounded-pill bg-danger">{{ notifications_rows|length }}</span>
+  </div>
+  <div class="card-body py-2">
+    <ul class="list-group list-group-flush">
+      {% for n in notifications_rows %}
+        <li class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <div class="flex-grow-1">
+            <div class="fw-semibold">{{ n.Text }}</div>
+            <div class="small text-muted">{{ n.Created }}</div>
+          </div>
+          <form method="post" action="/portal/notifications/read">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="notif_id" value="{{ n.NotifID }}">
+            <button class="btn btn-outline-secondary btn-sm" type="submit">Прочитај</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+    <form method="post" action="/portal/notifications/read" class="mt-2">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+      <button class="btn btn-link btn-sm px-0" type="submit">Прочитај сите</button>
+    </form>
+  </div>
+</div>
+{% else %}
+<div class="card sd-card border mb-4 portal-notif-panel">
+  <div class="card-body py-2 small text-muted">
+    <svg class="ic me-1" aria-hidden="true"><use href="#i-bell"/></svg>Нема нови известувања.
+  </div>
+</div>
+{% endif %}
 
 <h4 class="fw-bold mb-3">ИТ Услуги и Брзи Барања</h4>
 <div class="row g-3 mb-5">
@@ -27,7 +74,7 @@
     <div class="card sd-card h-100 border text-center p-3 hover-shadow">
       <div class="card-body">
         <div class="mb-3 text-primary">
-          <svg class="ic" style="width:36px;height:36px;" aria-hidden="true"><use href="#i-plus"/></svg>
+          <svg class="ic icon-xl" aria-hidden="true"><use href="#i-plus"/></svg>
         </div>
         <h5 class="card-title fw-bold">Барам нова опрема</h5>
         <p class="card-text text-muted small">Поднесете барање за лаптоп, монитор, периферија или софтвер.</p>
@@ -42,7 +89,7 @@
     <div class="card sd-card h-100 border text-center p-3 hover-shadow">
       <div class="card-body">
         <div class="mb-3 text-danger">
-          <svg class="ic" style="width:36px;height:36px;" aria-hidden="true"><use href="#i-wrench"/></svg>
+          <svg class="ic icon-xl" aria-hidden="true"><use href="#i-wrench"/></svg>
         </div>
         <h5 class="card-title fw-bold">Пријави дефект</h5>
         <p class="card-text text-muted small">Проблем со хардвер, дефект на опрема или хаварија.</p>
@@ -57,7 +104,7 @@
     <div class="card sd-card h-100 border text-center p-3 hover-shadow">
       <div class="card-body">
         <div class="mb-3 text-warning">
-          <svg class="ic" style="width:36px;height:36px;" aria-hidden="true"><use href="#i-bolt"/></svg>
+          <svg class="ic icon-xl" aria-hidden="true"><use href="#i-bolt"/></svg>
         </div>
         <h5 class="card-title fw-bold">Сметка и пристап</h5>
         <p class="card-text text-muted small">Ресетирање на лозинка, пристап до VPN, е-пошта или фолдери.</p>
@@ -72,7 +119,7 @@
     <div class="card sd-card h-100 border text-center p-3 hover-shadow">
       <div class="card-body">
         <div class="mb-3 text-info">
-          <svg class="ic" style="width:36px;height:36px;" aria-hidden="true"><use href="#i-file"/></svg>
+          <svg class="ic icon-xl" aria-hidden="true"><use href="#i-file"/></svg>
         </div>
         <h5 class="card-title fw-bold">База на знаење</h5>
         <p class="card-text text-muted small">Упатства, чести прашања и чекор-по-чекор решенија.</p>
@@ -121,7 +168,7 @@
           </div>
         {% else %}
           <div class="p-4 text-center text-muted">
-            <svg class="ic mb-2" style="width:32px;height:32px;" aria-hidden="true"><use href="#i-box"/></svg>
+            <svg class="ic mb-2 icon-lg" aria-hidden="true"><use href="#i-box"/></svg>
             <p class="mb-0">Немате задолжена опрема во моментов.</p>
           </div>
         {% endif %}
@@ -144,34 +191,52 @@
                   <th>Број</th>
                   <th>Опис / Наслов</th>
                   <th>Статус</th>
-                  <th>Датум</th>
+                  <th class="d-none d-sm-table-cell">Датум</th>
                 </tr>
               </thead>
               <tbody>
                 {% for i in my_incidents %}
                   <tr>
                     <td>
-                      <a href="/incidents/{{ i.IncidentID }}" class="fw-bold text-decoration-none">
+                      <a href="/portal/ticket/{{ i.IncidentID }}" class="fw-bold text-decoration-none">
                         {{ i.IncidentID }}
                       </a>
                     </td>
-                    <td>{{ i.Title }}</td>
+                    <td class="text-break">{{ i.Title }}</td>
                     <td>
                       {% if i.Status == 'resolved' %}
-                        <span class="badge badge-st st-Repaired">решен</span>
+                        <div class="ticket-stepper" title="Инцидентот е успешно решен">
+                          <span class="step-node done"><span class="step-dot"></span></span>
+                          <span class="step-line"></span>
+                          <span class="step-node done"><span class="step-dot"></span></span>
+                          <span class="step-line"></span>
+                          <span class="step-node done"><span class="step-dot"></span><span class="ms-1 fw-bold">решен</span></span>
+                        </div>
                       {% elif i.Status == 'in-progress' %}
-                        <span class="badge badge-st st-Assigned">во тек</span>
+                        <div class="ticket-stepper" title="Инцидентот е во обработка кај техничар">
+                          <span class="step-node done"><span class="step-dot"></span></span>
+                          <span class="step-line"></span>
+                          <span class="step-node active"><span class="step-dot"></span><span class="ms-1 fw-bold">во тек</span></span>
+                          <span class="step-line"></span>
+                          <span class="step-node"><span class="step-dot"></span></span>
+                        </div>
                       {% else %}
-                        <span class="badge badge-st st-Broken">отворен</span>
+                        <div class="ticket-stepper" title="Инцидентот е поднесен и чека ред">
+                          <span class="step-node active"><span class="step-dot"></span><span class="ms-1 fw-bold">отворен</span></span>
+                          <span class="step-line"></span>
+                          <span class="step-node"><span class="step-dot"></span></span>
+                          <span class="step-line"></span>
+                          <span class="step-node"><span class="step-dot"></span></span>
+                        </div>
                       {% endif %}
                     </td>
-                    <td class="text-muted small">{{ i.Created[:10] }}</td>
+                    <td class="text-muted small d-none d-sm-table-cell">{{ i.Created[:10] }}</td>
                   </tr>
                 {% endfor %}
                 {% for r in my_requests %}
                   <tr>
                     <td><span class="fw-bold text-muted">{{ r.RequestID }}</span></td>
-                    <td>{{ r.NeedText }}</td>
+                    <td class="text-break">{{ r.NeedText }}</td>
                     <td>
                       {% if r.Status == 'approved' %}
                         <span class="badge badge-st st-Repaired">одобрено</span>
@@ -189,7 +254,7 @@
           </div>
         {% else %}
           <div class="p-4 text-center text-muted">
-            <svg class="ic mb-2" style="width:32px;height:32px;" aria-hidden="true"><use href="#i-check"/></svg>
+            <svg class="ic mb-2 icon-lg" aria-hidden="true"><use href="#i-check"/></svg>
             <p class="mb-0">Немате отворени барања или инциденти.</p>
           </div>
         {% endif %}
@@ -230,7 +295,7 @@
 <div class="modal fade" id="incidentModal" tabindex="-1" aria-labelledby="incidentModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content sd-card shadow">
-      <form action="/portal/incident" method="post">
+      <form action="/portal/incident" method="post" enctype="multipart/form-data" id="portalIncidentForm">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
         <div class="modal-header border-bottom py-2">
           <h5 class="modal-title fs-6 fw-bold" id="incidentModalLabel">
@@ -275,7 +340,25 @@
 
           <div class="mb-3">
             <label class="form-label fw-bold">Детален опис на дефектот</label>
-            <textarea class="form-control" name="notes" rows="4" placeholder="Опишете ги чекорите што доведоа до проблемот, дали има порака за грешка..."></textarea>
+            <textarea class="form-control" name="notes" rows="3" placeholder="Опишете ги чекорите што доведоа до проблемот, дали има порака за грешка..."></textarea>
+          </div>
+
+          <!-- Zero-Friction Drag & Drop and Screenshot Paste -->
+          <div class="mb-2">
+            <label class="form-label fw-bold">Скриншот или прилог (или директно залепете со Ctrl+V)</label>
+            <div id="portalDropzone" class="portal-dropzone mb-2" role="button" tabindex="0" aria-label="Прикачи датотека">
+              <svg class="ic dz-icon mb-1" aria-hidden="true"><use href="#i-download"/></svg>
+              <div class="small fw-semibold">Повлечи датотека овде или <span class="text-primary text-decoration-underline">одбери фајл</span></div>
+              <div class="text-muted text-2xs">Поддржано: PNG, JPG, PDF, TXT, LOG • Или притиснете Ctrl+V било каде</div>
+              <input type="file" name="file" id="portalFileInput" class="d-none" accept=".png,.jpg,.jpeg,.pdf,.log,.txt">
+            </div>
+            <div id="portalPreviewContainer" class="d-none">
+              <div class="portal-preview-chip">
+                <svg class="ic text-success" aria-hidden="true"><use href="#i-check"/></svg>
+                <span id="portalPreviewName" class="fw-semibold"></span>
+                <button type="button" class="btn-close btn-close-sm ms-2" id="portalClearFile" aria-label="Отстрани датотека"></button>
+              </div>
+            </div>
           </div>
         </div>
         <div class="modal-footer border-top py-2">
@@ -285,6 +368,15 @@
       </form>
     </div>
   </div>
+</div>
+
+<div class="portal-sticky-cta d-sm-none">
+  <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#incidentModal">
+    <svg class="ic me-1" aria-hidden="true"><use href="#i-wrench"/></svg>Пријави дефект
+  </button>
+  <a class="btn btn-outline-primary btn-sm" href="/portal/tickets">
+    <svg class="ic me-1" aria-hidden="true"><use href="#i-clip"/></svg>Мои тикети
+  </a>
 </div>
 
 <script nonce="{{ csp_nonce }}">
@@ -311,6 +403,93 @@
         titleInput.value = "Барам ресетирање на лозинка / пристап";
       }
     });
+  });
+
+  // Zero-Friction Dropzone & File Handling
+  const dropzone = document.getElementById("portalDropzone");
+  const fileInput = document.getElementById("portalFileInput");
+  const previewContainer = document.getElementById("portalPreviewContainer");
+  const previewName = document.getElementById("portalPreviewName");
+  const clearFileBtn = document.getElementById("portalClearFile");
+  const modalEl = document.getElementById("incidentModal");
+
+  function setFile(file) {
+    if (!file || !previewName || !previewContainer) return;
+    previewName.textContent = file.name;
+    previewContainer.classList.remove("d-none");
+    if (dropzone) dropzone.classList.add("d-none");
+  }
+
+  function clearFile() {
+    if (fileInput) fileInput.value = "";
+    if (previewContainer) previewContainer.classList.add("d-none");
+    if (dropzone) dropzone.classList.remove("d-none");
+  }
+
+  if (dropzone && fileInput) {
+    dropzone.addEventListener("click", () => fileInput.click());
+    dropzone.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        fileInput.click();
+      }
+    });
+
+    dropzone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropzone.classList.add("dragover");
+    });
+
+    dropzone.addEventListener("dragleave", () => {
+      dropzone.classList.remove("dragover");
+    });
+
+    dropzone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropzone.classList.remove("dragover");
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        fileInput.files = e.dataTransfer.files;
+        setFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    fileInput.addEventListener("change", () => {
+      if (fileInput.files && fileInput.files.length > 0) {
+        setFile(fileInput.files[0]);
+      }
+    });
+  }
+
+  if (clearFileBtn) {
+    clearFileBtn.addEventListener("click", clearFile);
+  }
+
+  // Global Screenshot Clipboard Paste (Ctrl+V) anywhere on portal
+  window.addEventListener("paste", (e) => {
+    const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf("image") !== -1) {
+        const file = items[i].getAsFile();
+        if (file && fileInput) {
+          const dt = new DataTransfer();
+          const namedFile = new File([file], `screenshot_${Date.now()}.png`, { type: file.type });
+          dt.items.add(namedFile);
+          fileInput.files = dt.files;
+          setFile(namedFile);
+
+          if (modalEl && typeof bootstrap !== "undefined") {
+            const inst = bootstrap.Modal.getOrCreateInstance(modalEl);
+            inst.show();
+            setTimeout(() => {
+              const titleInp = document.getElementById("incidentTitleInput");
+              if (titleInp && !titleInp.value) titleInp.focus();
+            }, 300);
+          }
+          break;
+        }
+      }
+    }
   });
 
   // Real-time KB deflection as user types ticket title

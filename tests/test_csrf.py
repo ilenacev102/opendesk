@@ -64,12 +64,23 @@ def test_get_login_html_contains_csrf_field(csrf_app):
     assert 'value="' in html
 
 
-def test_api_v1_post_exempt_from_csrf(csrf_app):
+def test_api_v1_cookie_post_without_csrf_forbidden(csrf_app):
+    """Given cookie auth / When POST /api/v1/checkout without CSRF / Then 403."""
+    c = csrf_app.app.test_client()
+    r = c.post(
+        "/api/v1/checkout",
+        json={"asset_id": "X", "emp_id": "Y", "reason": "t", "notes": ""},
+    )
+    assert r.status_code == 403
+
+
+def test_api_v1_bearer_post_exempt_from_csrf(csrf_app):
     """Given Bearer API / When POST /api/v1/checkout without CSRF / Then not 403."""
     c = csrf_app.app.test_client()
     r = c.post(
         "/api/v1/checkout",
         json={"asset_id": "X", "emp_id": "Y", "reason": "t", "notes": ""},
+        headers={"Authorization": "Bearer test-token"},
     )
     assert r.status_code != 403
 

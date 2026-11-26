@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb">
+<li class="breadcrumb-item"><a href="/">Почетна</a></li>
+<li class="breadcrumb-item active" aria-current="page">Набљудување</li>
+</ol></nav>
+<h2>Набљудување</h2>
+<p class="text-muted small">Бројачите се по процес и се ресетираат при рестарт. p95 е проценка — горна граница на бакетот во кој паѓа 95-от перцентил. Лог: <code>logs/app.log</code> (и stdout).</p>
+<div class="d-flex gap-2 mb-3">
+<a class="btn btn-sm btn-outline-secondary" href="/system/observability"><svg class="ic" aria-hidden="true"><use href="#i-bolt"/></svg> Освежи</a>
+<span class="text-muted small align-self-center">Процес {{ snap.pid }} · работи {{ snap.uptime_sec }} s · од {{ snap.started_at }}</span>
+</div>
+<div class="row g-3 mb-3">
+<div class="col-6 col-md-4 col-xl-2"><div class="card sd-card"><div class="card-body"><div class="text-muted small">Барања</div><div class="fs-4">{{ snap.total }}</div></div></div></div>
+<div class="col-6 col-md-4 col-xl-2"><div class="card sd-card"><div class="card-body"><div class="text-muted small">5xx</div><div class="fs-4 {% if snap.errors %}text-danger{% endif %}">{{ snap.errors }}</div></div></div></div>
+<div class="col-6 col-md-4 col-xl-2"><div class="card sd-card"><div class="card-body"><div class="text-muted small">429</div><div class="fs-4">{% if snap.rate_limited %}{{ snap.rate_limited }}{% else %}0{% endif %}</div></div></div></div>
+<div class="col-6 col-md-4 col-xl-2"><div class="card sd-card"><div class="card-body"><div class="text-muted small">p95 (проценка)</div><div class="fs-4">{% if snap.p95_ms is none %}—{% else %}{{ snap.p95_ms }} ms{% endif %}</div></div></div></div>
+<div class="col-6 col-md-4 col-xl-2"><div class="card sd-card"><div class="card-body"><div class="text-muted small">2xx / 3xx</div><div class="fs-4">{{ snap.classes["2xx"] }} / {{ snap.classes["3xx"] }}</div></div></div></div>
+<div class="col-6 col-md-4 col-xl-2"><div class="card sd-card"><div class="card-body"><div class="text-muted small">4xx</div><div class="fs-4">{{ snap.classes["4xx"] }}</div></div></div></div>
+</div>
+{% if snap.total == 0 %}
+<div class="empty-state">Сè уште нема измерени барања во овој процес.</div>
+{% else %}
+<h4>По рута</h4>
+<div class="table-responsive">
+<table class="table table-striped sortable">
+<thead><tr><th data-sort>Метод</th><th data-sort>Рута</th><th data-sort>Барања</th><th data-sort>5xx</th><th data-sort>429</th><th data-sort>p95</th></tr></thead>
+<tbody>
+{% for r in snap.routes %}
+<tr><td>{{ r.method }}</td><td><code>{{ r.route }}</code></td><td>{{ r.count }}</td><td class="{% if r.errors %}text-danger{% endif %}">{{ r.errors }}</td><td>{{ r.rate_limited }}</td><td>{% if r.p95_ms is none %}—{% else %}{{ r.p95_ms }} ms{% endif %}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+<h4>Последни бавни или паднати барања</h4>
+{% if snap.problems %}
+<div class="table-responsive">
+<table class="table table-sm table-striped">
+<thead><tr><th>Време</th><th>Request ID</th><th>Метод</th><th>Рута</th><th>Статус</th><th>ms</th></tr></thead>
+<tbody>
+{% for p in snap.problems[:10] %}
+<tr><td>{{ p.ts }}</td><td><code>{{ p.request_id or "—" }}</code></td><td>{{ p.method }}</td><td>{{ p.route }}</td><td class="{% if p.status >= 500 %}text-danger{% endif %}">{{ p.status }}</td><td>{{ p.duration_ms }}</td></tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% else %}
+<div class="empty-state">Нема бавни (≥ 1 s) или 5xx барања.</div>
+{% endif %}
+{% endif %}
+{% endblock %}

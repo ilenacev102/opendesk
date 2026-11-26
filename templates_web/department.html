@@ -6,6 +6,7 @@
 <a class="btn btn-sm btn-outline-secondary me-2" href="/reports?export=devices">Export CSV</a>
 </p>
 <h4>Луѓе ({{ members|length }})</h4>
+<div class="table-responsive">
 <table class="table table-striped">
 <tr><th>ID</th><th>Име</th><th>Email</th><th>Локација</th><th></th></tr>
 {% for e in members %}
@@ -14,7 +15,9 @@
 <td><a class="btn btn-sm btn-outline-primary" href="/assign?emp={{ e.EmployeeID }}">+ Дај уред</a></td></tr>
 {% endfor %}
 </table>
+</div>
 <h4>Уреди кај одделот ({{ devices|length }})</h4>
+<div class="table-responsive">
 <table class="table table-striped">
 <tr><th>Asset</th><th>Модел</th><th>Сериски</th><th>Статус</th><th>Носител</th><th>Гаранција</th></tr>
 {% for d in devices %}
@@ -25,4 +28,5 @@
 <td><span class="badge badge-st w-{{ d.WLevel }}">{{ d.WText }}</span></td></tr>
 {% endfor %}
 </table>
+</div>
 {% endblock %}

@@ -70,6 +70,68 @@ def test_vote_validation():
     assert store.records() == []
 
 
+def test_vote_targets_one_row_instead_of_rewriting_the_table():
+    from services.kb_rating import vote
+
+    store = _store()
+    vote(store, "KB000001", "u1", 4)
+    vote(store, "KB000002", "u2", 2)
+
+    def boom(*args, **kwargs):
+        raise AssertionError("vote не смее да прави replace_all")
+
+    store.replace_all = boom
+    vote(store, "KB000001", "u1", 5)
+
+    rows = {(r["ArticleID"], r["UserName"]): int(r["Score"]) for r in store.records()}
+    assert rows == {("KB000001", "u1"): 5, ("KB000002", "u2"): 2}
+
+
+def test_vote_rolls_back_when_audit_fails():
+    from services.db_service import DbStore
+    from services.history_service import HISTORY_COLS, HistoryService
+    from services.kb_rating import vote
+    from services.schemas import KB_RATING_COLS
+
+    db = os.path.join(tempfile.mkdtemp(), "kbroll.db")
+    store = DbStore(db, "kb_ratings", KB_RATING_COLS)
+    history = HistoryService(DbStore(db, "history", HISTORY_COLS))
+    vote(store, "KB000001", "u1", 4)
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("boom")
+
+    history.log = boom
+    try:
+        vote(store, "KB000001", "u1", 1, history=history)
+    except RuntimeError:
+        pass
+    else:
+        raise AssertionError("падот на audit мора да се пренесе")
+
+    assert int(store.records()[0]["Score"]) == 4
+    assert history.store.records() == []
+
+
+def test_vote_writes_audit_row():
+    from services.db_service import DbStore
+    from services.history_service import HISTORY_COLS, HistoryService
+    from services.kb_rating import vote
+    from services.schemas import KB_RATING_COLS
+
+    db = os.path.join(tempfile.mkdtemp(), "kbaudit.db")
+    store = DbStore(db, "kb_ratings", KB_RATING_COLS)
+    history = HistoryService(DbStore(db, "history", HISTORY_COLS))
+
+    vote(store, "KB000001", "u1", 4, history=history, performed_by="ana")
+
+    rows = history.store.records()
+    assert [r["Action"] for r in rows] == ["KB_RATE"]
+    assert rows[0]["AssetID"] == "KB000001"
+    assert rows[0]["NewStatus"] == "4"
+    assert rows[0]["PerformedBy"] == "ana"
+
+
 def _env(monkeypatch):
     import app as app_mod
     from services.db_service import DbStore

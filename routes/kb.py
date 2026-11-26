@@ -130,14 +130,16 @@ def kb_rate(aid):
     from flask_login import current_user as _cu
 
     import config
-    from app import backup_all, kb_articles, kb_ratings
+    from app import backup_all, history, kb_articles, kb_ratings
     from services import kb_rating
 
     if kb_articles.find("ArticleID", aid) is None:
         abort(404)
     who = str(getattr(_cu, "id", "")) if _cu else ""
     try:
-        kb_rating.vote(kb_ratings, aid, who, request.form.get("score", ""))
+        kb_rating.vote(
+            kb_ratings, aid, who, request.form.get("score", ""), history=history
+        )
         if config.BACKUP_ON_WRITE:
             backup_all([kb_ratings])
         flash("Оцената е запишана.", "success")
