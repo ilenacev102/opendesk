@@ -1,20 +1,20 @@
 {% extends "base.html" %}
 {% block content %}
 <nav aria-label="breadcrumb"><ol class="breadcrumb">
-<li class="breadcrumb-item"><a href="/">Почетна</a></li>
-<li class="breadcrumb-item"><a href="/incidents">Инциденти</a></li>
+<li class="breadcrumb-item"><a href="/">{{ _('nav.dashboard', 'Почетна') }}</a></li>
+<li class="breadcrumb-item"><a href="/incidents">{{ _('nav.incidents', 'Инциденти') }}</a></li>
 <li class="breadcrumb-item active" aria-current="page">{{ inc.IncidentID }}</li>
 </ol></nav>
-<h2>Инцидент {{ inc.IncidentID }}</h2>
+<h2>{{ _('incidents.title', 'Инцидент') }} {{ inc.IncidentID }}</h2>
 
 {% if similar %}
 <div class="alert alert-warning" role="alert" id="dupAlert">
-<strong>Слични активни инциденти:</strong>
-Пронајдени се {{ similar | length }} слични активни инциденти
+<strong>{{ _('incidents.similar_active', 'Слични активни инциденти:') }}</strong>
+{{ _('incidents.similar_found', 'Пронајдени се') }} {{ similar | length }} {{ _('incidents.similar_count', 'слични активни инциденти') }}
 ({{ similar | map(attribute='IncidentID') | join(', ') }}).
 <ul class="mb-2 mt-1">
 {% for s in similar %}
-<li>{{ s.IncidentID }} — {{ s.Title }} <span class="text-muted small">(сличност {{ s.Score }})</span></li>
+<li>{{ s.IncidentID }} — {{ s.Title }} <span class="text-muted small">({{ _('incidents.score', 'сличност') }} {{ s.Score }})</span></li>
 {% endfor %}
 </ul>
 {% if current_user and current_user.role in ('admin', 'magacioner') %}
@@ -23,24 +23,24 @@
 <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="incident_id" value="{{ inc.IncidentID }}">
 <input type="hidden" name="target_id" value="{{ s.IncidentID }}">
-<button class="btn btn-sm btn-outline-warning" type="submit">Поврзи како дупликат со {{ s.IncidentID }}</button>
+<button class="btn btn-sm btn-outline-warning" type="submit">{{ _('incidents.link_duplicate_with', 'Поврзи како дупликат со') }} {{ s.IncidentID }}</button>
 </form>
 {% endfor %}
 {% endif %}
 </div>
 {% endif %}
 <dl class="row">
-<dt class="col-sm-3">Наслов</dt><dd class="col-sm-9">{{ inc.Title }}</dd>
-<dt class="col-sm-3">Уред</dt><dd class="col-sm-9">{{ inc.AssetID or "—" }}</dd>
-<dt class="col-sm-3">Вработен</dt><dd class="col-sm-9">{{ inc.EmployeeID or "—" }}</dd>
-<dt class="col-sm-3">Приоритет</dt><dd class="col-sm-9">{{ inc.Priority }}</dd>
-<dt class="col-sm-3">Статус</dt><dd class="col-sm-9">{% if inc.Status == "open" %}<span class="badge badge-st st-Assigned">open</span>{% elif inc.Status == "in-progress" %}<span class="badge badge-st st-Repair">in-progress</span>{% else %}<span class="badge badge-st st-Repaired">resolved</span>{% endif %}</dd>
-<dt class="col-sm-3">Одговорен</dt><dd class="col-sm-9">{{ inc.Assignee or "—" }}</dd>
-<dt class="col-sm-3">Рок</dt><dd class="col-sm-9">{{ inc.DueDate or "—" }}</dd>
-<dt class="col-sm-3">Прв одговор</dt><dd class="col-sm-9">{{ respond_at or "—" }}</dd>
-<dt class="col-sm-3">Реотворен</dt><dd class="col-sm-9">{{ reopened or 0 }} пати</dd>
-<dt class="col-sm-3">Оцена</dt><dd class="col-sm-9">{{ inc.Satisfaction or "—" }}</dd>
-<dt class="col-sm-3">Поени</dt><dd class="col-sm-9">{{ inc.StoryPoints or "—" }}</dd>
+<dt class="col-sm-3">{{ _('incidents.subject', 'Наслов') }}</dt><dd class="col-sm-9">{{ inc.Title }}</dd>
+<dt class="col-sm-3">{{ _('nav.devices', 'Уред') }}</dt><dd class="col-sm-9">{{ inc.AssetID or "—" }}</dd>
+<dt class="col-sm-3">{{ _('common.employee', 'Вработен') }}</dt><dd class="col-sm-9">{{ inc.EmployeeID or "—" }}</dd>
+<dt class="col-sm-3">{{ _('common.priority', 'Приоритет') }}</dt><dd class="col-sm-9">{{ _('priority.' + inc.Priority, inc.Priority) }}</dd>
+<dt class="col-sm-3">{{ _('common.status', 'Статус') }}</dt><dd class="col-sm-9">{% if inc.Status == "open" %}<span class="badge badge-st st-Assigned">{{ _('status.Open', 'open') }}</span>{% elif inc.Status == "in-progress" %}<span class="badge badge-st st-Repair">{{ _('status.In Progress', 'in-progress') }}</span>{% else %}<span class="badge badge-st st-Repaired">{{ _('status.Resolved', 'resolved') }}</span>{% endif %}</dd>
+<dt class="col-sm-3">{{ _('common.assignee', 'Одговорен') }}</dt><dd class="col-sm-9">{{ inc.Assignee or "—" }}</dd>
+<dt class="col-sm-3">{{ _('incidents.sla_deadline', 'Рок') }}</dt><dd class="col-sm-9">{{ inc.DueDate or "—" }}</dd>
+<dt class="col-sm-3">{{ _('incidents.first_response', 'Прв одговор') }}</dt><dd class="col-sm-9">{{ respond_at or "—" }}</dd>
+<dt class="col-sm-3">{{ _('incidents.reopened', 'Реотворен') }}</dt><dd class="col-sm-9">{{ reopened or 0 }} {{ _('incidents.times', 'пати') }}</dd>
+<dt class="col-sm-3">{{ _('incidents.rating', 'Оцена') }}</dt><dd class="col-sm-9">{{ inc.Satisfaction or "—" }}</dd>
+<dt class="col-sm-3">{{ _('incidents.story_points', 'Поени') }}</dt><dd class="col-sm-9">{{ inc.StoryPoints or "—" }}</dd>
 <dt class="col-sm-3">FixVersion</dt><dd class="col-sm-9">
 {% if can_act %}
 <form method="post" action="/incidents/{{ inc.IncidentID }}/fixversion" class="d-flex gap-1">
@@ -49,95 +49,95 @@
 <option value="">—</option>
 {% for v in versions %}<option value="{{ v.VersionID }}" {% if inc.FixVersion == v.VersionID %}selected{% endif %}>{{ v.Name }}</option>{% endfor %}
 </select>
-<button class="btn btn-sm btn-outline-primary" type="submit">Зачувај</button>
+<button class="btn btn-sm btn-outline-primary" type="submit">{{ _('common.save', 'Зачувај') }}</button>
 </form>
 {% else %}{{ fixversion_name or "—" }}{% endif %}
 </dd>
-<dt class="col-sm-3">Креиран</dt><dd class="col-sm-9">{{ inc.Created }}</dd>
-<dt class="col-sm-3">Затворен</dt><dd class="col-sm-9">{{ inc.ClosedAt or "—" }}</dd>
-<dt class="col-sm-3">Забелешка</dt><dd class="col-sm-9">{{ inc.Notes or "—" }}</dd>
+<dt class="col-sm-3">{{ _('common.created_at', 'Креиран') }}</dt><dd class="col-sm-9">{{ inc.Created }}</dd>
+<dt class="col-sm-3">{{ _('incidents.closed_at', 'Затворен') }}</dt><dd class="col-sm-9">{{ inc.ClosedAt or "—" }}</dd>
+<dt class="col-sm-3">{{ _('common.notes', 'Забелешка') }}</dt><dd class="col-sm-9">{{ inc.Notes or "—" }}</dd>
 </dl>
 {% if inc.Status == "open" %}
 <form method="post" action="/incidents/transition" class="d-inline"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="incident_id" value="{{ inc.IncidentID }}">
 <input type="hidden" name="to_status" value="in-progress">
-<button class="btn btn-sm btn-outline-primary" type="submit">Започни работа</button>
+<button class="btn btn-sm btn-outline-primary" type="submit">{{ _('incidents.start_work', 'Започни работа') }}</button>
 </form>
 {% elif inc.Status == "in-progress" %}
 <form method="post" action="/incidents/transition" class="d-inline"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="incident_id" value="{{ inc.IncidentID }}">
 <input type="hidden" name="to_status" value="resolved">
-<button class="btn btn-sm btn-outline-success" type="submit">Затвори</button>
+<button class="btn btn-sm btn-outline-success" type="submit">{{ _('incidents.close', 'Затвори') }}</button>
 </form>
 <form method="post" action="/incidents/escalate" class="d-inline"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="incident_id" value="{{ inc.IncidentID }}">
-<button class="btn btn-sm btn-outline-danger" type="submit">Ескалирај</button>
+<button class="btn btn-sm btn-outline-danger" type="submit">{{ _('incidents.escalate', 'Ескалирај') }}</button>
 </form>
 {% else %}
 <form method="post" action="/incidents/{{ inc.IncidentID }}/rate" class="d-inline-flex align-items-center gap-2 csat-form" data-incident-id="{{ inc.IncidentID }}">
 <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="score" id="csatScoreInput" value="{{ inc.Satisfaction or '' }}">
-<span class="small text-muted me-1">Оцена:</span>
-<div class="csat-rating-group" role="radiogroup" aria-label="Оцена на услуга">
+<span class="small text-muted me-1">{{ _('incidents.rating', 'Оцена:') }}</span>
+<div class="csat-rating-group" role="radiogroup" aria-label="CSAT Rating">
 {% for score_num in [1, 2, 3, 4, 5] %}
-<button type="button" class="csat-star-btn {% if inc.Satisfaction and inc.Satisfaction|int >= score_num %}is-active{% endif %}" data-score="{{ score_num }}" title="{{ score_num }} ѕвезди" aria-label="{{ score_num }} ѕвезди">
+<button type="button" class="csat-star-btn {% if inc.Satisfaction and inc.Satisfaction|int >= score_num %}is-active{% endif %}" data-score="{{ score_num }}" title="{{ score_num }} stars" aria-label="{{ score_num }} stars">
 <svg class="ic" aria-hidden="true"><use href="#i-star"/></svg>
 </button>
 {% endfor %}
 </div>
 <noscript>
-<button class="btn btn-sm btn-outline-primary" type="submit">Зачувај</button>
+<button class="btn btn-sm btn-outline-primary" type="submit">{{ _('common.save', 'Зачувај') }}</button>
 </noscript>
-<span class="csat-feedback text-success small ms-2 d-none">Оцената е зачувана!</span>
+<span class="csat-feedback text-success small ms-2 d-none">{{ _('incidents.rating_saved', 'Оцената е зачувана!') }}</span>
 </form>
 <form method="post" action="/incidents/transition" class="d-inline"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="incident_id" value="{{ inc.IncidentID }}">
 <input type="hidden" name="to_status" value="open">
-<button class="btn btn-sm btn-outline-warning" type="submit">Реотвори</button>
+<button class="btn btn-sm btn-outline-warning" type="submit">{{ _('incidents.reopen', 'Реотвори') }}</button>
 </form>
 {% endif %}
 <div class="mt-3 d-flex align-items-center gap-2 flex-wrap">
 {% if can_act %}
 {% if is_watching %}
 <form method="post" action="/incidents/{{ inc.IncidentID }}/unwatch" class="d-inline"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-<button class="btn btn-sm btn-outline-secondary" type="submit">Престани да следиш</button>
+<button class="btn btn-sm btn-outline-secondary" type="submit">{{ _('incidents.unwatch', 'Престани да следиш') }}</button>
 </form>
 {% else %}
 <form method="post" action="/incidents/{{ inc.IncidentID }}/watch" class="d-inline"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-<button class="btn btn-sm btn-outline-primary" type="submit">Следи го тикетот</button>
+<button class="btn btn-sm btn-outline-primary" type="submit">{{ _('incidents.watch', 'Следи го тикетот') }}</button>
 </form>
 {% endif %}
 {% endif %}
-<span class="text-muted small">Ве следат: {% if watchers %}{{ watchers | join(", ") }}{% else %}никој{% endif %}</span>
+<span class="text-muted small">{{ _('incidents.watchers_label', 'Ве следат:') }} {% if watchers %}{{ watchers | join(", ") }}{% else %}{{ _('common.none', 'никој') }}{% endif %}</span>
 </div>
-<h4 class="mt-4">Активност</h4>
+<h4 class="mt-4">{{ _('incidents.activity', 'Активност') }}</h4>
 {% if thread %}
 <ul class="list-group">{% for c in thread %}
 <li class="list-group-item"><b>{{ c.Author }}</b>
 <span class="text-muted small">{{ c.Created }}</span><br>{{ c.Body }}</li>
 {% endfor %}</ul>
 {% else %}
-<p class="text-muted">Нема коментари.</p>
+<p class="text-muted">{{ _('incidents.no_comments', 'Нема коментари.') }}</p>
 {% endif %}
 <form method="post" action="/incidents/comment" class="mt-2"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="incident_id" value="{{ inc.IncidentID }}">
 {% if macros %}
-<div class="mb-2"><label class="form-label small" for="macroPicker">Брз одговор (макро)</label>
+<div class="mb-2"><label class="form-label small" for="macroPicker">{{ _('incidents.macro_picker', 'Брз одговор (макро)') }}</label>
 <select class="form-select form-select-sm" id="macroPicker">
-<option value="">— Изберете шаблон —</option>
+<option value="">— {{ _('incidents.select_template', 'Изберете шаблон') }} —</option>
 {% for m in macros %}
 <option value="{{ loop.index0 }}" data-body="{{ m.BodyText }}">{{ m.Category }}{{ ' / ' if m.Category }}{{ m.Title }}</option>
 {% endfor %}
 </select></div>
 {% endif %}
-<div class="mb-2"><label for="cmtBody">Нов коментар</label>
+<div class="mb-2"><label for="cmtBody">{{ _('incidents.new_comment', 'Нов коментар') }}</label>
 <div class="position-relative">
 <textarea class="form-control" id="cmtBody" name="body" rows="2" maxlength="2000" required></textarea>
 <div id="mentionBox" class="list-group position-absolute d-none sd-mention-box"></div>
 </div>
-<div class="form-text">Користете @име за споменување на колега.</div>
+<div class="form-text">{{ _('incidents.mention_hint', 'Користете @име за споменување на колега.') }}</div>
 </div>
-<button class="btn btn-primary btn-sm" type="submit">Додај коментар</button>
+<button class="btn btn-primary btn-sm" type="submit">{{ _('incidents.add_comment', 'Додај коментар') }}</button>
 </form>
 {% if macros %}
 <script nonce="{{ csp_nonce }}">
@@ -155,27 +155,27 @@
 })();
 </script>
 {% endif %}
-<h4 class="mt-4">Работно време</h4>
+<h4 class="mt-4">{{ _('incidents.worklog_title', 'Работно време') }}</h4>
 {% if worklog_rows %}
 <ul class="list-group">{% for w in worklog_rows %}
 <li class="list-group-item"><b>{{ w.UserName }}</b>
-<span class="text-muted small">{{ w.WorkedDate }}</span> — {{ w.Minutes }} мин{% if w.Note %}<br><span class="text-muted">{{ w.Note }}</span>{% endif %}</li>
+<span class="text-muted small">{{ w.WorkedDate }}</span> — {{ w.Minutes }} {{ _('common.minutes', 'мин') }}{% if w.Note %}<br><span class="text-muted">{{ w.Note }}</span>{% endif %}</li>
 {% endfor %}</ul>
-<p class="mt-2 mb-0"><b>Вкупно: {{ worklog_total }} мин</b></p>
+<p class="mt-2 mb-0"><b>{{ _('common.total', 'Вкупно:') }} {{ worklog_total }} {{ _('common.minutes', 'мин') }}</b></p>
 {% else %}
-<p class="text-muted">Нема запишано време.</p>
+<p class="text-muted">{{ _('incidents.no_worklog', 'Нема запишано време.') }}</p>
 {% endif %}
 {% if can_act %}
 <form method="post" action="/incidents/{{ inc.IncidentID }}/log" class="mt-2"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <div class="row g-2 align-items-end">
-<div class="col-auto"><label for="wlMinutes">Минути</label>
+<div class="col-auto"><label for="wlMinutes">{{ _('common.minutes', 'Минути') }}</label>
 <input class="form-control sd-input-minutes" type="number" id="wlMinutes" name="minutes" min="1" max="1440" required></div>
-<div class="col-auto"><label for="wlDate">Датум</label>
+<div class="col-auto"><label for="wlDate">{{ _('common.date', 'Датум') }}</label>
 <input class="form-control" type="date" id="wlDate" name="worked_date" value="{{ today }}" max="{{ today }}" required></div>
-<div class="col"><label for="wlNote">Забелешка</label>
+<div class="col"><label for="wlNote">{{ _('common.notes', 'Забелешка') }}</label>
 <input class="form-control" id="wlNote" name="note" maxlength="200"></div>
 </div>
-<button class="btn btn-outline-primary btn-sm mt-2" type="submit">Запиши време</button>
+<button class="btn btn-outline-primary btn-sm mt-2" type="submit">{{ _('incidents.log_time', 'Запиши време') }}</button>
 </form>
 {% endif %}
 <script nonce="{{ csp_nonce }}">
@@ -214,53 +214,53 @@
   });
 })();
 </script>
-<h4 class="mt-4">Прилози</h4>
+<h4 class="mt-4">{{ _('incidents.attachments', 'Прилози') }}</h4>
 {% if attachments %}
 <ul class="list-group">{% for a in attachments %}
 <li class="list-group-item"><a href="/incidents/attach/{{ inc.IncidentID }}/{{ a }}">{{ a }}</a></li>
 {% endfor %}</ul>
 {% else %}
-<p class="text-muted">Нема прилози.</p>
+<p class="text-muted">{{ _('incidents.no_attachments', 'Нема прилози.') }}</p>
 {% endif %}
 <form method="post" action="/incidents/attach" enctype="multipart/form-data" class="mt-2"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="incident_id" value="{{ inc.IncidentID }}">
-<div class="mb-2"><label>Нов прилог (png, jpg, pdf, log, txt)</label>
+<div class="mb-2"><label>{{ _('incidents.new_attachment', 'Нов прилог (png, jpg, pdf, log, txt)') }}</label>
 <input class="form-control" type="file" name="file" required></div>
-<button class="btn btn-outline-primary btn-sm" type="submit">Прикачи</button>
+<button class="btn btn-outline-primary btn-sm" type="submit">{{ _('incidents.upload_file', 'Прикачи') }}</button>
 </form>
-<h4 class="mt-4">Поврзани написи</h4>
+<h4 class="mt-4">{{ _('incidents.linked_articles', 'Поврзани написи') }}</h4>
 {% if linked_articles %}
 <ul class="list-group">{% for a in linked_articles %}
 <li class="list-group-item"><b><a href="/kb/{{ a.ArticleID }}">{{ a.ArticleID }}</a></b> — {{ a.Title }}
 <form method="post" action="/incidents/resolve-kb" class="d-inline"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="incident_id" value="{{ inc.IncidentID }}">
 <input type="hidden" name="article_id" value="{{ a.ArticleID }}">
-<button class="btn btn-sm btn-outline-success" type="submit">Реши од напис</button>
+<button class="btn btn-sm btn-outline-success" type="submit">{{ _('incidents.resolve_from_kb', 'Реши од напис') }}</button>
 </form></li>
 {% endfor %}</ul>
 {% else %}
-<p class="text-muted">Нема поврзани написи.</p>
+<p class="text-muted">{{ _('incidents.no_linked_articles', 'Нема поврзани написи.') }}</p>
 {% endif %}
 <form method="post" action="/incidents/link-kb" class="mt-2"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="incident_id" value="{{ inc.IncidentID }}">
-<div class="mb-2"><label>Поврзи напис (ID)</label>
+<div class="mb-2"><label>{{ _('incidents.link_article_prompt', 'Поврзи напис (ID)') }}</label>
 <input class="form-control" name="article_id" placeholder="KB000001" required></div>
-<button class="btn btn-outline-primary btn-sm" type="submit">Поврзи</button>
+<button class="btn btn-outline-primary btn-sm" type="submit">{{ _('common.link', 'Поврзи') }}</button>
 </form>
-<h4 class="mt-4">Дупликат</h4>
+<h4 class="mt-4">{{ _('incidents.duplicate', 'Дупликат') }}</h4>
 {% if duplicate %}
-<div class="alert alert-warning">Овој инцидент е дупликат на
+<div class="alert alert-warning">{{ _('incidents.duplicate_notice', 'Овој инцидент е дупликат на') }}
 <b><a href="/incident/{{ duplicate.IncidentID }}">{{ duplicate.IncidentID }}</a></b> — {{ duplicate.Title }}.
 <form method="post" action="/incidents/unlink" class="d-inline"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="incident_id" value="{{ inc.IncidentID }}">
-<button class="btn btn-sm btn-outline-secondary" type="submit">Отстрани врска</button>
+<button class="btn btn-sm btn-outline-secondary" type="submit">{{ _('incidents.unlink', 'Отстрани врска') }}</button>
 </form></div>
 {% else %}
 <form method="post" action="/incidents/link" class="mt-2"><input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 <input type="hidden" name="incident_id" value="{{ inc.IncidentID }}">
-<div class="mb-2"><label>Означи како дупликат на (ID)</label>
+<div class="mb-2"><label>{{ _('incidents.mark_as_duplicate', 'Означи како дупликат на (ID)') }}</label>
 <input class="form-control" name="target_id" placeholder="I000002" required></div>
-<button class="btn btn-outline-primary btn-sm" type="submit">Поврзи дупликат</button>
+<button class="btn btn-outline-primary btn-sm" type="submit">{{ _('incidents.link_duplicate', 'Поврзи дупликат') }}</button>
 </form>
 {% endif %}
 {% endblock %}
