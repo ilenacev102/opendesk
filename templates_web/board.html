@@ -1,55 +1,55 @@
 {% extends "base.html" %}
 {% block content %}
 <nav aria-label="breadcrumb"><ol class="breadcrumb">
-<li class="breadcrumb-item"><a href="/">Почетна</a></li>
+<li class="breadcrumb-item"><a href="/">{{ _('nav.dashboard', 'Почетна') }}</a></li>
 {% if project %}
 <li class="breadcrumb-item"><a href="/projects/{{ project.ProjectID }}">{{ project.Name }}</a></li>
-<li class="breadcrumb-item active" aria-current="page">Канбан</li>
+<li class="breadcrumb-item active" aria-current="page">{{ _('board.title', 'Канбан') }}</li>
 {% else %}
-<li class="breadcrumb-item active" aria-current="page">Моја табла</li>
+<li class="breadcrumb-item active" aria-current="page">{{ _('nav.my_board', 'Моја табла') }}</li>
 {% endif %}
 </ol></nav>
-<h2>{% if project %}Канбан — {{ project.Name }}{% else %}Моја табла{% endif %}</h2>
+<h2>{% if project %}{{ _('board.title', 'Канбан') }} — {{ project.Name }}{% else %}{{ _('nav.my_board', 'Моја табла') }}{% endif %}</h2>
 <form class="row g-2 mb-3" method="get">
 {% if project %}
 <div class="col-md-3">
-<label class="form-label">Носител</label>
+<label class="form-label">{{ _('common.assignee', 'Носител') }}</label>
 <select class="form-control" name="assignee">
-<option value="">сите</option>
+<option value="">{{ _('common.all', 'сите') }}</option>
 {% for a in assignees %}<option value="{{ a }}" {% if filters.get('assignee') == a %}selected{% endif %}>{{ a }}</option>{% endfor %}
 </select>
 </div>
 <div class="col-md-3">
-<label class="form-label">Тип</label>
+<label class="form-label">{{ _('common.type', 'Тип') }}</label>
 <select class="form-control" name="itype">
-<option value="">сите</option>
+<option value="">{{ _('common.all', 'сите') }}</option>
 {% for t in types %}<option value="{{ t.TypeID }}" {% if filters.get('itype') == t.TypeID %}selected{% endif %}>{{ t.Name }}</option>{% endfor %}
 </select>
 </div>
 {% endif %}
 <div class="col-md-3">
-<label class="form-label">Приоритет</label>
+<label class="form-label">{{ _('common.priority', 'Приоритет') }}</label>
 <select class="form-control" name="priority">
-<option value="">сите</option>
-{% for p in ['urgent', 'high', 'medium', 'low'] %}<option value="{{ p }}" {% if filters.get('priority') == p %}selected{% endif %}>{{ p }}</option>{% endfor %}
+<option value="">{{ _('common.all', 'сите') }}</option>
+{% for p in ['urgent', 'high', 'medium', 'low'] %}<option value="{{ p }}" {% if filters.get('priority') == p %}selected{% endif %}>{{ _('priority.' + p|capitalize, p) }}</option>{% endfor %}
 </select>
 </div>
 {% if project %}
 <div class="col-md-2 d-flex align-items-end">
 <div class="form-check">
 <input class="form-check-input" type="checkbox" name="mine" value="1" id="mine" {% if mine %}checked{% endif %}>
-<label class="form-check-label" for="mine">Само мои</label>
+<label class="form-check-label" for="mine">{{ _('board.only_mine', 'Само мои') }}</label>
 </div>
 </div>
 <div class="col-md-2 d-flex align-items-end">
 <div class="form-check">
 <input class="form-check-input" type="checkbox" name="sprint" value="active" id="sprintactive" {% if request.args.get('sprint') == 'active' %}checked{% endif %}>
-<label class="form-check-label" for="sprintactive">Активен спринт</label>
+<label class="form-check-label" for="sprintactive">{{ _('board.active_sprint', 'Активен спринт') }}</label>
 </div>
 </div>
 {% endif %}
 <div class="col-md-1 d-flex align-items-end">
-<button class="btn btn-outline-secondary w-100" type="submit">Филтрирај</button>
+<button class="btn btn-outline-secondary w-100" type="submit">{{ _('common.filter', 'Филтрирај') }}</button>
 </div>
 </form>
 <div class="row g-2">
@@ -57,10 +57,10 @@
 <div class="col-md-4 kanban-column" data-status="{{ col.name }}">
 <div class="card sd-card mb-2">
 <div class="card-body py-2 d-flex justify-content-between align-items-center">
-<div><strong>{{ col.name }}</strong></div>
+<div><strong>{{ _('status.' + col.name, col.name) }}</strong></div>
 <div>
 <span class="badge badge-st st-Assigned">{{ col.count }}</span>
-{% if col.points %}<span class="text-muted small">{{ col.points }} поени</span>{% endif %}
+{% if col.points %}<span class="text-muted small">{{ col.points }} {{ _('incidents.points', 'поени') }}</span>{% endif %}
 </div>
 </div>
 </div>
@@ -73,20 +73,20 @@
 <div class="small">
 {% if i.Priority == "urgent" %}<span class="badge badge-st st-Broken">urgent</span>{% elif i.Priority == "high" %}<span class="badge badge-st st-Repair">high</span>{% elif i.Priority == "medium" %}<span class="badge badge-st st-Assigned">medium</span>{% elif i.Priority == "low" %}<span class="badge badge-st st-Repaired">low</span>{% endif %}
 {% if i.Assignee %}<span class="text-muted">{{ i.Assignee }}</span>{% endif %}
-{% if i.DueDate %}<span class="text-muted">рок {{ i.DueDate }}</span>{% endif %}
+{% if i.DueDate %}<span class="text-muted">{{ _('common.due', 'рок') }} {{ i.DueDate }}</span>{% endif %}
 {% if i.StoryPoints %}<span class="badge badge-st st-Assigned">{{ i.StoryPoints }}п</span>{% endif %}
 </div>
 </div>
 </a>
 {% else %}
-<div class="text-muted small mb-2 empty-notice">нема тикети</div>
+<div class="text-muted small mb-2 empty-notice">{{ _('board.no_tickets', 'нема тикети') }}</div>
 {% endfor %}
 </div>
 </div>
 {% endfor %}
 </div>
 {% if payload.total == 0 %}
-<div class="alert alert-secondary mt-2">нема тикети за приказ.</div>
+<div class="alert alert-secondary mt-2">{{ _('board.no_tickets_display', 'нема тикети за приказ.') }}</div>
 {% endif %}
 
 <script nonce="{{ csp_nonce }}">
@@ -152,13 +152,14 @@
           window.location.reload();
         } else {
           const out = await res.json().catch(() => ({}));
-          alert(out.error || "Грешка при промена на статус.");
+          alert(out.error || "Error changing status");
         }
       } catch (err) {
-        alert("Грешка при комуникација.");
+        alert("Network error");
       }
     });
   });
 })();
 </script>
 {% endblock %}
+
