@@ -1,50 +1,67 @@
-# Heartbeat агенти
+# OpenDesk Heartbeat Agents
 
-Лесни колектори што го пријавуваат уредот на ServiceDesk
-(`POST /api/v1/discovery/heartbeat`). Без тајни во скриптите —
-сè преку environment-променливи.
+Lightweight discovery and telemetry agents that report hardware inventory and system uptime to OpenDesk (`POST /api/v1/discovery/heartbeat`).
 
-## Конфигурација (двата система)
+- **Zero Secrets in Code:** Strictly authenticated via API Bearer token.
+- **Cross-Platform:** Native support for Linux, macOS, and Windows.
+- **Preview & Reconcile:** Reports match existing devices, detect changes, or stage new assets without overwriting assigned hardware.
 
-| Променлива | Опис | Пример |
-|---|---|---|
-| `SERVICEDESK_URL` | Базичен URL на серверот | `http://192.168.1.10:5000` |
-| `SERVICEDESK_TOKEN` | API Bearer токен (magacioner опсег, од `/api-tokens`) | — |
-| `SERVICEDESK_DRY_RUN=1` | Само испечати JSON, без POST (тестирање) | — |
+---
 
-## Linux (`heartbeat.sh`)
+## 🐧 Linux & 🍏 macOS (`heartbeat.sh`)
 
-Потребно: `bash`, `curl`. Сериски број: `/sys/class/dmi/id/product_serial`,
-па `dmidecode`, па `machine-id` fallback. Не бара root (освен за dmidecode).
+### Requirements
+- `bash`, `curl`
+
+### Running the Agent
+
+You can pass configuration via command-line flags or environment variables:
 
 ```bash
-export SERVICEDESK_URL=http://192.168.1.10:5000
-export SERVICEDESK_TOKEN=вашиот-токен
+# Option A: Command-line arguments
+./heartbeat.sh --url http://your-opendesk-host:5000 --token YOUR_BEARER_TOKEN
+
+# Option B: Environment variables (supports OPENDESK_TOKEN and SERVICEDESK_TOKEN)
+export OPENDESK_URL=http://your-opendesk-host:5000
+export OPENDESK_TOKEN=YOUR_BEARER_TOKEN
+export SERVICEDESK_TOKEN=YOUR_BEARER_TOKEN
 ./heartbeat.sh
 ```
 
-Cron (секој работен ден 09:00):
-
-```cron
-0 9 * * 1-5 SERVICEDESK_URL=http://192.168.1.10:5000 SERVICEDESK_TOKEN=вашиот-токен /opt/servicedesk/heartbeat.sh
+### Dry-Run Test
+To inspect collected JSON hardware payload without sending HTTP requests:
+```bash
+./heartbeat.sh --dry-run
 ```
 
-## Windows (`heartbeat.ps1`)
+### Automated Scheduling (Cron)
+Run every weekday at 09:00:
+```cron
+0 9 * * 1-5 OPENDESK_URL=http://your-opendesk-host:5000 OPENDESK_TOKEN=your-token /usr/local/bin/heartbeat.sh
+```
 
-Потребно: PowerShell 5.1+, WMI пристап (читање). Тест:
+---
 
+## 🪟 Windows (`heartbeat.ps1`)
+
+### Requirements
+- PowerShell 5.1+ (Windows 10/11, Windows Server 2016+)
+
+### Running the Agent
 ```powershell
-$env:SERVICEDESK_URL="http://192.168.1.10:5000"
-$env:SERVICEDESK_TOKEN="вашиот-токен"
-$env:SERVICEDESK_DRY_RUN="1"
+$env:OPENDESK_URL="http://your-opendesk-host:5000"
+$env:OPENDESK_TOKEN="YOUR_BEARER_TOKEN"
 .\heartbeat.ps1
 ```
 
-Task Scheduler: задача што го стартува скриптот при најава, со
-кориснички environment-променливи (никогаш тврдо-кодирани credentials).
+### Scheduled Task Deployment
+Deploy via Windows Task Scheduler to run on user logon or daily at startup.
 
-## Одговор на серверот
+---
 
-JSON со `verdict`: `new` (креиран уред), `match` (ажуриран LastSeen),
-`conflict` (задолжен или несовпаѓање — без автоматска измена).
-Exit-кодови: `0` успех, `1` лоша конфигурација, `2` мрежна/серверска грешка.
+## Server Response & Statuses
+
+The OpenDesk server processes heartbeats and returns a JSON response with a `verdict`:
+- `new`: Asset newly created in catalog as Available.
+- `match`: Matched existing hardware, refreshed `LastSeen` timestamp and OS version.
+- `conflict`: Hardware discrepancy detected (e.g. Serial match with different hostname); flagged for administrator review without destructive overwrite.
