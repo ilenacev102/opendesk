@@ -1,19 +1,19 @@
 {% extends "base.html" %}
 {% block content %}
 <nav aria-label="breadcrumb"><ol class="breadcrumb">
-  <li class="breadcrumb-item"><a href="/">Почетна</a></li>
-  <li class="breadcrumb-item"><a href="/devices">Уреди</a></li>
-  <li class="breadcrumb-item active" aria-current="page">CMDB Топологија & Blast Radius</li>
+  <li class="breadcrumb-item"><a href="/">{{ _('nav.dashboard', 'Почетна') }}</a></li>
+  <li class="breadcrumb-item"><a href="/devices">{{ _('nav.devices', 'Уреди') }}</a></li>
+  <li class="breadcrumb-item active" aria-current="page">{{ _('cmdb.title', 'CMDB Топологија & Blast Radius') }}</li>
 </ol></nav>
 
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
   <div>
-    <h2 class="mb-1"><svg class="ic me-2" aria-hidden="true"><use href="#i-network"/></svg>CMDB Топологија и Анализа на Влијание</h2>
-    <p class="text-muted mb-0">Интерактивен граф на системски зависности, пресметка на Blast Radius и поврзаност на опремата.</p>
+    <h2 class="mb-1"><svg class="ic me-2" aria-hidden="true"><use href="#i-network"/></svg>{{ _('cmdb.heading', 'CMDB Топологија и Анализа на Влијание') }}</h2>
+    <p class="text-muted mb-0">{{ _('cmdb.subtitle', 'Интерактивен граф на системски зависности, пресметка на Blast Radius и поврзаност на опремата.') }}</p>
   </div>
   <div class="d-flex gap-2">
     <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#newRelationModal">
-      <svg class="ic me-1" aria-hidden="true"><use href="#i-plus"/></svg>Нова Релација
+      <svg class="ic me-1" aria-hidden="true"><use href="#i-plus"/></svg>{{ _('cmdb.new_relation', 'Нова Релација') }}
     </button>
   </div>
 </div>
@@ -24,7 +24,7 @@
     <div class="col-12 col-md-4">
       <div class="input-group">
         <span class="input-group-text"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg></span>
-        <input class="form-control" id="searchCiInput" list="ciDataList" placeholder="Барај Asset, корисник, ормар..." value="{{ root_id }}">
+        <input class="form-control" id="searchCiInput" list="ciDataList" placeholder="{{ _('cmdb.search_placeholder', 'Барај Asset, корисник, ормар...') }}" value="{{ root_id }}">
         <datalist id="ciDataList">
           {% for d in devices %}
           <option value="{{ d.AssetID }}">{{ d.AssetID }} - {{ d.Manufacturer }} {{ d.Model }} ({{ d.Type }})</option>
@@ -33,31 +33,31 @@
           <option value="{{ e.EmployeeID }}">{{ e.EmployeeID }} - {{ e.FirstName }} {{ e.LastName }} ({{ e.Department }})</option>
           {% endfor %}
           {% for r in racks %}
-          <option value="{{ r.RackID }}">{{ r.RackID }} - Ормар {{ r.Name }}</option>
+          <option value="{{ r.RackID }}">{{ r.RackID }} - {{ _('cmdb.rack', 'Ормар') }} {{ r.Name }}</option>
           {% endfor %}
         </datalist>
       </div>
     </div>
     <div class="col-6 col-md-3">
       <select class="form-select" id="categoryFilter">
-        <option value="">Сите категории на CIs</option>
-        <option value="server">Сервери и Сториџ</option>
-        <option value="network">Мрежна опрема (Switches/Routers)</option>
-        <option value="endpoint">Кориснички уреди (Laptops/PCs)</option>
-        <option value="employee">Вработени</option>
-        <option value="rack">Рек ормари</option>
-        <option value="power">Напојување и UPS</option>
+        <option value="">{{ _('cmdb.all_categories', 'Сите категории на CIs') }}</option>
+        <option value="server">{{ _('cmdb.cat_servers', 'Сервери и Сториџ') }}</option>
+        <option value="network">{{ _('cmdb.cat_network', 'Мрежна опрема (Switches/Routers)') }}</option>
+        <option value="endpoint">{{ _('cmdb.cat_endpoints', 'Кориснички уреди (Laptops/PCs)') }}</option>
+        <option value="employee">{{ _('cmdb.cat_employees', 'Вработени') }}</option>
+        <option value="rack">{{ _('cmdb.cat_racks', 'Рек ормари') }}</option>
+        <option value="power">{{ _('cmdb.cat_power', 'Напојување и UPS') }}</option>
       </select>
     </div>
     <div class="col-6 col-md-5 d-flex justify-content-md-end gap-1">
-      <button class="btn btn-outline-secondary" type="button" id="btnZoomIn" title="Зумирај">
+      <button class="btn btn-outline-secondary" type="button" id="btnZoomIn" title="{{ _('cmdb.zoom_in', 'Зумирај') }}">
         <svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg>
       </button>
-      <button class="btn btn-outline-secondary" type="button" id="btnZoomOut" title="Одзумирај">
+      <button class="btn btn-outline-secondary" type="button" id="btnZoomOut" title="{{ _('cmdb.zoom_out', 'Одзумирај') }}">
         <svg class="ic" aria-hidden="true"><use href="#i-swap"/></svg>
       </button>
-      <button class="btn btn-outline-secondary" type="button" id="btnResetView" title="Ресетирај приказ">
-        <svg class="ic me-1" aria-hidden="true"><use href="#i-bolt"/></svg>Ресетирај
+      <button class="btn btn-outline-secondary" type="button" id="btnResetView" title="{{ _('cmdb.reset_view', 'Ресетирај приказ') }}">
+        <svg class="ic me-1" aria-hidden="true"><use href="#i-bolt"/></svg>{{ _('cmdb.reset', 'Ресетирај') }}
       </button>
     </div>
   </div>
@@ -73,13 +73,13 @@
 
     <!-- Graph Legend -->
     <div class="d-flex flex-wrap gap-3 mt-2 px-2 small text-muted">
-      <span><span class="badge sd-badge-server">&nbsp;</span> Сервер</span>
-      <span><span class="badge sd-badge-network">&nbsp;</span> Мрежа</span>
-      <span><span class="badge sd-badge-client">&nbsp;</span> Клиент</span>
-      <span><span class="badge sd-badge-employee">&nbsp;</span> Корисник</span>
-      <span><span class="badge sd-badge-service">&nbsp;</span> Сервис</span>
-      <span><span class="badge sd-badge-rack">&nbsp;</span> Ормар</span>
-      <span><span class="badge bg-danger">&nbsp;</span> Blast Radius (Влијание)</span>
+      <span><span class="badge sd-badge-server">&nbsp;</span> {{ _('cmdb.server', 'Сервер') }}</span>
+      <span><span class="badge sd-badge-network">&nbsp;</span> {{ _('cmdb.network', 'Мрежа') }}</span>
+      <span><span class="badge sd-badge-client">&nbsp;</span> {{ _('cmdb.client', 'Клиент') }}</span>
+      <span><span class="badge sd-badge-employee">&nbsp;</span> {{ _('common.employee', 'Корисник') }}</span>
+      <span><span class="badge sd-badge-service">&nbsp;</span> {{ _('cmdb.service', 'Сервис') }}</span>
+      <span><span class="badge sd-badge-rack">&nbsp;</span> {{ _('cmdb.rack', 'Ормар') }}</span>
+      <span><span class="badge bg-danger">&nbsp;</span> Blast Radius ({{ _('cmdb.impact', 'Влијание') }})</span>
     </div>
   </div>
 
@@ -87,11 +87,11 @@
   <div class="col-12 col-lg-4">
     <!-- Selected CI Card -->
     <div class="card sd-card border p-3 mb-3">
-      <h5 class="fw-bold mb-2">Избрана Конфигурациска Единица (CI)</h5>
+      <h5 class="fw-bold mb-2">{{ _('cmdb.selected_ci', 'Избрана Конфигурациска Единица (CI)') }}</h5>
 
       <div id="emptyCiCard" class="text-muted small py-3 text-center">
         <svg class="ic mb-2 icon-md" aria-hidden="true"><use href="#i-network"/></svg>
-        <p class="mb-0">Кликнете на јазол во графот или изберете средство од пребарувањето погоре за приказ на детали и пресметка на Blast Radius.</p>
+        <p class="mb-0">{{ _('cmdb.empty_prompt', 'Кликнете на јазол во графот или изберете средство од пребарувањето погоре за приказ на детали и пресметка на Blast Radius.') }}</p>
       </div>
 
       <div id="selectedCiCard" class="d-none">
@@ -99,21 +99,21 @@
         <div class="table-responsive">
           <table class="table table-sm table-borderless mb-2 small">
             <tbody>
-              <tr><td class="text-muted py-0">Идентификатор:</td><td class="fw-semibold py-0" id="ciId">—</td></tr>
-              <tr><td class="text-muted py-0">Тип:</td><td class="py-0" id="ciType">—</td></tr>
-              <tr><td class="text-muted py-0">Статус:</td><td class="py-0" id="ciStatus">—</td></tr>
-              <tr><td class="text-muted py-0">Локација / Оддел:</td><td class="py-0" id="ciLocation">—</td></tr>
+              <tr><td class="text-muted py-0">{{ _('cmdb.identifier', 'Идентификатор:') }}</td><td class="fw-semibold py-0" id="ciId">—</td></tr>
+              <tr><td class="text-muted py-0">{{ _('common.type', 'Тип:') }}</td><td class="py-0" id="ciType">—</td></tr>
+              <tr><td class="text-muted py-0">{{ _('common.status', 'Статус:') }}</td><td class="py-0" id="ciStatus">—</td></tr>
+              <tr><td class="text-muted py-0">{{ _('devices.location', 'Локација / Оддел:') }}</td><td class="py-0" id="ciLocation">—</td></tr>
             </tbody>
           </table>
         </div>
         <div class="d-flex gap-2 mb-3">
           <a class="btn btn-sm btn-outline-secondary" id="ciDetailLink" href="#" target="_blank">
-            <svg class="ic me-1" aria-hidden="true"><use href="#i-clip"/></svg>Детален профил
+            <svg class="ic me-1" aria-hidden="true"><use href="#i-clip"/></svg>{{ _('cmdb.dossier_link', 'Детален профил') }}
           </a>
         </div>
 
         <button class="btn btn-danger w-100 mb-2" type="button" id="btnCalcImpact">
-          <svg class="ic me-1" aria-hidden="true"><use href="#i-bolt"/></svg>Пресметај Blast Radius
+          <svg class="ic me-1" aria-hidden="true"><use href="#i-bolt"/></svg>{{ _('cmdb.calc_impact', 'Пресметај Blast Radius') }}
         </button>
       </div>
     </div>
@@ -121,35 +121,35 @@
     <!-- Blast Radius Results Panel -->
     <div class="card sd-card border border-danger p-3 d-none" id="blastRadiusResults">
       <div class="d-flex justify-content-between align-items-center mb-2">
-        <h5 class="fw-bold text-danger mb-0">Blast Radius Анализа</h5>
-        <span class="badge bg-danger" id="blastScoreBadge">Ризик: Критичен</span>
+        <h5 class="fw-bold text-danger mb-0">Blast Radius {{ _('cmdb.analysis', 'Анализа') }}</h5>
+        <span class="badge bg-danger" id="blastScoreBadge">{{ _('cmdb.risk_critical', 'Ризик: Критичен') }}</span>
       </div>
-      <p class="small text-muted mb-2" id="blastTotalCount">0 засегнати единици</p>
+      <p class="small text-muted mb-2" id="blastTotalCount">0 {{ _('cmdb.impacted_units', 'засегнати единици') }}</p>
 
       <!-- Impacted Devices -->
       <div class="mb-2">
-        <label class="form-label small fw-bold mb-1">Засегната опрема и сервери:</label>
+        <label class="form-label small fw-bold mb-1">{{ _('cmdb.impacted_hardware', 'Засегната опрема и сервери:') }}</label>
         <ul class="list-group list-group-flush border rounded small sd-list-140" id="impactedDevicesList">
         </ul>
       </div>
 
       <!-- Impacted Employees -->
       <div class="mb-2">
-        <label class="form-label small fw-bold mb-1">Засегнати корисници:</label>
+        <label class="form-label small fw-bold mb-1">{{ _('cmdb.impacted_employees', 'Засегнати корисници:') }}</label>
         <ul class="list-group list-group-flush border rounded small sd-list-120" id="impactedEmployeesList">
         </ul>
       </div>
 
       <!-- Impacted Services -->
       <div class="mb-3">
-        <label class="form-label small fw-bold mb-1">Засегнати софтверски сервиси:</label>
+        <label class="form-label small fw-bold mb-1">{{ _('cmdb.impacted_services', 'Засегнати софтверски сервиси:') }}</label>
         <ul class="list-group list-group-flush border rounded small sd-list-100" id="impactedServicesList">
         </ul>
       </div>
 
       <!-- Action: Open Change Request prefilled -->
       <a class="btn btn-primary w-100" id="btnCreateChange" href="/changes">
-        <svg class="ic me-1" aria-hidden="true"><use href="#i-swap"/></svg>Креирај Change барање (CHG)
+        <svg class="ic me-1" aria-hidden="true"><use href="#i-swap"/></svg>{{ _('cmdb.create_change_req', 'Креирај Change барање (CHG)') }}
       </a>
     </div>
   </div>
@@ -163,38 +163,38 @@
         <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
         <div class="modal-header">
           <h5 class="modal-title fw-bold" id="newRelationModalLabel">
-            <svg class="ic me-1" aria-hidden="true"><use href="#i-network"/></svg>Додај CMDB Релација
+            <svg class="ic me-1" aria-hidden="true"><use href="#i-network"/></svg>{{ _('cmdb.add_relation_title', 'Додај CMDB Релација') }}
           </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Затвори"></button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.cancel', 'Затвори') }}"></button>
         </div>
         <div class="modal-body">
           <div class="mb-3">
-            <label class="form-label small fw-bold">Изворно средство / CI (Source ID) *</label>
-            <input class="form-control" name="source_id" list="ciDataList" placeholder="пр. SW-CORE-01 или AST001" required>
+            <label class="form-label small fw-bold">{{ _('cmdb.source_ci', 'Изворно средство / CI (Source ID) *') }}</label>
+            <input class="form-control" name="source_id" list="ciDataList" placeholder="e.g. SW-CORE-01" required>
           </div>
           <div class="mb-3">
-            <label class="form-label small fw-bold">Тип на релација *</label>
+            <label class="form-label small fw-bold">{{ _('cmdb.relation_type', 'Тип на релација *') }}</label>
             <select class="form-select" name="relation">
-              <option value="connected_to" selected>connected_to (поврзан со мрежно)</option>
-              <option value="hosts">hosts (хостира систем / виртуелна машина)</option>
-              <option value="depends_on">depends_on (зависи од функционалност)</option>
-              <option value="powers">powers (напојува со електрична енергија)</option>
-              <option value="backup_for">backup_for (резервна копија за)</option>
-              <option value="uses">uses (користи системски ресурс)</option>
+              <option value="connected_to" selected>connected_to (network link / cable)</option>
+              <option value="hosts">hosts (virtual machine / service host)</option>
+              <option value="depends_on">depends_on (functional dependency)</option>
+              <option value="powers">powers (power feed / PDU / UPS)</option>
+              <option value="backup_for">backup_for (failover / backup system)</option>
+              <option value="uses">uses (resource consumer)</option>
             </select>
           </div>
           <div class="mb-3">
-            <label class="form-label small fw-bold">Целно средство / CI (Target ID) *</label>
-            <input class="form-control" name="target_id" list="ciDataList" placeholder="пр. SRV-DB-01 или AST002" required>
+            <label class="form-label small fw-bold">{{ _('cmdb.target_ci', 'Целно средство / CI (Target ID) *') }}</label>
+            <input class="form-control" name="target_id" list="ciDataList" placeholder="e.g. SRV-DB-01" required>
           </div>
           <div class="mb-3">
-            <label class="form-label small">Забелешка / Опис на врската</label>
-            <input class="form-control" name="notes" placeholder="пр. Порт GigabitEthernet 1/0/24 или 10Gbps оптички кабел">
+            <label class="form-label small">{{ _('common.notes', 'Забелешка / Опис на врската') }}</label>
+            <input class="form-control" name="notes" placeholder="e.g. Port GigabitEthernet 1/0/24">
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Откажи</button>
-          <button type="submit" class="btn btn-primary">Зачувај Релација</button>
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ _('common.cancel', 'Откажи') }}</button>
+          <button type="submit" class="btn btn-primary">{{ _('common.save', 'Зачувај Релација') }}</button>
         </div>
       </form>
     </div>
